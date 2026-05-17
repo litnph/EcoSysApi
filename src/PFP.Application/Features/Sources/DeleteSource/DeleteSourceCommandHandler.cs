@@ -1,0 +1,62 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common.Exceptions;
+using PFP.Application.Common.Interfaces;
+using PFP.Domain.Enums;
+
+namespace PFP.Application.Features.Sources.DeleteSource;
+
+/// <summary>Soft-deletes a finance source when no active <see cref="Domain.Entities.FinTransaction"/> rows reference it.</summary>
+public sealed class DeleteSourceCommandHandler : IRequestHandler<DeleteSourceCommand, DeleteSourceResponse>
+{
+    private readonly IApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUser;
+
+    /// <summary>Creates the handler.</summary>
+    public DeleteSourceCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    {
+        _db = db;
+        _currentUser = currentUser;
+    }
+
+    /// <summary>Soft-deletes the source when no transactions reference it.</summary>
+    /// <inheritdoc cref="IRequestHandler{DeleteSourceCommand, DeleteSourceResponse}.Handle" />
+    public async Task<DeleteSourceResponse> Handle(DeleteSourceCommand request, CancellationToken cancellationToken)
+    {
+        if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
+            throw new UnauthorizedAppException("Authentication is required.");
+
+        var entity = await _db.FinSources
+            .Include(s => s.Smodule)
+            .ThenInclude(m => m.Space)
+            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+            throw new NotFoundException("Finance source was not found.");
+
+        if (!await _currentUser
+                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
+                .ConfigureAwait(false))
+            throw new UnauthorizedAppException("You do not have permission to manage finance sources for this module.");
+
+        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
+            throw new UnauthorizedAppException("The current organisation does not own this finance source.");
+
+        var hasTransactions = await _db.FinTransactions
+            .AnyAsync(
+                t => t.SourceId == request.Id || t.DestSourceId == request.Id,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (hasTransactions)
+            throw new BusinessRuleException("Không thể xóa nguồn tài chính đang có giao dịch");
+
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        _db.FinSources.Remove(entity);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        return new DeleteSourceResponse(request.Id);
+    }
+}

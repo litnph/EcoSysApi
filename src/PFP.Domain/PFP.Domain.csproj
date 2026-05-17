@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Domain layer: Entities, Value Objects, Enums, Domain Exceptions, Interfaces. No external dependencies.</Description>
+  </PropertyGroup>
+
+</Project>

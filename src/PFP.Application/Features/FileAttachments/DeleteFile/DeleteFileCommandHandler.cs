@@ -1,0 +1,58 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common.Exceptions;
+using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.FileAttachments.Common;
+using PFP.Domain.Enums;
+
+namespace PFP.Application.Features.FileAttachments.DeleteFile;
+
+public sealed class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Unit>
+{
+    private readonly IApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IStorageService _storage;
+
+    public DeleteFileCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser, IStorageService storage)
+    {
+        _db = db;
+        _currentUser = currentUser;
+        _storage = storage;
+    }
+
+    public async Task<Unit> Handle(DeleteFileCommand request, CancellationToken cancellationToken)
+    {
+        var att = await _db.FileAttachments
+            .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (att is null)
+            throw new NotFoundException("File attachment was not found.");
+
+        await FileAttachmentEntityAccess.RequireAttachmentTargetAsync(
+                _db,
+                _currentUser,
+                att.EntityType,
+                att.EntityId,
+                SpaceRole.Editor,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var storedKey = att.FileKey;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _db.FileAttachments.Remove(att);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _storage.DeleteAsync(storedKey, cancellationToken).ConfigureAwait(false);
+            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return Unit.Value;
+        }
+        catch
+        {
+            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+    }
+}
