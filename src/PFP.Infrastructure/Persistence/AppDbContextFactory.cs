@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace PFP.Infrastructure.Persistence;
 
@@ -32,6 +33,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
+            .ReplaceService<IHistoryRepository, SnakeCaseNpgsqlHistoryRepository>()
             .Options;
 
         return new AppDbContext(options);

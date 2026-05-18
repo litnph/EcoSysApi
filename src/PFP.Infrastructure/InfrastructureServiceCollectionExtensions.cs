@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
@@ -59,6 +60,7 @@ public static class InfrastructureServiceCollectionExtensions
                 npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
                 npgsql.EnableRetryOnFailure(maxRetryCount: 3);
             });
+            options.ReplaceService<IHistoryRepository, SnakeCaseNpgsqlHistoryRepository>();
 
             // Finance seed runs before soft-delete so new rows get the same SavingChanges pass.
             options.AddInterceptors(

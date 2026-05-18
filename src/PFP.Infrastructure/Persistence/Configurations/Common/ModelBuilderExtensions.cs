@@ -20,6 +20,8 @@ internal static class ModelBuilderExtensions
         foreach (var entity in builder.Model.GetEntityTypes())
         {
             var tableName = entity.GetTableName();
+            if (tableName is "__EFMigrationsHistory")
+                continue;
             if (!string.IsNullOrEmpty(tableName))
             {
                 entity.SetTableName(SnakeCase.From(tableName));
