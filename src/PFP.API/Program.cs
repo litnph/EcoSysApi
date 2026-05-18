@@ -2,6 +2,7 @@ using System.Text;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,8 +17,11 @@ using PFP.Infrastructure;
 using PFP.Infrastructure.BackgroundJobs;
 using PFP.Infrastructure.Hangfire;
 using PFP.Infrastructure.Identity;
+using PFP.API.Configuration;
 using PFP.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
+builder.AddRenderDatabaseUrl();
+builder.AddFrontendCors();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -80,7 +84,9 @@ if (googleEnabled)
             options.ExpireTimeSpan = TimeSpan.FromMinutes(15);
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
         })
         .AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
         {
@@ -148,12 +154,11 @@ if (!app.Configuration.GetValue("Hangfire:DisableRecurringRegistration", false))
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<LocalizationMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
+app.UseProductionProxy();
+app.UseFrontendCors();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
@@ -171,6 +176,8 @@ app.MapControllers();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (app.Configuration.GetValue("Database:AutoMigrate", false))
+        await db.Database.MigrateAsync().ConfigureAwait(false);
     await DbInitializer.EnsureAsync(db).ConfigureAwait(false);
 }
 

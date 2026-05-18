@@ -112,44 +112,50 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         var refreshHash = refreshCreds.RefreshTokenSha256Hex;
         var refreshExpires = refreshCreds.ExpiresAtUtc;
 
-        await using (var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
-            tracked.LastLoginAt = now;
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
+                {
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-            var session = new UserSession
-            {
-                UserId = tracked.Id,
-                TokenHash = refreshHash,
-                ExpiresAt = refreshExpires,
-                LastUsedAt = now,
-                IpAddress = _client.IpAddress,
-                UserAgent = _client.UserAgent,
-            };
-            _db.UserSessions.Add(session);
+                    var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
+                    tracked.LastLoginAt = now;
 
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    var session = new UserSession
+                    {
+                        UserId = tracked.Id,
+                        TokenHash = refreshHash,
+                        ExpiresAt = refreshExpires,
+                        LastUsedAt = now,
+                        IpAddress = _client.IpAddress,
+                        UserAgent = _client.UserAgent,
+                    };
+                    _db.UserSessions.Add(session);
 
-            var (accessToken, accessExpires) =
-                _jwtTokenService.CreateAccessToken(tracked.Id, session.Id, personalOrgId);
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            await AppendLoginAttemptAsync(tracked.Id, email, isSuccess: true, null, cancellationToken)
-                .ConfigureAwait(false);
+                    var (accessToken, accessExpires) =
+                        _jwtTokenService.CreateAccessToken(tracked.Id, session.Id, personalOrgId);
 
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    await AppendLoginAttemptAsync(tracked.Id, email, isSuccess: true, null, cancellationToken)
+                        .ConfigureAwait(false);
 
-            return new LoginResponse(
-                tracked.Id,
-                personalOrgId,
-                session.Id,
-                tracked.Email,
-                tracked.FullName,
-                tracked.IsEmailVerified,
-                accessToken,
-                plainRefresh,
-                accessExpires,
-                refreshExpires);
-        }
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new LoginResponse(
+                        tracked.Id,
+                        personalOrgId,
+                        session.Id,
+                        tracked.Email,
+                        tracked.FullName,
+                        tracked.IsEmailVerified,
+                        accessToken,
+                        plainRefresh,
+                        accessExpires,
+                        refreshExpires);
+                })
+            .ConfigureAwait(false);
     }
 
     private async Task<bool> IsAccountLockedAsync(Guid userId, CancellationToken cancellationToken)

@@ -96,116 +96,122 @@ public sealed class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginComma
             return await IssueSessionForUserAsync(existingUser, cancellationToken).ConfigureAwait(false);
         }
 
-        await using (var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var user = new User
-            {
-                Email = email,
-                PasswordHash = null,
-                FullName = fullName,
-                IsEmailVerified = true,
-            };
-            _db.Users.Add(user);
-
-            _db.UserProfiles.Add(
-                new UserProfile
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
                 {
-                    UserId = user.Id,
-                    LanguageCode = "vi",
-                    Timezone = "Asia/Ho_Chi_Minh",
-                });
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-            _db.UserAuthProviders.Add(
-                new UserAuthProvider
-                {
-                    UserId = user.Id,
-                    Provider = AuthProvider.Google,
-                    ProviderUserId = googleSub,
-                    ProviderEmail = email,
-                    IsActive = true,
-                    LinkedAt = now,
-                    LastUsedAt = now,
-                });
+                    var user = new User
+                    {
+                        Email = email,
+                        PasswordHash = null,
+                        FullName = fullName,
+                        IsEmailVerified = true,
+                    };
+                    _db.Users.Add(user);
 
-            var orgName = $"{fullName}'s Personal";
-            var slug = await OrganizationSlugFactory.ReserveUniqueSlugAsync(_db, fullName, user.Id, cancellationToken)
-                .ConfigureAwait(false);
+                    _db.UserProfiles.Add(
+                        new UserProfile
+                        {
+                            UserId = user.Id,
+                            LanguageCode = "vi",
+                            Timezone = "Asia/Ho_Chi_Minh",
+                        });
 
-            var organization = new Organization
-            {
-                IsPersonal = true,
-                Slug = slug,
-                Name = orgName,
-                OwnerId = user.Id,
-                DefaultCurrency = "VND",
-            };
-            _db.Organizations.Add(organization);
+                    _db.UserAuthProviders.Add(
+                        new UserAuthProvider
+                        {
+                            UserId = user.Id,
+                            Provider = AuthProvider.Google,
+                            ProviderUserId = googleSub,
+                            ProviderEmail = email,
+                            IsActive = true,
+                            LinkedAt = now,
+                            LastUsedAt = now,
+                        });
 
-            _db.OrgMembers.Add(
-                new OrgMember
-                {
-                    OrgId = organization.Id,
-                    UserId = user.Id,
-                    Role = OrgRole.Owner,
-                    IsActive = true,
-                    JoinedAt = now,
-                });
+                    var orgName = $"{fullName}'s Personal";
+                    var slug = await OrganizationSlugFactory.ReserveUniqueSlugAsync(_db, fullName, user.Id, cancellationToken)
+                        .ConfigureAwait(false);
 
-            var rootSpace = new Space
-            {
-                OrgId = organization.Id,
-                ParentId = null,
-                Name = "Personal",
-                Type = SpaceType.Personal,
-                Path = $"/{organization.Id}",
-                Depth = 0,
-                SortOrder = 0,
-            };
-            _db.Spaces.Add(rootSpace);
+                    var organization = new Organization
+                    {
+                        IsPersonal = true,
+                        Slug = slug,
+                        Name = orgName,
+                        OwnerId = user.Id,
+                        DefaultCurrency = "VND",
+                    };
+                    _db.Organizations.Add(organization);
 
-            _db.SpaceMembers.Add(
-                new SpaceMember
-                {
-                    SpaceId = rootSpace.Id,
-                    UserId = user.Id,
-                    Role = SpaceRole.Manager,
-                    Inherited = false,
-                    JoinedAt = now,
-                });
+                    _db.OrgMembers.Add(
+                        new OrgMember
+                        {
+                            OrgId = organization.Id,
+                            UserId = user.Id,
+                            Role = OrgRole.Owner,
+                            IsActive = true,
+                            JoinedAt = now,
+                        });
 
-            var refresh = _jwtTokenService.CreateRefreshTokenCredentials();
-            var session = new UserSession
-            {
-                UserId = user.Id,
-                TokenHash = refresh.RefreshTokenSha256Hex,
-                ExpiresAt = refresh.ExpiresAtUtc,
-                LastUsedAt = now,
-                IpAddress = _client.IpAddress,
-                UserAgent = _client.UserAgent,
-            };
-            _db.UserSessions.Add(session);
+                    var rootSpace = new Space
+                    {
+                        OrgId = organization.Id,
+                        ParentId = null,
+                        Name = "Personal",
+                        Type = SpaceType.Personal,
+                        Path = $"/{organization.Id}",
+                        Depth = 0,
+                        SortOrder = 0,
+                    };
+                    _db.Spaces.Add(rootSpace);
 
-            user.LastLoginAt = now;
+                    _db.SpaceMembers.Add(
+                        new SpaceMember
+                        {
+                            SpaceId = rootSpace.Id,
+                            UserId = user.Id,
+                            Role = SpaceRole.Manager,
+                            Inherited = false,
+                            JoinedAt = now,
+                        });
 
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    var refresh = _jwtTokenService.CreateRefreshTokenCredentials();
+                    var session = new UserSession
+                    {
+                        UserId = user.Id,
+                        TokenHash = refresh.RefreshTokenSha256Hex,
+                        ExpiresAt = refresh.ExpiresAtUtc,
+                        LastUsedAt = now,
+                        IpAddress = _client.IpAddress,
+                        UserAgent = _client.UserAgent,
+                    };
+                    _db.UserSessions.Add(session);
 
-            var (accessToken, accessExpires) =
-                _jwtTokenService.CreateAccessToken(user.Id, session.Id, organization.Id);
+                    user.LastLoginAt = now;
 
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            return new LoginResponse(
-                user.Id,
-                organization.Id,
-                session.Id,
-                user.Email,
-                user.FullName,
-                user.IsEmailVerified,
-                accessToken,
-                refresh.PlainRefreshToken,
-                accessExpires,
-                refresh.ExpiresAtUtc);
-        }
+                    var (accessToken, accessExpires) =
+                        _jwtTokenService.CreateAccessToken(user.Id, session.Id, organization.Id);
+
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new LoginResponse(
+                        user.Id,
+                        organization.Id,
+                        session.Id,
+                        user.Email,
+                        user.FullName,
+                        user.IsEmailVerified,
+                        accessToken,
+                        refresh.PlainRefreshToken,
+                        accessExpires,
+                        refresh.ExpiresAtUtc);
+                })
+            .ConfigureAwait(false);
     }
 
     private async Task<LoginResponse> IssueSessionForUserAsync(User user, CancellationToken cancellationToken)
@@ -223,40 +229,46 @@ public sealed class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginComma
 
         var refresh = _jwtTokenService.CreateRefreshTokenCredentials();
 
-        await using (var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
-            tracked.LastLoginAt = now;
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
+                {
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-            var session = new UserSession
-            {
-                UserId = tracked.Id,
-                TokenHash = refresh.RefreshTokenSha256Hex,
-                ExpiresAt = refresh.ExpiresAtUtc,
-                LastUsedAt = now,
-                IpAddress = _client.IpAddress,
-                UserAgent = _client.UserAgent,
-            };
-            _db.UserSessions.Add(session);
+                    var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
+                    tracked.LastLoginAt = now;
 
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    var session = new UserSession
+                    {
+                        UserId = tracked.Id,
+                        TokenHash = refresh.RefreshTokenSha256Hex,
+                        ExpiresAt = refresh.ExpiresAtUtc,
+                        LastUsedAt = now,
+                        IpAddress = _client.IpAddress,
+                        UserAgent = _client.UserAgent,
+                    };
+                    _db.UserSessions.Add(session);
 
-            var (accessToken, accessExpires) =
-                _jwtTokenService.CreateAccessToken(tracked.Id, session.Id, personalOrgId);
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    var (accessToken, accessExpires) =
+                        _jwtTokenService.CreateAccessToken(tracked.Id, session.Id, personalOrgId);
 
-            return new LoginResponse(
-                tracked.Id,
-                personalOrgId,
-                session.Id,
-                tracked.Email,
-                tracked.FullName,
-                tracked.IsEmailVerified,
-                accessToken,
-                refresh.PlainRefreshToken,
-                accessExpires,
-                refresh.ExpiresAtUtc);
-        }
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new LoginResponse(
+                        tracked.Id,
+                        personalOrgId,
+                        session.Id,
+                        tracked.Email,
+                        tracked.FullName,
+                        tracked.IsEmailVerified,
+                        accessToken,
+                        refresh.PlainRefreshToken,
+                        accessExpires,
+                        refresh.ExpiresAtUtc);
+                })
+            .ConfigureAwait(false);
     }
 }

@@ -16,9 +16,11 @@ public sealed class HttpClientRequestContext : IClientRequestContext
 
     /// <inheritdoc/>
     public string? IpAddress =>
-        _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        HttpRequestMetadataTruncation.TruncateIpAddress(
+            _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString());
 
     /// <inheritdoc/>
     public string? UserAgent =>
-        _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString();
+        HttpRequestMetadataTruncation.TruncateUserAgent(
+            _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString());
 }

@@ -24,27 +24,34 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
     {
         var hash = _tokenHasher.Sha256Hex(request.Token);
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
+                {
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        var row = await _db.UserEmailVerifications
-            .FirstOrDefaultAsync(
-                v => v.TokenHash == hash
-                     && v.Type == EmailVerificationType.VerifyEmail
-                     && v.VerifiedAt == null
-                     && v.ExpiresAt > DateTime.UtcNow,
-                cancellationToken)
+                    var row = await _db.UserEmailVerifications
+                        .FirstOrDefaultAsync(
+                            v => v.TokenHash == hash
+                                 && v.Type == EmailVerificationType.VerifyEmail
+                                 && v.VerifiedAt == null
+                                 && v.ExpiresAt > DateTime.UtcNow,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (row is null)
+                        throw new NotFoundException("The email verification link is invalid or has expired.");
+
+                    var user = await _db.Users.FirstAsync(u => u.Id == row.UserId, cancellationToken).ConfigureAwait(false);
+                    user.IsEmailVerified = true;
+                    row.VerifiedAt = DateTime.UtcNow;
+
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new VerifyEmailResponse(true, user.Email);
+                })
             .ConfigureAwait(false);
-
-        if (row is null)
-            throw new NotFoundException("The email verification link is invalid or has expired.");
-
-        var user = await _db.Users.FirstAsync(u => u.Id == row.UserId, cancellationToken).ConfigureAwait(false);
-        user.IsEmailVerified = true;
-        row.VerifiedAt = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new VerifyEmailResponse(true, user.Email);
     }
 }

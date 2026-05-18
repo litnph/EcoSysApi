@@ -1,0 +1,13 @@
+**/.git
+**/.vs
+**/.idea
+**/bin
+**/obj
+**/logs
+**/*.user
+**/*.suo
+**/TestResults
+tests/
+.tye/
+*.md
+!src/**

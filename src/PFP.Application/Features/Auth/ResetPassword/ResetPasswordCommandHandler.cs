@@ -31,35 +31,42 @@ public sealed class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordC
     {
         var hash = _tokenHasher.Sha256Hex(request.Token);
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
+                {
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        var reset = await _db.UserPasswordResets
-            .FirstOrDefaultAsync(
-                r => r.TokenHash == hash && r.UsedAt == null && r.ExpiresAt > DateTime.UtcNow,
-                cancellationToken)
+                    var reset = await _db.UserPasswordResets
+                        .FirstOrDefaultAsync(
+                            r => r.TokenHash == hash && r.UsedAt == null && r.ExpiresAt > DateTime.UtcNow,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (reset is null)
+                        throw new NotFoundException("The password reset link is invalid or has expired.");
+
+                    var user = await _db.Users.FirstAsync(u => u.Id == reset.UserId, cancellationToken).ConfigureAwait(false);
+                    user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
+
+                    var now = DateTime.UtcNow;
+                    reset.UsedAt = now;
+                    reset.UsedIpAddress = _client.IpAddress;
+
+                    var sessions = await _db.UserSessions
+                        .Where(s => s.UserId == user.Id && s.RevokedAt == null)
+                        .ToListAsync(cancellationToken)
+                        .ConfigureAwait(false);
+
+                    foreach (var session in sessions)
+                        session.RevokedAt = now;
+
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new ResetPasswordResponse(true);
+                })
             .ConfigureAwait(false);
-
-        if (reset is null)
-            throw new NotFoundException("The password reset link is invalid or has expired.");
-
-        var user = await _db.Users.FirstAsync(u => u.Id == reset.UserId, cancellationToken).ConfigureAwait(false);
-        user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
-
-        var now = DateTime.UtcNow;
-        reset.UsedAt = now;
-        reset.UsedIpAddress = _client.IpAddress;
-
-        var sessions = await _db.UserSessions
-            .Where(s => s.UserId == user.Id && s.RevokedAt == null)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        foreach (var session in sessions)
-            session.RevokedAt = now;
-
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new ResetPasswordResponse(true);
     }
 }
