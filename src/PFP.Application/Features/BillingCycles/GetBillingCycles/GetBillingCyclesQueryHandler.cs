@@ -54,26 +54,12 @@ public sealed class GetBillingCyclesQueryHandler : IRequestHandler<GetBillingCyc
         if (request.Status is { } st)
             q = q.Where(bc => bc.Status == st);
 
-        var rows = await q
+        var cycles = await q
             .OrderByDescending(bc => bc.PeriodStart)
-            .Select(bc => new FinBillingCycleDto(
-                bc.Id,
-                bc.SmoduleId,
-                bc.SourceId,
-                bc.Source.Name,
-                bc.PeriodStart,
-                bc.PeriodEnd,
-                bc.StatementDate,
-                bc.PaymentDueDate,
-                bc.TotalAmount,
-                bc.PaidAmount,
-                bc.Status,
-                bc.ClosedAt,
-                bc.PaidAt,
-                bc.CreatedAt,
-                bc.UpdatedAt))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var rows = cycles.Select(bc => FinBillingCycleDtoMapper.ToDto(bc, bc.Source.Name)).ToList();
 
         return new GetBillingCyclesResponse(rows);
     }

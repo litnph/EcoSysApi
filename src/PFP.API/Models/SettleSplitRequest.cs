@@ -7,5 +7,5 @@ public sealed class SettleSplitRequest
     public Guid PaymentSourceId { get; set; }
 
     /// <summary>Optional override; defaults to the full split amount for this participant.</summary>
-    public decimal? Amount { get; set; }
+    public long? Amount { get; set; }
 }

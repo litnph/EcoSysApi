@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -78,12 +79,12 @@ public sealed class GetMonthlyPeriodsListQueryHandler : IRequestHandler<GetMonth
                     row.Year,
                     row.Month,
                     row.Status,
-                    row.TotalIncome,
-                    row.TotalExpense,
-                    row.Net);
+                    CurrencyUnits.ToWhole(row.TotalIncome),
+                    CurrencyUnits.ToWhole(row.TotalExpense),
+                    CurrencyUnits.ToWhole(row.Net));
             }
 
-            return new MonthlyPeriodListItemDto(key.Y, key.M, PeriodStatus.Open, 0m, 0m, 0m);
+            return new MonthlyPeriodListItemDto(key.Y, key.M, PeriodStatus.Open, 0, 0, 0);
         }).ToList();
 
         return new GetMonthlyPeriodsListResponse(list);

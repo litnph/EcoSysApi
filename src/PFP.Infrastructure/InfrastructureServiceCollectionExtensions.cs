@@ -79,6 +79,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
         services.AddScoped<ITranslationService, TranslationService>();
         services.AddScoped<IFeatureFlagService, FeatureFlagService>();
+        services.AddScoped<IBalanceCalculator, BalanceCalculator>();
         services.AddSingleton<ITokenHasher, Sha256TokenHasher>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
@@ -99,6 +100,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ExecuteAutomationRulesJob>();
         services.AddScoped<ProcessDataExportsJob>();
         services.AddScoped<ExecuteDeletionRequestsJob>();
+        services.AddScoped<CleanupExpiredSessionsJob>();
+        services.AddScoped<AuditLogRetentionJob>();
 
         return services;
     }

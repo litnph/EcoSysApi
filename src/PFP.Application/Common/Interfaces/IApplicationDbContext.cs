@@ -131,6 +131,15 @@ public interface IApplicationDbContext
     /// <summary>Login attempts (<c>USER_LOGIN_ATTEMPTS</c>).</summary>
     DbSet<UserLoginAttempt> UserLoginAttempts { get; }
 
+    /// <summary>Avatar upload history (<c>USER_AVATAR_UPLOADS</c>).</summary>
+    DbSet<UserAvatarUpload> UserAvatarUploads { get; }
+
+    /// <summary>Granular notification preferences (<c>USER_NOTIFICATION_PREFS</c>).</summary>
+    DbSet<UserNotificationPref> UserNotificationPrefs { get; }
+
+    /// <summary>Per-entity audit retention policies (<c>AUDIT_LOG_RETENTIONS</c>).</summary>
+    DbSet<AuditLogRetention> AuditLogRetentions { get; }
+
     /// <summary>Supported locales (<c>LOCALES</c>).</summary>
     DbSet<Locale> Locales { get; }
 

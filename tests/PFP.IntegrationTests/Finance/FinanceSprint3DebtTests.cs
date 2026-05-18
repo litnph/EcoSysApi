@@ -8,6 +8,7 @@ using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Support;
 using Xunit;
 
@@ -37,7 +38,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
         var h = await RegisterUserSeedWalletAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        const decimal amt = 1_000m;
+        const long amt = 1_000;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
         var r = await client.PostAsJsonAsync(
             "api/v1/finance/transactions",
@@ -77,7 +78,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
         var h = await RegisterUserSeedWalletAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        await PostDebtBorrowAsync(client, h, 1_000m, "Lender P");
+        await PostDebtBorrowAsync(client, h, 1_000, "Lender P");
         var debtId = await ReadSingleDebtRecordIdAsync(_fixture, h.SmoduleId);
 
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -86,7 +87,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
             new CreateTransactionWire(
                 h.SmoduleId,
                 "debtRepay",
-                400m,
+                400,
                 h.WalletId,
                 null,
                 txnDate,
@@ -116,7 +117,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
         var h = await RegisterUserSeedWalletAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        await PostDebtBorrowAsync(client, h, 500m, "Lender F");
+        await PostDebtBorrowAsync(client, h, 500, "Lender F");
         var debtId = await ReadSingleDebtRecordIdAsync(_fixture, h.SmoduleId);
 
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -125,7 +126,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
             new CreateTransactionWire(
                 h.SmoduleId,
                 "debtRepay",
-                500m,
+                500,
                 h.WalletId,
                 null,
                 txnDate,
@@ -155,7 +156,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
         var h = await RegisterUserSeedWalletAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        const decimal original = 800m;
+        const long original = 800;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var giveResp = await client.PostAsJsonAsync(
@@ -196,7 +197,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
             new CreateTransactionWire(
                 h.SmoduleId,
                 "loanCollect",
-                300m,
+                300,
                 h.WalletId,
                 null,
                 txnDate,
@@ -225,7 +226,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
             new CreateTransactionWire(
                 h.SmoduleId,
                 "loanCollect",
-                500m,
+                500,
                 h.WalletId,
                 null,
                 txnDate,
@@ -252,7 +253,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
         }
     }
 
-    private static async Task PostDebtBorrowAsync(HttpClient client, DebtHarness h, decimal amount, string lender)
+    private static async Task PostDebtBorrowAsync(HttpClient client, DebtHarness h, long amount, string lender)
     {
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
         var r = await client.PostAsJsonAsync(
@@ -298,12 +299,7 @@ public sealed class FinanceSprint3DebtTests : IClassFixture<IntegrationTestFixtu
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var root = regDoc.RootElement;
-        var spaceId = root.GetProperty("personalSpaceId").GetGuid();
-        var accessToken = root.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
+        var (accessToken, _, spaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

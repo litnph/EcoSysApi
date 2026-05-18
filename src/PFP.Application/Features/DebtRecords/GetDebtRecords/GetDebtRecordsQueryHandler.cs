@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -62,8 +63,8 @@ public sealed class GetDebtRecordsQueryHandler : IRequestHandler<GetDebtRecordsQ
             r.Direction,
             r.PersonName,
             r.PersonContact,
-            r.OriginalAmount,
-            r.RemainingAmount,
+            CurrencyUnits.ToWhole(r.OriginalAmount),
+            CurrencyUnits.ToWhole(r.RemainingAmount),
             r.Currency,
             r.DueDate,
             r.Status,

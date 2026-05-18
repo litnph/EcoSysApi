@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
@@ -51,7 +52,9 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
         if (split.Status != SplitStatus.Pending)
             throw new BusinessRuleException("Only pending splits can be settled.");
 
-        var payAmount = request.Amount ?? split.Amount;
+        var payAmount = request.Amount is { } requested
+            ? CurrencyUnits.FromWhole(requested)
+            : split.Amount;
         if (payAmount <= 0 || payAmount > split.Amount)
             throw new BusinessRuleException("Settlement amount must be greater than zero and must not exceed the split amount.");
 
@@ -137,7 +140,7 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
             refreshed.TransactionId,
             refreshed.PersonName,
             refreshed.PersonContact,
-            refreshed.Amount,
+            CurrencyUnits.ToWhole(refreshed.Amount),
             refreshed.Status,
             refreshed.SettledAt,
             refreshed.SettledTxnId);

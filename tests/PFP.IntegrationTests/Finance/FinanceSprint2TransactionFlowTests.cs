@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Support;
 using Xunit;
 
@@ -41,7 +42,7 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
         var harness = await RegisterUserAndSeedFinanceAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
 
-        const decimal amount = 100m;
+        const long amount = 100;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var createResp = await client.PostAsJsonAsync(
@@ -87,7 +88,7 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
         var harness = await RegisterUserAndSeedFinanceAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
 
-        const decimal amount = 50m;
+        const long amount = 50;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var createResp = await client.PostAsJsonAsync(
@@ -144,7 +145,7 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
         var harness = await RegisterUserAndSeedFinanceAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
 
-        const decimal amount = 200m;
+        const long amount = 200;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var createResp = await client.PostAsJsonAsync(
@@ -198,12 +199,7 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var root = regDoc.RootElement;
-        var spaceId = root.GetProperty("personalSpaceId").GetGuid();
-        var accessToken = root.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
+        var (accessToken, _, spaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

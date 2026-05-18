@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -64,6 +65,10 @@ public sealed class GetDebtSummaryQueryHandler : IRequestHandler<GetDebtSummaryQ
         var overdueLentCount = activeLent.Count(r =>
             r.DueDate is { } d && d < today);
 
-        return new GetDebtSummaryResponse(totalBorrowedRemaining, totalLentRemaining, overdueBorrowedCount, overdueLentCount);
+        return new GetDebtSummaryResponse(
+            CurrencyUnits.ToWhole(totalBorrowedRemaining),
+            CurrencyUnits.ToWhole(totalLentRemaining),
+            overdueBorrowedCount,
+            overdueLentCount);
     }
 }

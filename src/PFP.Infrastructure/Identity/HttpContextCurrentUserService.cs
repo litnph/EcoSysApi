@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Localization;
 using PFP.Domain.Enums;
@@ -10,6 +11,7 @@ namespace PFP.Infrastructure.Identity;
 public sealed class HttpContextCurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IApplicationDbContext _db;
     private readonly ISpaceModuleAccessChecker _spaceModuleAccess;
     private readonly ISpaceMembershipEvaluator _spaceMembership;
     private readonly IAutomationExecutionImpersonation _automationImpersonation;
@@ -17,11 +19,13 @@ public sealed class HttpContextCurrentUserService : ICurrentUserService
     /// <summary>Creates the service.</summary>
     public HttpContextCurrentUserService(
         IHttpContextAccessor httpContextAccessor,
+        IApplicationDbContext db,
         ISpaceModuleAccessChecker spaceModuleAccess,
         ISpaceMembershipEvaluator spaceMembership,
         IAutomationExecutionImpersonation automationImpersonation)
     {
         _httpContextAccessor = httpContextAccessor;
+        _db = db;
         _spaceModuleAccess = spaceModuleAccess;
         _spaceMembership = spaceMembership;
         _automationImpersonation = automationImpersonation;
@@ -65,8 +69,22 @@ public sealed class HttpContextCurrentUserService : ICurrentUserService
             : "vi";
 
     /// <inheritdoc/>
-    public Task<bool> IsOrgMemberAsync(Guid orgId, OrgRole minimumRole, CancellationToken cancellationToken = default) =>
-        Task.FromResult(false);
+    public async Task<bool> IsOrgMemberAsync(
+        Guid orgId,
+        OrgRole minimumRole,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is not Guid uid)
+            return false;
+
+        var role = await _db.OrgMembers.AsNoTracking()
+            .Where(m => m.OrgId == orgId && m.UserId == uid && m.IsActive)
+            .Select(m => (OrgRole?)m.Role)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return role is not null && role.Value >= minimumRole;
+    }
 
     /// <inheritdoc/>
     public async Task<bool> IsSpaceMemberAsync(

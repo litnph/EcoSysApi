@@ -1,3 +1,4 @@
+using PFP.Application.Common;
 using PFP.Domain.Entities;
 
 namespace PFP.Application.Features.Sources.Common;
@@ -12,17 +13,14 @@ public static class FinSourceDtoMapper
             entity.SmoduleId,
             entity.Name,
             entity.Type,
-            ToWholeCurrencyUnits(entity.Balance),
+            CurrencyUnits.ToWhole(entity.Balance),
             entity.Currency,
-            entity.CreditLimit is { } cl ? ToWholeCurrencyUnits(cl) : null,
+            entity.CreditLimit is { } cl ? CurrencyUnits.ToWhole(cl) : null,
             entity.StatementDay,
             entity.PaymentDueDay,
-            entity.MinInstallmentAmt is { } mi ? ToWholeCurrencyUnits(mi) : null,
+            entity.MinInstallmentAmt is { } mi ? CurrencyUnits.ToWhole(mi) : null,
             entity.Icon,
             entity.Color,
             entity.SortOrder,
             entity.Version);
-
-    private static long ToWholeCurrencyUnits(decimal balance) =>
-        (long)Math.Round(balance, 0, MidpointRounding.AwayFromZero);
 }

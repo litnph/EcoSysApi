@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Finance;
 using PFP.IntegrationTests.Support;
 using Xunit;
@@ -42,19 +43,7 @@ public sealed class FinanceSprint4SpaceMemberInvitationTests : IClassFixture<Int
             new { email = emailA, password = "TestPass123", fullName = "Owner A" },
             FinanceApiWireJson.Web);
         regA.EnsureSuccessStatusCode();
-        JsonElement rootA;
-        string tokenA;
-        Guid orgId;
-        Guid rootSpaceId;
-        {
-            await using var s = await regA.Content.ReadAsStreamAsync();
-            using var doc = await JsonDocument.ParseAsync(s);
-            rootA = doc.RootElement.Clone();
-            tokenA = rootA.GetProperty("accessToken").GetString()
-                     ?? throw new InvalidOperationException("Missing access token.");
-            orgId = rootA.GetProperty("organizationId").GetGuid();
-            rootSpaceId = rootA.GetProperty("personalSpaceId").GetGuid();
-        }
+        var (tokenA, orgId, rootSpaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regA);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
 

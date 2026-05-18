@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.MonthlyPeriods.Common;
@@ -147,9 +148,9 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
             period.Status,
             period.ClosedAt,
             period.ClosedBy,
-            income,
-            expense,
-            net,
+            CurrencyUnits.ToWhole(income),
+            CurrencyUnits.ToWhole(expense),
+            CurrencyUnits.ToWhole(net),
             topCategories,
             categories,
             sources);

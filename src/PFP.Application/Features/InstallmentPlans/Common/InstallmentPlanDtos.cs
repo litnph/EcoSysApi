@@ -12,15 +12,15 @@ public sealed record InstallmentPlanListItemDto(
     InstallmentStatus Status,
     int PaidInstallments,
     int TotalInstallments,
-    decimal RemainingAmount,
+    long RemainingAmount,
     DateTime CreatedAt);
 
 /// <summary>Detail DTO for a single pay line.</summary>
 public sealed record InstallmentPayItemDto(
     int InstallmentNumber,
     DateOnly DueDate,
-    decimal Amount,
-    decimal PaidAmount,
+    long Amount,
+    long PaidAmount,
     InstallmentPayStatus Status,
     DateTime? PaidAt,
     Guid? TxnId);
@@ -33,12 +33,12 @@ public sealed record InstallmentPlanDetailDto(
     string SourceName,
     Guid OriginalTxnId,
     string OriginalTxnDescription,
-    decimal TotalAmount,
+    long TotalAmount,
     int TotalMonths,
-    decimal MonthlyAmount,
+    long MonthlyAmount,
     decimal InterestRate,
     decimal? ConversionFeeRate,
-    decimal? ConversionFeeAmount,
+    long? ConversionFeeAmount,
     ConversionFeeStatus? ConversionFeeStatus,
     Guid? ConversionFeeTxnId,
     DateOnly StartDate,

@@ -2,10 +2,12 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PFP.API.Models;
+using PFP.Application.Features.DebtRecords.CreateDebtRecord;
 using PFP.Application.Features.DebtRecords.DeleteDebtRecord;
 using PFP.Application.Features.DebtRecords.GetDebtRecordDetail;
 using PFP.Application.Features.DebtRecords.GetDebtRecords;
 using PFP.Application.Features.DebtRecords.GetDebtSummary;
+using PFP.Application.Features.DebtRecords.RecordDebtPayment;
 using PFP.Domain.Enums;
 
 namespace PFP.API.Controllers;
@@ -55,6 +57,40 @@ public sealed class DebtRecordsController : ControllerBase
         return Ok(new ApiResponse<GetDebtRecordDetailResponse> { Data = result });
     }
 
+    /// <summary>Creates a manual debt record (no money movement; for back-filling external debts).</summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(ApiResponse<CreateDebtRecordResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<CreateDebtRecordResponse>>> Create(
+        [FromBody] CreateDebtRecordBody body,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateDebtRecordCommand(
+            body.SmoduleId,
+            body.Direction,
+            body.PersonName,
+            body.PersonContact,
+            body.Amount,
+            body.Currency,
+            body.DueDate,
+            body.Note);
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<CreateDebtRecordResponse> { Data = result });
+    }
+
+    /// <summary>Records a repayment against an existing debt record.</summary>
+    /// <remarks>Internally dispatches the appropriate <c>debt_repay</c> / <c>loan_collect</c> transaction.</remarks>
+    [HttpPost("{id:guid}/payment")]
+    [ProducesResponseType(typeof(ApiResponse<RecordDebtPaymentResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<RecordDebtPaymentResponse>>> RecordPayment(
+        Guid id,
+        [FromBody] RecordDebtPaymentBody body,
+        CancellationToken cancellationToken)
+    {
+        var command = new RecordDebtPaymentCommand(id, body.SourceId, body.Amount, body.TxnDate, body.Note);
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<RecordDebtPaymentResponse> { Data = result });
+    }
+
     /// <summary>Soft-deletes a mistaken debt record (only when no repayments / collections exist).</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<DeleteDebtRecordResponse>), StatusCodes.Status200OK)]
@@ -65,4 +101,48 @@ public sealed class DebtRecordsController : ControllerBase
         var result = await _mediator.Send(new DeleteDebtRecordCommand(id), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<DeleteDebtRecordResponse> { Data = result });
     }
+}
+
+/// <summary>JSON body for <see cref="DebtRecordsController.Create"/>.</summary>
+public sealed class CreateDebtRecordBody
+{
+    /// <summary>Finance module that owns the debt record.</summary>
+    public Guid SmoduleId { get; init; }
+
+    /// <summary><c>borrowed</c> (the user owes someone) or <c>lent</c> (someone owes the user).</summary>
+    public DebtDirection Direction { get; init; }
+
+    /// <summary>Counterparty name (max 200 chars).</summary>
+    public string PersonName { get; init; } = string.Empty;
+
+    /// <summary>Optional counterparty contact (phone, email, …).</summary>
+    public string? PersonContact { get; init; }
+
+    /// <summary>Original principal amount (positive magnitude).</summary>
+    public long Amount { get; init; }
+
+    /// <summary>Optional ISO-4217 currency override; defaults to <c>VND</c>.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>Optional repayment due date.</summary>
+    public DateOnly? DueDate { get; init; }
+
+    /// <summary>Optional free-form note (max 500 chars).</summary>
+    public string? Note { get; init; }
+}
+
+/// <summary>JSON body for <see cref="DebtRecordsController.RecordPayment"/>.</summary>
+public sealed class RecordDebtPaymentBody
+{
+    /// <summary>Finance source whose balance changes as a result of the payment.</summary>
+    public Guid SourceId { get; init; }
+
+    /// <summary>Payment magnitude (positive; cannot exceed remaining debt).</summary>
+    public long Amount { get; init; }
+
+    /// <summary>Business date of the payment.</summary>
+    public DateOnly TxnDate { get; init; }
+
+    /// <summary>Optional note (max 500 chars).</summary>
+    public string? Note { get; init; }
 }

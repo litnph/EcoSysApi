@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.InstallmentPlans.Common;
@@ -64,7 +65,7 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
             p.Status,
             paid,
             p.TotalMonths,
-            remaining,
+            CurrencyUnits.ToWhole(remaining),
             p.CreatedAt);
     }
 }

@@ -5,7 +5,7 @@ namespace PFP.Application.Features.Savings.DepositToSaving;
 
 public sealed record DepositToSavingCommand(
     Guid SavingId,
-    decimal Amount,
+    long Amount,
     DateOnly TxnDate,
     string? Note,
     Guid? MonthlyPeriodId) : IRequest<DepositToSavingResponse>;

@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PFP.API (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/PFP.API/bin/Debug/net8.0/PFP.API.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/PFP.API",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5197",
+        "Hangfire__DisableServer": "true",
+        "Hangfire__DisableRecurringRegistration": "true",
+        "Database__RunSeedOnStartup": "false"
+      }
+    },
+    {
+      "name": "PFP.API (C# Dev Kit)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/PFP.API/PFP.API.csproj",
+      "launchConfiguration": "http"
+    },
+    {
+      "name": ".NET Core Attach",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
+    }
+  ]
+}

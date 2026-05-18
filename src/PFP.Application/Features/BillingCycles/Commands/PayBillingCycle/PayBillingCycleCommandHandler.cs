@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
@@ -67,11 +68,12 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
         if (!string.Equals(paymentSource.Currency, cycle.Source.Currency, StringComparison.Ordinal))
             throw new BusinessRuleException("Payment source currency must match the credit card currency.");
 
+        var paymentAmount = CurrencyUnits.FromWhole(request.Amount);
         var remaining = cycle.TotalAmount - cycle.PaidAmount;
-        if (request.Amount > remaining)
+        if (paymentAmount > remaining)
             throw new BusinessRuleException("Amount cannot exceed the remaining balance for this cycle.");
 
-        if (paymentSource.Balance < request.Amount)
+        if (paymentSource.Balance < paymentAmount)
             throw new BusinessRuleException("Insufficient balance on the payment source.");
 
         var cardSource = cycle.Source;
@@ -84,7 +86,7 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
             SmoduleId = cycle.SmoduleId,
             Type = TransactionType.Direct,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = paymentAmount,
             Currency = paymentSource.Currency,
             TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
             SourceId = paymentSource.Id,
@@ -96,10 +98,10 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
 
         _db.FinTransactions.Add(payTxn);
 
-        paymentSource.Balance -= request.Amount;
-        cardSource.Balance -= request.Amount;
+        paymentSource.Balance -= paymentAmount;
+        cardSource.Balance -= paymentAmount;
 
-        cycle.PaidAmount += request.Amount;
+        cycle.PaidAmount += paymentAmount;
         if (cycle.PaidAmount >= cycle.TotalAmount)
         {
             cycle.Status = BillingCycleStatus.Paid;
@@ -124,23 +126,6 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        var dto = new FinBillingCycleDto(
-            cycle.Id,
-            cycle.SmoduleId,
-            cycle.SourceId,
-            cardSource.Name,
-            cycle.PeriodStart,
-            cycle.PeriodEnd,
-            cycle.StatementDate,
-            cycle.PaymentDueDate,
-            cycle.TotalAmount,
-            cycle.PaidAmount,
-            cycle.Status,
-            cycle.ClosedAt,
-            cycle.PaidAt,
-            cycle.CreatedAt,
-            cycle.UpdatedAt);
-
-        return new PayBillingCycleResponse(dto, payTxn.Id);
+        return new PayBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cardSource.Name), payTxn.Id);
     }
 }

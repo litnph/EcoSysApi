@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.MonthlyPeriods.Common;
@@ -63,9 +64,9 @@ public sealed class GetMonthlyPeriodQueryHandler : IRequestHandler<GetMonthlyPer
             period?.Status ?? PeriodStatus.Open,
             period?.ClosedAt,
             period?.ClosedBy,
-            income,
-            expense,
-            net,
+            CurrencyUnits.ToWhole(income),
+            CurrencyUnits.ToWhole(expense),
+            CurrencyUnits.ToWhole(net),
             top);
 
         return new GetMonthlyPeriodResponse(dto);

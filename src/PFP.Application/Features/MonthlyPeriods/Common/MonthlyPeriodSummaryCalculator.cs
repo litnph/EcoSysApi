@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
@@ -109,7 +110,7 @@ internal static class MonthlyPeriodSummaryCalculator
                     ? n
                     : "(Uncategorised)";
                 var pct = expense > 0 ? decimal.Round(x.Amount / expense * 100m, 2, MidpointRounding.AwayFromZero) : 0m;
-                return new MonthCategoryBreakdownItemDto(x.CategoryId, name, x.Amount, x.Cnt, pct);
+                return new MonthCategoryBreakdownItemDto(x.CategoryId, name, CurrencyUnits.ToWhole(x.Amount), x.Cnt, pct);
             })
             .ToList();
 
@@ -137,7 +138,7 @@ internal static class MonthlyPeriodSummaryCalculator
             .Select(x => new MonthSourceBreakdownItemDto(
                 x.SourceId,
                 srcNames.GetValueOrDefault(x.SourceId, "(Source)"),
-                x.Amount))
+                CurrencyUnits.ToWhole(x.Amount)))
             .ToList();
 
         return (income, expense, net, categories, sources);
@@ -201,7 +202,7 @@ internal static class MonthlyPeriodSummaryCalculator
             var expD = txnRows
                 .Where(r => r.TxnDate == date && IsExpenseAggregate(r.Type))
                 .Sum(r => r.Amount);
-            dailyList.Add(new DailyCashflowDto(date, incomeD, expD));
+            dailyList.Add(new DailyCashflowDto(date, CurrencyUnits.ToWhole(incomeD), CurrencyUnits.ToWhole(expD)));
         }
 
         var topTxns = await (
@@ -214,7 +215,7 @@ internal static class MonthlyPeriodSummaryCalculator
                 select new MonthlyReportTopTransactionDto(
                     t.Id,
                     t.Type,
-                    t.Amount,
+                    (long)Math.Round(t.Amount, 0, MidpointRounding.AwayFromZero),
                     t.Description,
                     t.TxnDate,
                     c != null ? c.Name : null,
@@ -235,7 +236,11 @@ internal static class MonthlyPeriodSummaryCalculator
             Pct(expense, pExpense),
             Pct(net, pNet));
 
-        var summary = new MonthlyReportSummaryDto(income, expense, net, savings);
+        var summary = new MonthlyReportSummaryDto(
+            CurrencyUnits.ToWhole(income),
+            CurrencyUnits.ToWhole(expense),
+            CurrencyUnits.ToWhole(net),
+            savings);
         return new MonthlyReportDto(summary, categories, sources, topTxns, dailyList, comparison);
     }
 

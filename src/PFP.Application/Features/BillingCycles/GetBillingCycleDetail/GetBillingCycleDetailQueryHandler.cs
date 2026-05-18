@@ -46,43 +46,21 @@ public sealed class GetBillingCycleDetailQueryHandler : IRequestHandler<GetBilli
         if (_currentUser.CurrentOrgId is { } orgId && cycle.Source.Smodule.Space.OrgId != orgId)
             throw new UnauthorizedAppException("The current organisation does not own this billing cycle.");
 
-        var cycleDto = new FinBillingCycleDto(
-            cycle.Id,
-            cycle.SmoduleId,
-            cycle.SourceId,
-            cycle.Source.Name,
-            cycle.PeriodStart,
-            cycle.PeriodEnd,
-            cycle.StatementDate,
-            cycle.PaymentDueDate,
-            cycle.TotalAmount,
-            cycle.PaidAmount,
-            cycle.Status,
-            cycle.ClosedAt,
-            cycle.PaidAt,
-            cycle.CreatedAt,
-            cycle.UpdatedAt);
+        var cycleDto = FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name);
 
-        var txns = await _db.FinTransactions
+        var txnRows = await _db.FinTransactions
             .AsNoTracking()
+            .Include(t => t.Source)
+            .Include(t => t.Category)
             .Where(t => t.BillingCycleId == request.CycleId)
             .OrderByDescending(t => t.TxnDate)
             .ThenByDescending(t => t.CreatedAt)
-            .Select(t => new FinBillingCycleTransactionDto(
-                t.Id,
-                t.Type,
-                t.Amount,
-                t.Currency,
-                t.TxnDate,
-                t.SourceId,
-                t.Source.Name,
-                t.CategoryId,
-                t.Category != null ? t.Category.Name : null,
-                t.Description,
-                t.Note,
-                t.CreatedAt))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var txns = txnRows
+            .Select(t => FinBillingCycleDtoMapper.ToTransactionDto(t, t.Source.Name, t.Category?.Name))
+            .ToList();
 
         return new GetBillingCycleDetailResponse(new FinBillingCycleDetailDto(cycleDto, txns));
     }

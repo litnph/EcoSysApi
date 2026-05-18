@@ -12,7 +12,7 @@ public sealed record GetTransactionsQuery(
     Guid? CategoryId,
     DateOnly? DateFrom,
     DateOnly? DateTo,
-    decimal? AmountMin,
-    decimal? AmountMax,
+    long? AmountMin,
+    long? AmountMax,
     int Page = 1,
     int PageSize = 20) : IRequest<GetTransactionsResponse>;

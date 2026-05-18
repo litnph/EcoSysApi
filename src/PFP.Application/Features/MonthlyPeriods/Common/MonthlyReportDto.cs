@@ -11,7 +11,7 @@ public sealed record MonthlyReportDto(
 
 /// <summary>Totals and savings rate for the report header.</summary>
 public sealed record MonthlyReportSummaryDto(
-    decimal TotalIncome,
-    decimal TotalExpense,
-    decimal Net,
+    long TotalIncome,
+    long TotalExpense,
+    long Net,
     decimal? SavingsRatePercent);

@@ -90,5 +90,5 @@ public sealed class PayBillingCycleBody
     public Guid PaymentSourceId { get; set; }
 
     /// <summary>Payment amount (must not exceed remaining statement balance).</summary>
-    public decimal Amount { get; set; }
+    public long Amount { get; set; }
 }

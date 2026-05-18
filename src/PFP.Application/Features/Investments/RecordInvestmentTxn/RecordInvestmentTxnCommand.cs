@@ -6,7 +6,7 @@ namespace PFP.Application.Features.Investments.RecordInvestmentTxn;
 public sealed record RecordInvestmentTxnCommand(
     Guid InvestmentId,
     InvestmentTxnType TxnType,
-    decimal Amount,
+    long Amount,
     decimal? Quantity,
     decimal? PricePerUnit,
     DateOnly TxnDate,

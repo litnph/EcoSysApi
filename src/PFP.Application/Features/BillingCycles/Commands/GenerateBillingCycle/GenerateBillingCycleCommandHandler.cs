@@ -111,23 +111,6 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
             _logger.LogError(ex, "ProcessConversionFee failed after creating billing cycle {CycleId}", cycle.Id);
         }
 
-        var dto = new FinBillingCycleDto(
-            cycle.Id,
-            cycle.SmoduleId,
-            cycle.SourceId,
-            source.Name,
-            cycle.PeriodStart,
-            cycle.PeriodEnd,
-            cycle.StatementDate,
-            cycle.PaymentDueDate,
-            cycle.TotalAmount,
-            cycle.PaidAmount,
-            cycle.Status,
-            cycle.ClosedAt,
-            cycle.PaidAt,
-            cycle.CreatedAt,
-            cycle.UpdatedAt);
-
-        return new GenerateBillingCycleResponse(dto);
+        return new GenerateBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, source.Name));
     }
 }

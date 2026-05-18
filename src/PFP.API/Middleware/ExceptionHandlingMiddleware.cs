@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentValidation;
 using Microsoft.Extensions.Hosting;
 using PFP.Application.Common.Exceptions;
+using PFP.Domain.Exceptions;
 
 namespace PFP.API.Middleware;
 
@@ -41,28 +42,46 @@ public sealed class ExceptionHandlingMiddleware
                     ex.Errors.Select(e => e.ErrorMessage).ToArray())
                 .ConfigureAwait(false);
         }
-        catch (NotFoundException ex)
-        {
-            await WriteJsonAsync(context, HttpStatusCode.NotFound, "not_found", new[] { ex.Message }).ConfigureAwait(false);
-        }
-        catch (BusinessRuleException ex)
-        {
-            await WriteJsonAsync(
-                    context,
-                    (HttpStatusCode)422,
-                    "business_rule",
-                    new[] { ex.Message })
-                .ConfigureAwait(false);
-        }
-        catch (UnauthorizedAppException ex)
-        {
-            await WriteJsonAsync(
-                    context,
-                    HttpStatusCode.Unauthorized,
-                    "unauthorized",
-                    new[] { ex.Message })
-                .ConfigureAwait(false);
-        }
+            catch (NotFoundException ex)
+            {
+                await WriteJsonAsync(context, HttpStatusCode.NotFound, "not_found", new[] { ex.Message }).ConfigureAwait(false);
+            }
+            catch (ForbiddenException ex)
+            {
+                await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.Forbidden,
+                        "forbidden",
+                        new[] { ex.Message })
+                    .ConfigureAwait(false);
+            }
+            catch (BusinessRuleException ex)
+            {
+                await WriteJsonAsync(
+                        context,
+                        (HttpStatusCode)422,
+                        "business_rule",
+                        new[] { ex.Message })
+                    .ConfigureAwait(false);
+            }
+            catch (DomainException ex)
+            {
+                await WriteJsonAsync(
+                        context,
+                        (HttpStatusCode)422,
+                        "domain_rule",
+                        new[] { ex.Message })
+                    .ConfigureAwait(false);
+            }
+            catch (UnauthorizedAppException ex)
+            {
+                await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.Unauthorized,
+                        "unauthorized",
+                        new[] { ex.Message })
+                    .ConfigureAwait(false);
+            }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception.");

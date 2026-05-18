@@ -1,3 +1,4 @@
+using PFP.Application.Common;
 using PFP.Domain.Entities.Finance;
 
 namespace PFP.Application.Features.Savings.Common;
@@ -11,8 +12,8 @@ internal static class SavingDtoMapper
             s.SourceId,
             sourceName,
             s.Name,
-            s.TargetAmount,
-            s.CurrentAmount,
+            s.TargetAmount is { } target ? CurrencyUnits.ToWhole(target) : null,
+            CurrencyUnits.ToWhole(s.CurrentAmount),
             s.InterestRate,
             s.StartDate,
             s.MaturityDate,
@@ -27,8 +28,8 @@ internal static class SavingDtoMapper
             s.SourceId,
             sourceName,
             s.Name,
-            s.TargetAmount,
-            s.CurrentAmount,
+            s.TargetAmount is { } target ? CurrencyUnits.ToWhole(target) : null,
+            CurrencyUnits.ToWhole(s.CurrentAmount),
             s.InterestRate,
             s.StartDate,
             s.MaturityDate,

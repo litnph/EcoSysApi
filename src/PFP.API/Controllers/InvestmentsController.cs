@@ -112,7 +112,7 @@ public sealed record UpdateInvestmentBody(
 /// <summary>JSON body for POST <c>/api/v1/finance/investments/{id}/transactions</c>.</summary>
 public sealed record RecordInvestmentTxnBody(
     InvestmentTxnType TxnType,
-    decimal Amount,
+    long Amount,
     decimal? Quantity,
     decimal? PricePerUnit,
     DateOnly TxnDate,

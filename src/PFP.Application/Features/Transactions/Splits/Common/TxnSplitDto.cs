@@ -8,7 +8,7 @@ public sealed record TxnSplitDto(
     Guid TransactionId,
     string PersonName,
     string? PersonContact,
-    decimal Amount,
+    long Amount,
     SplitStatus Status,
     DateTime? SettledAt,
     Guid? SettledTxnId);

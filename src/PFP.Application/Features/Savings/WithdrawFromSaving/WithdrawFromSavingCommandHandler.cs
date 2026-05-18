@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Utils;
@@ -46,7 +47,7 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
         if (saving.Status is SavingStatus.Withdrawn)
             throw new BusinessRuleException("This savings record is already marked as withdrawn.");
 
-        if (saving.CurrentAmount < request.Amount)
+        if (saving.CurrentAmount < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("The savings balance is lower than the withdrawal amount.");
 
         var source = saving.Source;
@@ -73,7 +74,7 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
             SmoduleId = saving.SmoduleId,
             Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = source.Id,
@@ -88,8 +89,8 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         _db.FinTransactions.Add(txn);
-        source.Balance += request.Amount;
-        saving.CurrentAmount -= request.Amount;
+        source.Balance += CurrencyUnits.FromWhole(request.Amount);
+        saving.CurrentAmount -= CurrencyUnits.FromWhole(request.Amount);
 
         FinTransactionHistoryHelper.AddCreated(_db, _currentUser, txn);
 
@@ -108,35 +109,5 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
 
     private static string Truncate512(string text) => text.Length <= 512 ? text : text[..512];
 
-    private static TransactionDetailDto MapDetail(FinTransaction t)
-    {
-        TransactionSourceSummaryDto? src = t.Source is null
-            ? null
-            : new TransactionSourceSummaryDto(t.Source.Id, t.Source.Name, t.Source.Currency, t.Source.Balance);
-
-        TransactionCategorySummaryDto? cat = t.Category is null
-            ? null
-            : new TransactionCategorySummaryDto(t.Category.Id, t.Category.Name, t.Category.Kind);
-
-        return new TransactionDetailDto(
-            t.Id,
-            t.SmoduleId,
-            t.Type,
-            t.Status,
-            t.Amount,
-            t.Currency,
-            t.TxnDate,
-            t.SourceId,
-            t.CategoryId,
-            t.Description,
-            t.Note,
-            t.BillingCycleId,
-            t.MonthlyPeriodId,
-            t.RefTxnId,
-            t.CreatedAt,
-            t.UpdatedAt,
-            t.Version,
-            src,
-            cat);
-    }
+    private static TransactionDetailDto MapDetail(FinTransaction t) => TransactionDtoMapper.ToDetail(t);
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -60,7 +61,7 @@ public sealed class GetPendingSplitsQueryHandler : IRequestHandler<GetPendingSpl
                         s.Id,
                         s.PersonName,
                         s.PersonContact,
-                        s.Amount,
+                        CurrencyUnits.ToWhole(s.Amount),
                         s.Status,
                         s.CreatedAt))
                     .ToList();
@@ -68,7 +69,7 @@ public sealed class GetPendingSplitsQueryHandler : IRequestHandler<GetPendingSpl
                 return new PendingSplitGroupDto(
                     g.Key,
                     head.TxnDate,
-                    head.Amount,
+                    CurrencyUnits.ToWhole(head.Amount),
                     head.Currency,
                     head.Description,
                     splits);

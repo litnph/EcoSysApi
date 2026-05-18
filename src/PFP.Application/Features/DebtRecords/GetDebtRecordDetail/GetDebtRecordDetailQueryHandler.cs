@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -56,7 +57,7 @@ public sealed class GetDebtRecordDetailQueryHandler : IRequestHandler<GetDebtRec
             .ConfigureAwait(false);
 
         var txns = txRows
-            .Select(t => new DebtTransactionItemDto(t.Id, t.TxnId, t.Amount, t.Type, t.Note, t.TxnDate, t.CreatedAt))
+            .Select(t => new DebtTransactionItemDto(t.Id, t.TxnId, CurrencyUnits.ToWhole(t.Amount), t.Type, t.Note, t.TxnDate, t.CreatedAt))
             .ToList();
 
         var dto = new DebtRecordDetailDto(
@@ -66,8 +67,8 @@ public sealed class GetDebtRecordDetailQueryHandler : IRequestHandler<GetDebtRec
             record.PersonName,
             record.PersonContact,
             record.OriginalTxnId,
-            record.OriginalAmount,
-            record.RemainingAmount,
+            CurrencyUnits.ToWhole(record.OriginalAmount),
+            CurrencyUnits.ToWhole(record.RemainingAmount),
             record.Currency,
             record.DueDate,
             record.Status,

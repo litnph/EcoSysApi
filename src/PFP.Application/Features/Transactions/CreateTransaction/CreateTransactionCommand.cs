@@ -9,7 +9,7 @@ namespace PFP.Application.Features.Transactions.CreateTransaction;
 public sealed record CreateTransactionCommand(
     Guid SmoduleId,
     TransactionType Type,
-    decimal Amount,
+    long Amount,
     Guid SourceId,
     Guid? CategoryId,
     DateOnly TxnDate,

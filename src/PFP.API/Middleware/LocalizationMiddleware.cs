@@ -15,28 +15,43 @@ public sealed class LocalizationMiddleware
     /// <summary>Invokes the next pipeline stage.</summary>
     public async Task InvokeAsync(HttpContext context, IServiceScopeFactory scopeFactory)
     {
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        if (ShouldBypass(context.Request.Path))
+        {
+            await _next(context).ConfigureAwait(false);
+            return;
+        }
 
-        var active = await db.Locales.AsNoTracking()
-            .Where(l => l.IsActive)
-            .OrderByDescending(l => l.IsDefault)
-            .Select(l => new { l.Code, l.IsDefault })
-            .ToListAsync(context.RequestAborted)
-            .ConfigureAwait(false);
+        // Resolve locale in a short-lived scope so the DbContext (and its pooled connection)
+        // is released before controller/MediatR handlers run — avoids starving Neon pooler slots.
+        string selected;
+        await using (var scope = scopeFactory.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        var defaultCode = active.FirstOrDefault(a => a.IsDefault)?.Code
-            ?? active.FirstOrDefault()?.Code
-            ?? "vi";
+            var active = await db.Locales.AsNoTracking()
+                .Where(l => l.IsActive)
+                .OrderByDescending(l => l.IsDefault)
+                .Select(l => new { l.Code, l.IsDefault })
+                .ToListAsync(context.RequestAborted)
+                .ConfigureAwait(false);
 
-        var activeCodes = new HashSet<string>(active.Select(a => a.Code), StringComparer.OrdinalIgnoreCase);
+            var defaultCode = active.FirstOrDefault(a => a.IsDefault)?.Code
+                ?? active.FirstOrDefault()?.Code
+                ?? "vi";
 
-        var selected = PickLocale(context.Request.Headers.AcceptLanguage.ToString(), activeCodes, defaultCode);
+            var activeCodes = new HashSet<string>(active.Select(a => a.Code), StringComparer.OrdinalIgnoreCase);
+
+            selected = PickLocale(context.Request.Headers.AcceptLanguage.ToString(), activeCodes, defaultCode);
+        }
 
         context.Items[RequestLocalizationKeys.HttpContextLocaleItemKey] = selected;
 
         await _next(context).ConfigureAwait(false);
     }
+
+    private static bool ShouldBypass(PathString path) =>
+        path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/hangfire", StringComparison.OrdinalIgnoreCase);
 
     private static string PickLocale(string? acceptLanguage, HashSet<string> activeCodes, string defaultCode)
     {

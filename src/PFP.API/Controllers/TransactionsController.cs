@@ -2,12 +2,14 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PFP.API.Models;
+using ApiResults = PFP.API.Models.ApiResults;
 using PFP.Application.Features.Transactions.Common;
 using PFP.Application.Features.Transactions.CreateTransaction;
 using PFP.Application.Features.Transactions.GetTransactionById;
 using PFP.Application.Features.Transactions.GetTransactions;
 using PFP.Application.Features.Transactions.DeleteTransaction;
 using PFP.Application.Features.Transactions.GetTransactionHistory;
+using PFP.Application.Features.Transactions.UpdateTransaction;
 using PFP.Application.Features.FileAttachments.Common;
 using PFP.Application.Features.FileAttachments.ListTransactionAttachments;
 using PFP.Application.Features.Transactions.GetTransferPair;
@@ -37,8 +39,8 @@ public sealed class TransactionsController : ControllerBase
         [FromQuery(Name = "category_id")] Guid? categoryId,
         [FromQuery(Name = "date_from")] DateOnly? dateFrom,
         [FromQuery(Name = "date_to")] DateOnly? dateTo,
-        [FromQuery(Name = "amount_min")] decimal? amountMin,
-        [FromQuery(Name = "amount_max")] decimal? amountMax,
+        [FromQuery(Name = "amount_min")] long? amountMin,
+        [FromQuery(Name = "amount_max")] long? amountMax,
         [FromQuery(Name = "page")] int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -56,7 +58,15 @@ public sealed class TransactionsController : ControllerBase
             pageSize);
 
         var result = await _mediator.Send(query, cancellationToken).ConfigureAwait(false);
-        return Ok(new ApiResponse<GetTransactionsResponse> { Data = result });
+        return Ok(ApiResults.Ok(
+            result,
+            new
+            {
+                page = result.Page,
+                pageSize = result.PageSize,
+                totalCount = result.TotalCount,
+                totalPages = result.TotalPages,
+            }));
     }
 
     /// <summary>Creates a transaction (direct, income, transfer, or deferred).</summary>
@@ -125,6 +135,30 @@ public sealed class TransactionsController : ControllerBase
         return Ok(new ApiResponse<GetTransactionHistoryResponse> { Data = result });
     }
 
+    /// <summary>Updates transaction metadata (description, note, category, txn date, monthly period).</summary>
+    /// <remarks>
+    /// Balance-affecting fields (amount, type, source) are intentionally not exposed — to change
+    /// those, delete the transaction (which posts a reversal) and re-create it.
+    /// </remarks>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<UpdateTransactionResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<UpdateTransactionResponse>>> Update(
+        Guid id,
+        [FromBody] UpdateTransactionBody body,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateTransactionCommand(
+            id,
+            body.CategoryId,
+            body.TxnDate,
+            body.Description,
+            body.Note,
+            body.MonthlyPeriodId);
+
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<UpdateTransactionResponse> { Data = result });
+    }
+
     /// <summary>Soft-deletes a transaction and posts reversal row(s).</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<DeleteTransactionResponse>), StatusCodes.Status200OK)]
@@ -136,4 +170,23 @@ public sealed class TransactionsController : ControllerBase
         var result = await _mediator.Send(new DeleteTransactionCommand(id, body?.Reason), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<DeleteTransactionResponse> { Data = result });
     }
+}
+
+/// <summary>JSON body for <see cref="TransactionsController.Update"/>.</summary>
+public sealed class UpdateTransactionBody
+{
+    /// <summary>Optional new category id (must belong to the same finance module).</summary>
+    public Guid? CategoryId { get; init; }
+
+    /// <summary>New business date of the transaction.</summary>
+    public DateOnly TxnDate { get; init; }
+
+    /// <summary>Human-readable description (max 512 chars).</summary>
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>Optional note (max 500 chars).</summary>
+    public string? Note { get; init; }
+
+    /// <summary>Optional monthly-period reassignment.</summary>
+    public Guid? MonthlyPeriodId { get; init; }
 }

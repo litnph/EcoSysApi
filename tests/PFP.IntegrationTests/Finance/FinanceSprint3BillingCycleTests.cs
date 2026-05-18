@@ -11,6 +11,7 @@ using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Support;
 using Xunit;
 
@@ -75,7 +76,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
         genResp.EnsureSuccessStatusCode();
         var cycleId = await FinanceApiWireJson.ReadBillingCycleIdFromGenerateResponseAsync(genResp);
 
-        const decimal spend = 250m;
+        const long spend = 250;
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
         var createResp = await client.PostAsJsonAsync(
             "api/v1/finance/transactions",
@@ -118,7 +119,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
         var cycleId = await FinanceApiWireJson.ReadBillingCycleIdFromGenerateResponseAsync(genResp);
 
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
-        foreach (var amt in new[] { 80m, 120m })
+        foreach (var amt in new[] { 80L, 120L })
         {
             var r = await client.PostAsJsonAsync(
                 "api/v1/finance/transactions",
@@ -168,7 +169,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
             new CreateTransactionWire(
                 h.SmoduleId,
                 "deferred",
-                600m,
+                600,
                 h.CreditCardSourceId,
                 h.ExpenseCategoryId,
                 txnDate,
@@ -184,7 +185,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
 
         var payPartial = await client.PostAsJsonAsync(
             $"api/v1/finance/billing-cycles/{cycleId}/pay",
-            new { paymentSourceId = h.BankSourceId, amount = 200m },
+            new { paymentSourceId = h.BankSourceId, amount = 200L },
             FinanceApiWireJson.Web);
         payPartial.EnsureSuccessStatusCode();
 
@@ -198,7 +199,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
 
         var payRest = await client.PostAsJsonAsync(
             $"api/v1/finance/billing-cycles/{cycleId}/pay",
-            new { paymentSourceId = h.BankSourceId, amount = 400m },
+            new { paymentSourceId = h.BankSourceId, amount = 400L },
             FinanceApiWireJson.Web);
         payRest.EnsureSuccessStatusCode();
 
@@ -261,12 +262,7 @@ public sealed class FinanceSprint3BillingCycleTests : IClassFixture<IntegrationT
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var root = regDoc.RootElement;
-        var spaceId = root.GetProperty("personalSpaceId").GetGuid();
-        var accessToken = root.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
+        var (accessToken, _, spaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -1,3 +1,4 @@
+using PFP.Application.Common;
 using PFP.Domain.Entities.Finance;
 
 namespace PFP.Application.Features.Investments.Common;
@@ -12,16 +13,24 @@ internal static class InvestmentDtoMapper
             i.SmoduleId,
             i.Name,
             i.Type,
-            i.CurrentValue,
-            i.TotalInvested,
-            i.TotalReturned,
+            CurrencyUnits.ToWhole(i.CurrentValue),
+            CurrencyUnits.ToWhole(i.TotalInvested),
+            CurrencyUnits.ToWhole(i.TotalReturned),
             i.Currency,
             i.Note,
-            pnl);
+            CurrencyUnits.ToWhole(pnl));
     }
 
     public static InvestmentTxnDto ToTxnDto(FinInvestmentTxn t) =>
-        new(t.Id, t.TxnType, t.Amount, t.Quantity, t.PricePerUnit, t.TxnDate, t.Note, t.LinkedTxnId);
+        new(
+            t.Id,
+            t.TxnType,
+            CurrencyUnits.ToWhole(t.Amount),
+            t.Quantity,
+            t.PricePerUnit,
+            t.TxnDate,
+            t.Note,
+            t.LinkedTxnId);
 
     public static InvestmentDetailDto ToDetail(FinInvestment i, IReadOnlyList<InvestmentTxnDto> txns)
     {
@@ -31,12 +40,12 @@ internal static class InvestmentDtoMapper
             i.SmoduleId,
             i.Name,
             i.Type,
-            i.CurrentValue,
-            i.TotalInvested,
-            i.TotalReturned,
+            CurrencyUnits.ToWhole(i.CurrentValue),
+            CurrencyUnits.ToWhole(i.TotalInvested),
+            CurrencyUnits.ToWhole(i.TotalReturned),
             i.Currency,
             i.Note,
-            pnl,
+            CurrencyUnits.ToWhole(pnl),
             txns,
             i.CreatedAt,
             i.UpdatedAt);

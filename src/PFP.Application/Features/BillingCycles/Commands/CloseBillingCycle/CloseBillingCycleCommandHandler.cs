@@ -63,23 +63,6 @@ public sealed class CloseBillingCycleCommandHandler : IRequestHandler<CloseBilli
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        var dto = new FinBillingCycleDto(
-            cycle.Id,
-            cycle.SmoduleId,
-            cycle.SourceId,
-            cycle.Source.Name,
-            cycle.PeriodStart,
-            cycle.PeriodEnd,
-            cycle.StatementDate,
-            cycle.PaymentDueDate,
-            cycle.TotalAmount,
-            cycle.PaidAmount,
-            cycle.Status,
-            cycle.ClosedAt,
-            cycle.PaidAt,
-            cycle.CreatedAt,
-            cycle.UpdatedAt);
-
-        return new CloseBillingCycleResponse(dto);
+        return new CloseBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name));
     }
 }

@@ -45,48 +45,24 @@ public sealed class AuthApiTests : IClassFixture<IntegrationTestFixture>, IAsync
             new { email, password, fullName = "Auth API Test" },
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
-        await using (var regStream = await regResp.Content.ReadAsStreamAsync())
-        {
-            using var regDoc = await JsonDocument.ParseAsync(regStream);
-            var root = regDoc.RootElement;
-            Assert.False(string.IsNullOrEmpty(root.GetProperty("accessToken").GetString()));
-        }
+        var (_, _) = await AuthApiWire.ReadTokensAsync(regResp);
 
         var loginResp = await client.PostAsJsonAsync(
             "api/v1/auth/login",
             new { email, password },
             FinanceApiWireJson.Web);
         loginResp.EnsureSuccessStatusCode();
-        string accessFromLogin;
-        string refreshFromLogin;
-        await using (var loginStream = await loginResp.Content.ReadAsStreamAsync())
-        {
-            using var loginDoc = await JsonDocument.ParseAsync(loginStream);
-            var root = loginDoc.RootElement;
-            accessFromLogin = root.GetProperty("accessToken").GetString()
-                ?? throw new InvalidOperationException("Missing accessToken.");
-            refreshFromLogin = root.GetProperty("refreshToken").GetString()
-                ?? throw new InvalidOperationException("Missing refreshToken.");
-        }
+        var (accessFromLogin, refreshFromLogin) = await AuthApiWire.ReadTokensAsync(loginResp);
 
         var refreshResp = await client.PostAsJsonAsync(
             "api/v1/auth/refresh",
             new { refreshToken = refreshFromLogin },
             FinanceApiWireJson.Web);
         refreshResp.EnsureSuccessStatusCode();
-        string access2;
-        string refresh2;
-        await using (var refreshStream = await refreshResp.Content.ReadAsStreamAsync())
-        {
-            using var refreshDoc = await JsonDocument.ParseAsync(refreshStream);
-            var root = refreshDoc.RootElement;
-            access2 = root.GetProperty("accessToken").GetString()
-                ?? throw new InvalidOperationException("Missing accessToken.");
-            refresh2 = root.GetProperty("refreshToken").GetString()
-                ?? throw new InvalidOperationException("Missing refreshToken.");
-        }
+        var (access2, refresh2) = await AuthApiWire.ReadTokensAsync(refreshResp);
 
         Assert.NotEqual(refreshFromLogin, refresh2);
+        Assert.False(string.IsNullOrEmpty(accessFromLogin));
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", access2);
         var logoutResp = await client.PostAsync("api/v1/auth/logout", null);
@@ -141,7 +117,10 @@ public sealed class AuthApiTests : IClassFixture<IntegrationTestFixture>, IAsync
         forgotResp.EnsureSuccessStatusCode();
         await using var stream = await forgotResp.Content.ReadAsStreamAsync();
         using var doc = await JsonDocument.ParseAsync(stream);
-        Assert.True(doc.RootElement.TryGetProperty("message", out var msg));
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        var data = root.GetProperty("data");
+        Assert.True(data.TryGetProperty("message", out var msg));
         Assert.False(string.IsNullOrWhiteSpace(msg.GetString()));
     }
 
@@ -159,8 +138,7 @@ public sealed class AuthApiTests : IClassFixture<IntegrationTestFixture>, IAsync
             new { email, password, fullName = "Long UA Client" },
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
-        await using var stream = await regResp.Content.ReadAsStreamAsync();
-        using var doc = await JsonDocument.ParseAsync(stream);
-        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("accessToken").GetString()));
+        var (access, _) = await AuthApiWire.ReadTokensAsync(regResp);
+        Assert.False(string.IsNullOrEmpty(access));
     }
 }

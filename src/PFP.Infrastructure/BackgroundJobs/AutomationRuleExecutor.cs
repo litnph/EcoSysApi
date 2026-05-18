@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Commands.PayBillingCycle;
 using PFP.Application.Features.Savings.DepositToSaving;
@@ -168,7 +169,9 @@ public sealed class AutomationRuleExecutor : IAutomationRuleExecutor
         var cycleId = RequireGuid(action, "cycleId");
         var paymentSourceId = RequireGuid(action, "paymentSourceId");
         var amount = RequireDecimal(action, "amount");
-        await _mediator.Send(new PayBillingCycleCommand(cycleId, paymentSourceId, amount), ct).ConfigureAwait(false);
+        await _mediator
+            .Send(new PayBillingCycleCommand(cycleId, paymentSourceId, CurrencyUnits.ToWhole(amount)), ct)
+            .ConfigureAwait(false);
     }
 
     private async Task ExecuteTransferSavingsAsync(JsonElement action, CancellationToken ct)
@@ -181,7 +184,7 @@ public sealed class AutomationRuleExecutor : IAutomationRuleExecutor
             ? mpg
             : null;
         await _mediator
-            .Send(new DepositToSavingCommand(savingId, amount, txnDate, note, mp), ct)
+            .Send(new DepositToSavingCommand(savingId, CurrencyUnits.ToWhole(amount), txnDate, note, mp), ct)
             .ConfigureAwait(false);
     }
 
@@ -226,7 +229,7 @@ public sealed class AutomationRuleExecutor : IAutomationRuleExecutor
         var cmd = new CreateTransactionCommand(
             rule.SmoduleId,
             txnType,
-            amount,
+            CurrencyUnits.ToWhole(amount),
             sourceId,
             categoryId,
             txnDate,

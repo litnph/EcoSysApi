@@ -87,35 +87,5 @@ public sealed class GetTransferPairQueryHandler : IRequestHandler<GetTransferPai
         return new GetTransferPairResponse(MapDetail(outbound), MapDetail(inbound));
     }
 
-    private static TransactionDetailDto MapDetail(FinTransaction t)
-    {
-        TransactionSourceSummaryDto? src = t.Source is null
-            ? null
-            : new TransactionSourceSummaryDto(t.Source.Id, t.Source.Name, t.Source.Currency, t.Source.Balance);
-
-        TransactionCategorySummaryDto? cat = t.Category is null
-            ? null
-            : new TransactionCategorySummaryDto(t.Category.Id, t.Category.Name, t.Category.Kind);
-
-        return new TransactionDetailDto(
-            t.Id,
-            t.SmoduleId,
-            t.Type,
-            t.Status,
-            t.Amount,
-            t.Currency,
-            t.TxnDate,
-            t.SourceId,
-            t.CategoryId,
-            t.Description,
-            t.Note,
-            t.BillingCycleId,
-            t.MonthlyPeriodId,
-            t.RefTxnId,
-            t.CreatedAt,
-            t.UpdatedAt,
-            t.Version,
-            src,
-            cat);
-    }
+    private static TransactionDetailDto MapDetail(FinTransaction t) => TransactionDtoMapper.ToDetail(t);
 }

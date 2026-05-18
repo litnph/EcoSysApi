@@ -8,6 +8,7 @@ using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Support;
 using Xunit;
 
@@ -37,7 +38,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
         var h = await RegisterUserSeedCreditCardScenarioAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 10_000m);
+        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 10_000);
 
         var planResp = await client.PostAsJsonAsync(
             "api/v1/finance/installment-plans",
@@ -74,7 +75,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
         var h = await RegisterUserSeedCreditCardScenarioAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 10_000m);
+        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 10_000);
 
         var planResp = await client.PostAsJsonAsync(
             "api/v1/finance/installment-plans",
@@ -110,7 +111,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
         var h = await RegisterUserSeedCreditCardScenarioAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 300m);
+        var (cycleId, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 300);
 
         var planResp = await client.PostAsJsonAsync(
             "api/v1/finance/installment-plans",
@@ -151,7 +152,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
         var h = await RegisterUserSeedCreditCardScenarioAsync(_fixture, client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", h.AccessToken);
 
-        var (_, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 300m);
+        var (_, origTxnId) = await OpenCycleAndCreateDeferredAsync(client, h, 300);
 
         var planResp = await client.PostAsJsonAsync(
             "api/v1/finance/installment-plans",
@@ -186,7 +187,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
     private static async Task<(Guid CycleId, Guid DeferredTxnId)> OpenCycleAndCreateDeferredAsync(
         HttpClient client,
         CreditCardHarness h,
-        decimal deferredAmount)
+        long deferredAmount)
     {
         var genResp = await client.PostAsJsonAsync(
             "api/v1/finance/billing-cycles/generate",
@@ -255,12 +256,7 @@ public sealed class FinanceSprint3InstallmentTests : IClassFixture<IntegrationTe
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var root = regDoc.RootElement;
-        var spaceId = root.GetProperty("personalSpaceId").GetGuid();
-        var accessToken = root.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
+        var (accessToken, _, spaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

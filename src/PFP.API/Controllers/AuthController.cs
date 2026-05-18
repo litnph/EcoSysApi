@@ -4,7 +4,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using PFP.API.Configuration;
+using PFP.API.Filters;
+using PFP.API.Models;
 using PFP.Application.Features.Auth.ForgotPassword;
 using PFP.Application.Features.Auth.Google;
 using PFP.Application.Features.Auth.Login;
@@ -24,12 +28,17 @@ public sealed class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly GoogleOAuthOptions _google;
+    private readonly FrontendOptions _frontend;
 
     /// <summary>Creates the controller.</summary>
-    public AuthController(IMediator mediator, IOptions<GoogleOAuthOptions> googleOptions)
+    public AuthController(
+        IMediator mediator,
+        IOptions<GoogleOAuthOptions> googleOptions,
+        IOptions<FrontendOptions> frontendOptions)
     {
         _mediator = mediator;
         _google = googleOptions.Value;
+        _frontend = frontendOptions.Value;
     }
 
     /// <summary>Starts the Google OAuth 2.0 sign-in flow (redirects to Google).</summary>
@@ -39,10 +48,11 @@ public sealed class AuthController : ControllerBase
     public IActionResult Google([FromQuery] string? returnUrl)
     {
         if (string.IsNullOrWhiteSpace(_google.ClientId) || string.IsNullOrWhiteSpace(_google.ClientSecret))
-            return NotFound(new { error = "Google OAuth is not configured." });
+            return NotFound(ApiResults.Fail<object>(new { code = "not_configured", messages = new[] { "Google OAuth is not configured." } }));
+
         var properties = new AuthenticationProperties
         {
-            RedirectUri = Url.Action(nameof(GoogleComplete)),
+            RedirectUri = Url.Action(nameof(GoogleCallback)),
         };
 
         if (!string.IsNullOrWhiteSpace(returnUrl))
@@ -51,15 +61,15 @@ public sealed class AuthController : ControllerBase
         return Challenge(properties, GoogleDefaults.AuthenticationScheme);
     }
 
-    /// <summary>Completes Google OAuth: exchanges the external cookie for API JWT + refresh tokens.</summary>
-    [HttpGet("google/complete")]
+    /// <summary>Google OAuth callback — exchanges the external cookie for API JWT + refresh tokens (spec §5.2).</summary>
+    [HttpGet("google/callback")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<LoginResponse>> GoogleComplete(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> GoogleCallback(CancellationToken cancellationToken)
     {
         var auth = await HttpContext.AuthenticateAsync(GoogleAuthConstants.ExternalCookieScheme).ConfigureAwait(false);
         if (!auth.Succeeded || auth.Principal is null)
-            return Unauthorized();
+            return Unauthorized(ApiResults.Fail<LoginResponse>(new { code = "unauthorized", messages = new[] { "Google sign-in failed." } }));
 
         var email = auth.Principal.FindFirstValue(ClaimTypes.Email);
         var sub = auth.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -68,85 +78,109 @@ public sealed class AuthController : ControllerBase
             ?? email;
 
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(sub))
-            return BadRequest(new { error = "Google did not return the required email or subject claims." });
+            return BadRequest(ApiResults.Fail<LoginResponse>(new { code = "invalid_claims", messages = new[] { "Google did not return the required email or subject claims." } }));
 
         await HttpContext.SignOutAsync(GoogleAuthConstants.ExternalCookieScheme).ConfigureAwait(false);
 
         var result = await _mediator.Send(new GoogleLoginCommand(email, sub, name!), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+
+        var returnUrl = "/";
+        if (auth.Properties?.Items.TryGetValue("return_url", out var storedReturn) == true
+            && !string.IsNullOrWhiteSpace(storedReturn))
+        {
+            returnUrl = storedReturn;
+        }
+
+        var locale = string.IsNullOrWhiteSpace(_frontend.DefaultLocale) ? "vi" : _frontend.DefaultLocale.Trim();
+        var feBase = (_frontend.BaseUrl ?? "http://localhost:3000").TrimEnd('/');
+        var callback = new UriBuilder($"{feBase}/{locale}/auth/callback")
+        {
+            Query = string.Join(
+                "&",
+                new[]
+                {
+                    $"access_token={Uri.EscapeDataString(result.AccessToken)}",
+                    $"refresh_token={Uri.EscapeDataString(result.RefreshToken)}",
+                    $"returnUrl={Uri.EscapeDataString(returnUrl)}",
+                }),
+        };
+
+        return Redirect(callback.Uri.ToString());
     }
 
     /// <summary>Registers a new email + password account.</summary>
     [HttpPost("register")]
-    [ProducesResponseType(typeof(RegisterResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<RegisterResponse>> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<RegisterResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<RegisterResponse>>> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
                 new RegisterCommand(request.Email, request.Password, request.FullName),
                 cancellationToken)
             .ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
-    /// <summary>Authenticates with email + password.</summary>
+    /// <summary>Authenticates with email + password. Rate-limited at 5 attempts / 15 min / IP (spec §6.1).</summary>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    [EnableRateLimiting(RateLimitPolicies.AuthLogin)]
+    [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new LoginCommand(request.Email, request.Password), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
     /// <summary>Rotates refresh material and mints a new access token.</summary>
     [HttpPost("refresh")]
-    [ProducesResponseType(typeof(RefreshTokenResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<RefreshTokenResponse>> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<RefreshTokenResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<RefreshTokenResponse>>> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
     /// <summary>Revokes the refresh session bound to the bearer access token.</summary>
     [HttpPost("logout")]
     [Authorize]
-    [ProducesResponseType(typeof(LogoutResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<LogoutResponse>> Logout(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<LogoutResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<LogoutResponse>>> Logout(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new LogoutCommand(), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
     /// <summary>Queues a password-reset email when the account exists.</summary>
     [HttpPost("forgot-password")]
-    [ProducesResponseType(typeof(ForgotPasswordResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(
+    [ProducesResponseType(typeof(ApiResponse<ForgotPasswordResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<ForgotPasswordResponse>>> ForgotPassword(
         [FromBody] ForgotPasswordRequest request,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new ForgotPasswordCommand(request.Email), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
     /// <summary>Sets a new password from a reset token.</summary>
     [HttpPost("reset-password")]
-    [ProducesResponseType(typeof(ResetPasswordResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ResetPasswordResponse>> ResetPassword(
+    [ProducesResponseType(typeof(ApiResponse<ResetPasswordResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<ResetPasswordResponse>>> ResetPassword(
         [FromBody] ResetPasswordRequest request,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new ResetPasswordCommand(request.Token, request.NewPassword), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 
     /// <summary>Marks the user's email as verified.</summary>
     [HttpPost("verify-email")]
-    [ProducesResponseType(typeof(VerifyEmailResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<VerifyEmailResponse>> VerifyEmail(
+    [ProducesResponseType(typeof(ApiResponse<VerifyEmailResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<VerifyEmailResponse>>> VerifyEmail(
         [FromBody] VerifyEmailRequest request,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new VerifyEmailCommand(request.Token), cancellationToken).ConfigureAwait(false);
-        return Ok(result);
+        return Ok(ApiResults.Ok(result));
     }
 }
 

@@ -7,9 +7,9 @@ public sealed record MonthlyPeriodListItemDto(
     int Year,
     int Month,
     PeriodStatus Status,
-    decimal TotalIncome,
-    decimal TotalExpense,
-    decimal Net);
+    long TotalIncome,
+    long TotalExpense,
+    long Net);
 
 /// <summary>Twelve month slots.</summary>
 public sealed record GetMonthlyPeriodsListResponse(IReadOnlyList<MonthlyPeriodListItemDto> Periods);

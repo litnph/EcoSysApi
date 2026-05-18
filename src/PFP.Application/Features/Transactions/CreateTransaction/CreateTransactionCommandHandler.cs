@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
@@ -114,7 +115,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.DebtBorrow,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -125,7 +126,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         _db.FinTransactions.Add(txn);
-        source.Balance += request.Amount;
+        source.Balance += CurrencyUnits.FromWhole(request.Amount);
 
         var debt = new FinDebtRecord
         {
@@ -134,8 +135,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             PersonName = personName,
             PersonContact = string.IsNullOrWhiteSpace(request.PersonContact) ? null : request.PersonContact.Trim(),
             OriginalTxnId = txn.Id,
-            OriginalAmount = request.Amount,
-            RemainingAmount = request.Amount,
+            OriginalAmount = CurrencyUnits.FromWhole(request.Amount),
+            RemainingAmount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             DueDate = request.DueDate,
             Status = DebtStatus.Active,
@@ -183,7 +184,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.LoanGive,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -194,7 +195,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         _db.FinTransactions.Add(txn);
-        source.Balance -= request.Amount;
+        source.Balance -= CurrencyUnits.FromWhole(request.Amount);
 
         var debt = new FinDebtRecord
         {
@@ -203,8 +204,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             PersonName = personName,
             PersonContact = string.IsNullOrWhiteSpace(request.PersonContact) ? null : request.PersonContact.Trim(),
             OriginalTxnId = txn.Id,
-            OriginalAmount = request.Amount,
-            RemainingAmount = request.Amount,
+            OriginalAmount = CurrencyUnits.FromWhole(request.Amount),
+            RemainingAmount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             DueDate = null,
             Status = DebtStatus.Active,
@@ -260,7 +261,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.DebtRepay,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -271,13 +272,13 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         _db.FinTransactions.Add(txn);
-        source.Balance -= request.Amount;
+        source.Balance -= CurrencyUnits.FromWhole(request.Amount);
 
         var leg = new FinDebtTransaction
         {
             DebtRecordId = debt.Id,
             TxnId = txn.Id,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Type = DebtTxnType.Payment,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             TxnDate = request.TxnDate,
@@ -285,7 +286,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         _db.FinDebtTransactions.Add(leg);
 
-        debt.RemainingAmount -= request.Amount;
+        debt.RemainingAmount -= CurrencyUnits.FromWhole(request.Amount);
         if (debt.RemainingAmount <= 0)
         {
             debt.RemainingAmount = 0;
@@ -339,7 +340,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.LoanCollect,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -350,13 +351,13 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         _db.FinTransactions.Add(txn);
-        source.Balance += request.Amount;
+        source.Balance += CurrencyUnits.FromWhole(request.Amount);
 
         var leg = new FinDebtTransaction
         {
             DebtRecordId = debt.Id,
             TxnId = txn.Id,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Type = DebtTxnType.Collection,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             TxnDate = request.TxnDate,
@@ -364,7 +365,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         _db.FinDebtTransactions.Add(leg);
 
-        debt.RemainingAmount -= request.Amount;
+        debt.RemainingAmount -= CurrencyUnits.FromWhole(request.Amount);
         if (debt.RemainingAmount <= 0)
         {
             debt.RemainingAmount = 0;
@@ -448,7 +449,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.Deferred,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -461,8 +462,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         _db.FinTransactions.Add(txn);
 
-        source.Balance += request.Amount;
-        cycle.TotalAmount += request.Amount;
+        source.Balance += CurrencyUnits.FromWhole(request.Amount);
+        cycle.TotalAmount += CurrencyUnits.FromWhole(request.Amount);
 
         AddCreatedHistory(txn);
 
@@ -510,7 +511,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
-        if (source.Balance < request.Amount)
+        if (source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
         var description = BuildDirectIncomeDescription(TransactionType.Split, category.Name);
@@ -520,7 +521,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.Split,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -531,7 +532,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         _db.FinTransactions.Add(txn);
-        source.Balance -= request.Amount;
+        source.Balance -= CurrencyUnits.FromWhole(request.Amount);
 
         foreach (var item in splits)
         {
@@ -540,7 +541,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
                 TransactionId = txn.Id,
                 PersonName = item.PersonName.Trim(),
                 PersonContact = string.IsNullOrWhiteSpace(item.PersonContact) ? null : item.PersonContact.Trim(),
-                Amount = item.Amount,
+                Amount = CurrencyUnits.FromWhole(item.Amount),
                 Status = SplitStatus.Pending,
             };
             _db.FinTxnSplits.Add(split);
@@ -589,7 +590,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
-        if (request.Type == TransactionType.Direct && source.Balance < request.Amount)
+        if (request.Type == TransactionType.Direct && source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
         var description = BuildDirectIncomeDescription(request.Type, category.Name);
@@ -599,7 +600,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = request.Type,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -612,9 +613,9 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         _db.FinTransactions.Add(txn);
 
         if (request.Type == TransactionType.Income)
-            source.Balance += request.Amount;
+            source.Balance += CurrencyUnits.FromWhole(request.Amount);
         else
-            source.Balance -= request.Amount;
+            source.Balance -= CurrencyUnits.FromWhole(request.Amount);
 
         AddCreatedHistory(txn);
 
@@ -662,7 +663,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (toSource.IsArchived)
             throw new BusinessRuleException("The destination financial source is archived and cannot receive new transactions.");
 
-        if (fromSource.Balance < request.Amount)
+        if (fromSource.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
         if (!string.Equals(fromSource.Currency, toSource.Currency, StringComparison.Ordinal))
@@ -675,7 +676,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
-            Amount = -request.Amount,
+            Amount = -CurrencyUnits.FromWhole(request.Amount),
             Currency = fromSource.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
@@ -692,7 +693,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             SmoduleId = request.SmoduleId,
             Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
-            Amount = request.Amount,
+            Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = toSource.Currency,
             TxnDate = request.TxnDate,
             SourceId = toSourceId,
@@ -707,8 +708,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         _db.FinTransactions.Add(outbound);
         _db.FinTransactions.Add(inbound);
 
-        fromSource.Balance -= request.Amount;
-        toSource.Balance += request.Amount;
+        fromSource.Balance -= CurrencyUnits.FromWhole(request.Amount);
+        toSource.Balance += CurrencyUnits.FromWhole(request.Amount);
 
         AddCreatedHistory(outbound);
         AddCreatedHistory(inbound);
@@ -767,35 +768,5 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         return text.Length <= 512 ? text : text[..512];
     }
 
-    private static TransactionDetailDto MapDetail(FinTransaction t)
-    {
-        TransactionSourceSummaryDto? src = t.Source is null
-            ? null
-            : new TransactionSourceSummaryDto(t.Source.Id, t.Source.Name, t.Source.Currency, t.Source.Balance);
-
-        TransactionCategorySummaryDto? cat = t.Category is null
-            ? null
-            : new TransactionCategorySummaryDto(t.Category.Id, t.Category.Name, t.Category.Kind);
-
-        return new TransactionDetailDto(
-            t.Id,
-            t.SmoduleId,
-            t.Type,
-            t.Status,
-            t.Amount,
-            t.Currency,
-            t.TxnDate,
-            t.SourceId,
-            t.CategoryId,
-            t.Description,
-            t.Note,
-            t.BillingCycleId,
-            t.MonthlyPeriodId,
-            t.RefTxnId,
-            t.CreatedAt,
-            t.UpdatedAt,
-            t.Version,
-            src,
-            cat);
-    }
+    private static TransactionDetailDto MapDetail(FinTransaction t) => TransactionDtoMapper.ToDetail(t);
 }

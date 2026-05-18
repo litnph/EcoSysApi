@@ -78,7 +78,7 @@ public sealed class GetTransactionsQueryHandler : IRequestHandler<GetTransaction
                 t.SmoduleId,
                 t.Type,
                 t.Status,
-                t.Amount,
+                (long)Math.Round(t.Amount, 0, MidpointRounding.AwayFromZero),
                 t.Currency,
                 t.TxnDate,
                 t.SourceId,

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.InstallmentPlans.Common;
@@ -50,8 +51,8 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
             .Select(p => new InstallmentPayItemDto(
                 p.InstallmentNumber,
                 p.DueDate,
-                p.Amount,
-                p.PaidAmount,
+                CurrencyUnits.ToWhole(p.Amount),
+                CurrencyUnits.ToWhole(p.PaidAmount),
                 p.Status,
                 p.PaidAt,
                 p.TxnId))
@@ -64,12 +65,12 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
             plan.Source.Name,
             plan.OriginalTxnId,
             plan.OriginalTransaction.Description,
-            plan.TotalAmount,
+            CurrencyUnits.ToWhole(plan.TotalAmount),
             plan.TotalMonths,
-            plan.MonthlyAmount,
+            CurrencyUnits.ToWhole(plan.MonthlyAmount),
             plan.InterestRate,
             plan.ConversionFeeRate,
-            plan.ConversionFeeAmount,
+            plan.ConversionFeeAmount is { } fee ? CurrencyUnits.ToWhole(fee) : null,
             plan.ConversionFeeStatus,
             plan.ConversionFeeTxnId,
             plan.StartDate,

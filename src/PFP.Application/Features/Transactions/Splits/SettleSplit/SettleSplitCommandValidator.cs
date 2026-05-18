@@ -1,4 +1,5 @@
 using FluentValidation;
+using PFP.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -40,7 +41,9 @@ public sealed class SettleSplitCommandValidator : AbstractValidator<SettleSplitC
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == cmd.SplitId, ct)
                     .ConfigureAwait(false);
-                return split is not null && cmd.Amount.Value <= split.Amount;
+                return split is not null
+                    && cmd.Amount is { } amt
+                    && CurrencyUnits.FromWhole(amt) <= split.Amount;
             })
             .WithMessage("Amount cannot exceed the split total.");
 

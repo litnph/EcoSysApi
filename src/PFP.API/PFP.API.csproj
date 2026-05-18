@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <Description>API layer: Controllers, Middleware, Filters, DI registration, Program.cs.</Description>
+    <LaunchProfile>http</LaunchProfile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,30 +5,47 @@ public static class CorsConfigurationExtensions
 {
     private const string PolicyName = "Frontend";
 
+    private static bool AllowAll(IConfiguration configuration) =>
+        configuration.GetValue("Cors:AllowAll", false);
+
     private static bool HasOrigins(IConfiguration configuration) =>
         configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?
             .Any(o => !string.IsNullOrWhiteSpace(o)) == true;
 
-    /// <summary>Registers CORS when <c>Cors:AllowedOrigins</c> has at least one origin.</summary>
+    private static bool IsCorsEnabled(IConfiguration configuration) =>
+        AllowAll(configuration) || HasOrigins(configuration);
+
+    /// <summary>Registers CORS when <c>Cors:AllowAll</c> is true or <c>Cors:AllowedOrigins</c> is set.</summary>
     public static WebApplicationBuilder AddFrontendCors(this WebApplicationBuilder builder)
     {
-        if (!HasOrigins(builder.Configuration))
+        if (!IsCorsEnabled(builder.Configuration))
             return builder;
 
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()!
-            .Where(o => !string.IsNullOrWhiteSpace(o))
-            .Select(o => o.Trim().TrimEnd('/'))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var allowAll = AllowAll(builder.Configuration);
 
         builder.Services.AddCors(options =>
         {
             options.AddPolicy(PolicyName, policy =>
             {
-                policy.WithOrigins(origins)
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
+                if (allowAll)
+                {
+                    policy.AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                }
+                else
+                {
+                    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()!
+                        .Where(o => !string.IsNullOrWhiteSpace(o))
+                        .Select(o => o.Trim().TrimEnd('/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+                    policy.WithOrigins(origins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
             });
         });
 
@@ -38,7 +55,7 @@ public static class CorsConfigurationExtensions
     /// <summary>Applies the frontend CORS policy when configured.</summary>
     public static WebApplication UseFrontendCors(this WebApplication app)
     {
-        if (HasOrigins(app.Configuration))
+        if (IsCorsEnabled(app.Configuration))
             app.UseCors(PolicyName);
 
         return app;

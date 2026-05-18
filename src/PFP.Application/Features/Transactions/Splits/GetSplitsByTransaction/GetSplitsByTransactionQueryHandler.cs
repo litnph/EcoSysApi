@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Splits.Common;
@@ -52,7 +53,7 @@ public sealed class GetSplitsByTransactionQueryHandler : IRequestHandler<GetSpli
                 s.TransactionId,
                 s.PersonName,
                 s.PersonContact,
-                s.Amount,
+                CurrencyUnits.ToWhole(s.Amount),
                 s.Status,
                 s.SettledAt,
                 s.SettledTxnId))

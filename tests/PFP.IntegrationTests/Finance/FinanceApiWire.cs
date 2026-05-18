@@ -7,7 +7,7 @@ namespace PFP.IntegrationTests.Finance;
 internal sealed record CreateTransactionWire(
     Guid SmoduleId,
     string Type,
-    decimal Amount,
+    long Amount,
     Guid SourceId,
     Guid? CategoryId,
     DateOnly TxnDate,
@@ -21,7 +21,7 @@ internal sealed record CreateTransactionWire(
     Guid? DebtRecordId = null,
     DateOnly? DueDate = null);
 
-internal sealed record SplitItemWire(string PersonName, string? PersonContact, decimal Amount);
+internal sealed record SplitItemWire(string PersonName, string? PersonContact, long Amount);
 
 /// <summary>Mirrors <see cref="PFP.Application.Features.BillingCycles.Commands.GenerateBillingCycle.GenerateBillingCycleCommandHandler"/> date math.</summary>
 internal static class BillingCycleDateMath

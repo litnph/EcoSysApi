@@ -110,7 +110,7 @@ public sealed class SavingsController : ControllerBase
 public sealed record UpdateSavingBody(
     Guid SourceId,
     string Name,
-    decimal? TargetAmount,
+    long? TargetAmount,
     decimal InterestRate,
     DateOnly StartDate,
     DateOnly? MaturityDate,
@@ -120,7 +120,7 @@ public sealed record UpdateSavingBody(
 
 /// <summary>JSON body for savings deposit / withdrawal.</summary>
 public sealed record SavingCashMovementBody(
-    decimal Amount,
+    long Amount,
     DateOnly TxnDate,
     string? Note,
     Guid? MonthlyPeriodId);

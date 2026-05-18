@@ -2,6 +2,7 @@ using System.Text;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 using PFP.API.Authorization;
+using PFP.API.Filters;
 using PFP.API.Middleware;
 using PFP.Application;
 using PFP.Application.Common.Options;
@@ -36,6 +38,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddPlatformRateLimiting();
 
 var hangfireConnection = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
@@ -50,6 +53,9 @@ if (!builder.Configuration.GetValue("Hangfire:DisableServer", false))
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtSecret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret must be configured (minimum 32 characters).");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+builder.Services.Configure<FrontendOptions>(
+    builder.Configuration.GetSection(FrontendOptions.SectionName));
 
 var googleSection = builder.Configuration.GetSection(GoogleOAuthOptions.SectionName);
 var googleClientId = googleSection["ClientId"];
@@ -93,7 +99,8 @@ if (googleEnabled)
             options.ClientId = googleClientId!;
             options.ClientSecret = googleClientSecret!;
             options.SignInScheme = GoogleAuthConstants.ExternalCookieScheme;
-            options.CallbackPath = "/api/v1/auth/google/callback";
+            // Middleware-only path (spec §5.2 public callback is the controller action below).
+            options.CallbackPath = "/signin-google";
         });
 }
 
@@ -149,6 +156,18 @@ if (!app.Configuration.GetValue("Hangfire:DisableRecurringRegistration", false))
         job => job.ExecuteAsync(CancellationToken.None),
         "0 3 * * *",
         new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+    recurringJobs.AddOrUpdate<CleanupExpiredSessionsJob>(
+        "cleanup-expired-sessions",
+        job => job.ExecuteAsync(CancellationToken.None),
+        "0 2 * * *",
+        new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+    recurringJobs.AddOrUpdate<AuditLogRetentionJob>(
+        "audit-log-retention",
+        job => job.ExecuteAsync(CancellationToken.None),
+        "0 4 * * 0",
+        new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -159,7 +178,10 @@ app.UseSwaggerUI();
 
 app.UseProductionProxy();
 app.UseFrontendCors();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -173,12 +195,25 @@ app.MapHangfireDashboard(
 
 app.MapControllers();
 
-await using (var scope = app.Services.CreateAsyncScope())
+if (app.Configuration.GetValue("Database:AutoMigrate", false)
+    || app.Configuration.GetValue("Database:RunSeedOnStartup", false))
 {
+    var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
     if (app.Configuration.GetValue("Database:AutoMigrate", false))
+    {
+        startupLogger.LogInformation("Applying database migrations...");
         await db.Database.MigrateAsync().ConfigureAwait(false);
-    await DbInitializer.EnsureAsync(db).ConfigureAwait(false);
+    }
+
+    if (app.Configuration.GetValue("Database:RunSeedOnStartup", false))
+    {
+        startupLogger.LogInformation("Seeding database (locales, fallbacks, UI strings)...");
+        await DbInitializer.EnsureAsync(db).ConfigureAwait(false);
+        startupLogger.LogInformation("Database seed completed.");
+    }
 }
 
 app.Run();

@@ -139,49 +139,30 @@ public static class DbInitializer
 
     private static async Task EnsureLocalesAsync(AppDbContext db, CancellationToken cancellationToken)
     {
-        await UpsertLocaleAsync(
-            db,
-            LocaleViId,
-            "vi",
-            "Tiếng Việt",
-            "Vietnamese",
-            TextDirection.Ltr,
-            isDefault: true,
-            cancellationToken).ConfigureAwait(false);
+        var codes = new[] { "vi", "en", "ja" };
+        var existingByCode = await db.Locales
+            .Where(l => codes.Contains(l.Code))
+            .ToDictionaryAsync(l => l.Code, cancellationToken)
+            .ConfigureAwait(false);
 
-        await UpsertLocaleAsync(
-            db,
-            LocaleEnId,
-            "en",
-            "English",
-            "English",
-            TextDirection.Ltr,
-            isDefault: false,
-            cancellationToken).ConfigureAwait(false);
+        UpsertLocale(db, existingByCode, LocaleViId, "vi", "Tiếng Việt", "Vietnamese", TextDirection.Ltr, isDefault: true);
+        UpsertLocale(db, existingByCode, LocaleEnId, "en", "English", "English", TextDirection.Ltr, isDefault: false);
+        UpsertLocale(db, existingByCode, LocaleJaId, "ja", "日本語", "Japanese", TextDirection.Ltr, isDefault: false);
 
-        await UpsertLocaleAsync(
-            db,
-            LocaleJaId,
-            "ja",
-            "日本語",
-            "Japanese",
-            TextDirection.Ltr,
-            isDefault: false,
-            cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task UpsertLocaleAsync(
+    private static void UpsertLocale(
         AppDbContext db,
+        Dictionary<string, Locale> existingByCode,
         Guid id,
         string code,
         string name,
         string englishName,
         TextDirection direction,
-        bool isDefault,
-        CancellationToken cancellationToken)
+        bool isDefault)
     {
-        var existing = await db.Locales.FirstOrDefaultAsync(l => l.Code == code, cancellationToken).ConfigureAwait(false);
-        if (existing is null)
+        if (!existingByCode.TryGetValue(code, out var existing))
         {
             db.Locales.Add(new Locale
             {
@@ -195,84 +176,86 @@ public static class DbInitializer
                 CreatedAt = SeedTimestampUtc,
                 UpdatedAt = DateTime.UtcNow,
             });
+            return;
         }
-        else
+
+        existing.Name = name;
+        existing.EnglishName = englishName;
+        existing.Direction = direction;
+        existing.IsDefault = isDefault;
+        existing.IsActive = true;
+        existing.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static async Task EnsureTranslationFallbacksAsync(AppDbContext db, CancellationToken cancellationToken)
+    {
+        var existing = await db.TranslationFallbacks.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var byLocalePriority = existing.ToDictionary(f => (f.LocaleCode, f.Priority));
+
+        UpsertFallback(db, byLocalePriority, "en", "vi", 1);
+        UpsertFallback(db, byLocalePriority, "ja", "en", 1);
+        UpsertFallback(db, byLocalePriority, "ja", "vi", 2);
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void UpsertFallback(
+        AppDbContext db,
+        Dictionary<(string LocaleCode, int Priority), TranslationFallback> byLocalePriority,
+        string localeCode,
+        string fallbackCode,
+        int priority)
+    {
+        if (!byLocalePriority.TryGetValue((localeCode, priority), out var row))
         {
-            existing.Name = name;
-            existing.EnglishName = englishName;
-            existing.Direction = direction;
-            existing.IsDefault = isDefault;
-            existing.IsActive = true;
-            existing.UpdatedAt = DateTime.UtcNow;
+            db.TranslationFallbacks.Add(new TranslationFallback
+            {
+                Id = DeterministicGuid($"translation_fallback|{localeCode}|{priority}"),
+                LocaleCode = localeCode,
+                FallbackLocaleCode = fallbackCode,
+                Priority = priority,
+                CreatedAt = SeedTimestampUtc,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            return;
+        }
+
+        row.FallbackLocaleCode = fallbackCode;
+        row.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static async Task EnsureUiStringsAsync(AppDbContext db, CancellationToken cancellationToken)
+    {
+        var seedRows = UiStringSeedRows();
+        var keys = seedRows.Select(r => r.Key).Distinct().ToArray();
+        var existing = await db.UIStrings
+            .Where(s => keys.Contains(s.Key))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var byKeyLocale = existing.ToDictionary(s => (s.Key, s.LocaleCode));
+
+        foreach (var (key, vi, en, description) in seedRows)
+        {
+            UpsertUiString(db, byKeyLocale, key, "vi", vi, description);
+            UpsertUiString(db, byKeyLocale, key, "en", en, description);
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task EnsureTranslationFallbacksAsync(AppDbContext db, CancellationToken cancellationToken)
-    {
-        async Task UpsertFallbackAsync(string localeCode, string fallbackCode, int priority)
-        {
-            var id = DeterministicGuid($"translation_fallback|{localeCode}|{priority}");
-            var row = await db.TranslationFallbacks
-                .FirstOrDefaultAsync(
-                    f => f.LocaleCode == localeCode && f.Priority == priority,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            if (row is null)
-            {
-                db.TranslationFallbacks.Add(new TranslationFallback
-                {
-                    Id = id,
-                    LocaleCode = localeCode,
-                    FallbackLocaleCode = fallbackCode,
-                    Priority = priority,
-                    CreatedAt = SeedTimestampUtc,
-                    UpdatedAt = DateTime.UtcNow,
-                });
-            }
-            else
-            {
-                row.FallbackLocaleCode = fallbackCode;
-                row.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        await UpsertFallbackAsync("en", "vi", 1).ConfigureAwait(false);
-        await UpsertFallbackAsync("ja", "en", 1).ConfigureAwait(false);
-        await UpsertFallbackAsync("ja", "vi", 2).ConfigureAwait(false);
-    }
-
-    private static async Task EnsureUiStringsAsync(AppDbContext db, CancellationToken cancellationToken)
-    {
-        foreach (var (key, vi, en, description) in UiStringSeedRows())
-        {
-            await UpsertUiStringAsync(db, key, "vi", vi, description, cancellationToken).ConfigureAwait(false);
-            await UpsertUiStringAsync(db, key, "en", en, description, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task UpsertUiStringAsync(
+    private static void UpsertUiString(
         AppDbContext db,
+        Dictionary<(string Key, string LocaleCode), UIString> byKeyLocale,
         string key,
         string localeCode,
         string value,
-        string? description,
-        CancellationToken cancellationToken)
+        string? description)
     {
-        var id = DeterministicGuid($"ui_string|{key}|{localeCode}");
-        var row = await db.UIStrings
-            .FirstOrDefaultAsync(s => s.Key == key && s.LocaleCode == localeCode, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (row is null)
+        if (!byKeyLocale.TryGetValue((key, localeCode), out var row))
         {
             db.UIStrings.Add(new UIString
             {
-                Id = id,
+                Id = DeterministicGuid($"ui_string|{key}|{localeCode}"),
                 Key = key,
                 LocaleCode = localeCode,
                 Value = value,
@@ -280,15 +263,12 @@ public static class DbInitializer
                 CreatedAt = SeedTimestampUtc,
                 UpdatedAt = DateTime.UtcNow,
             });
-        }
-        else
-        {
-            row.Value = value;
-            row.Description = description;
-            row.UpdatedAt = DateTime.UtcNow;
+            return;
         }
 
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        row.Value = value;
+        row.Description = description;
+        row.UpdatedAt = DateTime.UtcNow;
     }
 
     private static (string Key, string Vi, string En, string Description)[] UiStringSeedRows() =>

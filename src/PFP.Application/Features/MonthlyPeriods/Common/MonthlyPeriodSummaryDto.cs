@@ -11,9 +11,9 @@ public sealed record MonthlyPeriodSummaryDto(
     PeriodStatus Status,
     DateTime? ClosedAt,
     Guid? ClosedBy,
-    decimal TotalIncome,
-    decimal TotalExpense,
-    decimal Net,
+    long TotalIncome,
+    long TotalExpense,
+    long Net,
     IReadOnlyList<CategoryAmountBreakdownDto> TopExpenseCategories,
     IReadOnlyList<MonthCategoryBreakdownItemDto>? CategoryBreakdown = null,
     IReadOnlyList<MonthSourceBreakdownItemDto>? SourceBreakdown = null);

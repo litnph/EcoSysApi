@@ -1,0 +1,4 @@
+{
+  "dotnet.defaultSolution": "PFP.sln",
+  "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles"
+}

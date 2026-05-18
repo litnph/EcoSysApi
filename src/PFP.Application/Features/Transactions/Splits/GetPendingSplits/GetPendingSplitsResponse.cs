@@ -9,7 +9,7 @@ public sealed record GetPendingSplitsResponse(IReadOnlyList<PendingSplitGroupDto
 public sealed record PendingSplitGroupDto(
     Guid TransactionId,
     DateOnly TxnDate,
-    decimal TransactionAmount,
+    long TransactionAmount,
     string Currency,
     string Description,
     IReadOnlyList<TxnSplitListDto> Splits);
@@ -19,6 +19,6 @@ public sealed record TxnSplitListDto(
     Guid Id,
     string PersonName,
     string? PersonContact,
-    decimal Amount,
+    long Amount,
     SplitStatus Status,
     DateTime CreatedAt);

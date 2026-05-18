@@ -1,4 +1,5 @@
 using FluentValidation;
+using PFP.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -228,7 +229,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                     return false;
                 if (debt.Status != DebtStatus.Active || debt.Direction != DebtDirection.Borrowed)
                     return false;
-                if (cmd.Amount > debt.RemainingAmount)
+                if (CurrencyUnits.FromWhole(cmd.Amount) > debt.RemainingAmount)
                     return false;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && string.Equals(src.Currency, debt.Currency, StringComparison.Ordinal);
@@ -245,7 +246,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                     return false;
                 if (debt.Status != DebtStatus.Active || debt.Direction != DebtDirection.Lent)
                     return false;
-                if (cmd.Amount > debt.RemainingAmount)
+                if (CurrencyUnits.FromWhole(cmd.Amount) > debt.RemainingAmount)
                     return false;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && string.Equals(src.Currency, debt.Currency, StringComparison.Ordinal);
@@ -258,7 +259,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type is not (TransactionType.Direct or TransactionType.Split))
                     return true;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
-                return src is not null && src.Balance >= cmd.Amount;
+                return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
 
@@ -268,7 +269,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.LoanGive)
                     return true;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
-                return src is not null && src.Balance >= cmd.Amount;
+                return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
 
@@ -278,7 +279,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.DebtRepay)
                     return true;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
-                return src is not null && src.Balance >= cmd.Amount;
+                return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
     }

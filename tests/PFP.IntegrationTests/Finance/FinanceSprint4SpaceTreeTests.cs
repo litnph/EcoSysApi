@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Finance;
 using PFP.IntegrationTests.Support;
 using Xunit;
@@ -43,13 +44,7 @@ public sealed class FinanceSprint4SpaceTreeTests : IClassFixture<IntegrationTest
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var regRoot = regDoc.RootElement;
-        var accessToken = regRoot.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
-        var organizationId = regRoot.GetProperty("organizationId").GetGuid();
-        var rootSpaceId = regRoot.GetProperty("personalSpaceId").GetGuid();
+        var (accessToken, organizationId, rootSpaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 

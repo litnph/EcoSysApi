@@ -8,7 +8,7 @@ public sealed record TransactionListItemDto(
     Guid SmoduleId,
     TransactionType Type,
     TxnStatus Status,
-    decimal Amount,
+    long Amount,
     string Currency,
     DateOnly TxnDate,
     Guid SourceId,
@@ -28,7 +28,7 @@ public sealed record GetTransactionsResponse(
     int TotalPages);
 
 /// <summary>Embedded source summary on transaction detail.</summary>
-public sealed record TransactionSourceSummaryDto(Guid Id, string Name, string Currency, decimal Balance);
+public sealed record TransactionSourceSummaryDto(Guid Id, string Name, string Currency, long Balance);
 
 /// <summary>Embedded category summary on transaction detail.</summary>
 public sealed record TransactionCategorySummaryDto(Guid Id, string Name, CategoryKind Kind);
@@ -39,7 +39,7 @@ public sealed record TransactionDetailDto(
     Guid SmoduleId,
     TransactionType Type,
     TxnStatus Status,
-    decimal Amount,
+    long Amount,
     string Currency,
     DateOnly TxnDate,
     Guid SourceId,

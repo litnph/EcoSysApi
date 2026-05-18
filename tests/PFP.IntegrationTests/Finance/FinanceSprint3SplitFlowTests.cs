@@ -8,6 +8,7 @@ using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence;
+using PFP.IntegrationTests.Auth;
 using PFP.IntegrationTests.Support;
 using Xunit;
 
@@ -42,11 +43,11 @@ public sealed class FinanceSprint3SplitFlowTests : IClassFixture<IntegrationTest
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
 
         var txnDate = DateOnly.FromDateTime(DateTime.UtcNow);
-        const decimal total = 300m;
+        const long total = 300;
         var splits = new[]
         {
-            new SplitItemWire("Alice", null, 100m),
-            new SplitItemWire("Bob", "0909123456", 150m),
+            new SplitItemWire("Alice", null, 100),
+            new SplitItemWire("Bob", "0909123456", 150),
         };
 
         var createResp = await client.PostAsJsonAsync(
@@ -127,12 +128,7 @@ public sealed class FinanceSprint3SplitFlowTests : IClassFixture<IntegrationTest
             FinanceApiWireJson.Web);
         regResp.EnsureSuccessStatusCode();
 
-        await using var regStream = await regResp.Content.ReadAsStreamAsync();
-        using var regDoc = await JsonDocument.ParseAsync(regStream);
-        var root = regDoc.RootElement;
-        var spaceId = root.GetProperty("personalSpaceId").GetGuid();
-        var accessToken = root.GetProperty("accessToken").GetString()
-            ?? throw new InvalidOperationException("Missing accessToken.");
+        var (accessToken, _, spaceId) = await AuthApiWire.ReadRegisterPayloadAsync(regResp);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

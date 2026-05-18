@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Savings.Common;
@@ -50,7 +51,7 @@ public sealed class UpdateSavingCommandHandler : IRequestHandler<UpdateSavingCom
 
         entity.SourceId = request.SourceId;
         entity.Name = request.Name.Trim();
-        entity.TargetAmount = request.TargetAmount;
+        entity.TargetAmount = request.TargetAmount is { } target ? CurrencyUnits.FromWhole(target) : null;
         entity.InterestRate = request.InterestRate;
         entity.StartDate = request.StartDate;
         entity.MaturityDate = request.MaturityDate;

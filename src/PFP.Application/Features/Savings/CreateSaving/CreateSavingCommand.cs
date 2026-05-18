@@ -7,7 +7,7 @@ public sealed record CreateSavingCommand(
     Guid SmoduleId,
     Guid SourceId,
     string Name,
-    decimal? TargetAmount,
+    long? TargetAmount,
     decimal InterestRate,
     DateOnly StartDate,
     DateOnly? MaturityDate,

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Investments.Common;
@@ -55,13 +56,14 @@ public sealed class RecordInvestmentTxnCommandHandler : IRequestHandler<RecordIn
                 throw new BusinessRuleException("Linked transaction currency must match the investment currency.");
         }
 
-        ApplyAggregates(investment, request.TxnType, request.Amount);
+        var amount = CurrencyUnits.FromWhole(request.Amount);
+        ApplyAggregates(investment, request.TxnType, amount);
 
         var row = new FinInvestmentTxn
         {
             InvestmentId = investment.Id,
             TxnType = request.TxnType,
-            Amount = request.Amount,
+            Amount = amount,
             Quantity = request.Quantity,
             PricePerUnit = request.PricePerUnit,
             TxnDate = request.TxnDate,
