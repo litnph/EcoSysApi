@@ -10,8 +10,8 @@ public sealed class FinTransactionHistoryConfiguration : IEntityTypeConfiguratio
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<FinTransactionHistory> builder)
     {
-        builder.Property(x => x.Snapshot).HasColumnType("jsonb");
-        builder.Property(x => x.ChangedFields).HasColumnType("jsonb");
+        builder.Property(x => x.Snapshot).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.ChangedFields).HasColumnType("nvarchar(max)");
         builder.Property(x => x.ChangeReason).HasMaxLength(1024);
 
         builder.Property(x => x.TransactionId).HasColumnName("transaction_id");

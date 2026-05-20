@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Domain.Entities;
 
 namespace PFP.Application.Features.Notifications.MarkAllNotificationsRead;
 
@@ -26,17 +27,12 @@ public sealed class MarkAllNotificationsReadCommandHandler : IRequestHandler<Mar
 
         var userId = _currentUser.UserId.Value;
 
-        var unread = await _db.Notifications
+        // Server-side UPDATE — one round-trip instead of N+1 (load every unread row, mutate, save).
+        var updated = await _db.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
-            .ToListAsync(cancellationToken)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true), cancellationToken)
             .ConfigureAwait(false);
 
-        foreach (var n in unread)
-            n.IsRead = true;
-
-        if (unread.Count > 0)
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return new MarkAllNotificationsReadResponse(unread.Count);
+        return new MarkAllNotificationsReadResponse(updated);
     }
 }

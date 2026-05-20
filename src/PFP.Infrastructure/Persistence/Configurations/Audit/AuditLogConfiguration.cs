@@ -10,7 +10,7 @@ namespace PFP.Infrastructure.Persistence.Configurations.Audit;
 /// Composite indexes per spec §3.8:
 /// (<c>EntityType, EntityId, CreatedAt</c>) and (<c>UserId, CreatedAt</c>).
 /// </para>
-/// <para>JSON columns are mapped to PostgreSQL <c>jsonb</c> for indexable / queryable payloads.</para>
+/// <para>JSON columns are stored as <c>nvarchar(max)</c> for portable SQL Server payloads.</para>
 /// </summary>
 public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 {
@@ -21,9 +21,9 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(x => x.IpAddress).HasMaxLength(64);
         builder.Property(x => x.UserAgent).HasMaxLength(512);
 
-        builder.Property(x => x.BeforeSnapshot).HasColumnType("jsonb");
-        builder.Property(x => x.AfterSnapshot).HasColumnType("jsonb");
-        builder.Property(x => x.ChangedFields).HasColumnType("jsonb");
+        builder.Property(x => x.BeforeSnapshot).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.AfterSnapshot).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.ChangedFields).HasColumnType("nvarchar(max)");
 
         // Spec §3.8 indexes.
         builder.HasIndex(x => new { x.EntityType, x.EntityId, x.CreatedAt });

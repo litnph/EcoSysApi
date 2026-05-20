@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
@@ -23,7 +22,7 @@ namespace PFP.Infrastructure;
 public static class InfrastructureServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="AppDbContext"/>, EF Core <c>SaveChanges</c> interceptors, and a Npgsql-backed connection.
+    /// Registers <see cref="AppDbContext"/>, EF Core <c>SaveChanges</c> interceptors, and a SQL Server connection.
     /// Interceptor order: <c>FinanceMonthlyPeriodSeed</c> → <c>SoftDelete</c> → <c>History</c> → <c>Audit</c>.
     /// </summary>
     /// <param name="services">DI container.</param>
@@ -47,20 +46,15 @@ public static class InfrastructureServiceCollectionExtensions
         }
 
         services.AddScoped<ISpaceMembershipEvaluator, CachingSpaceMembershipEvaluator>();
-        services.AddScoped<ISpaceModuleAccessChecker, NpgsqlSpaceModuleAccessChecker>();
+        services.AddScoped<ISpaceModuleAccessChecker, SqlConnectionSpaceModuleAccessChecker>();
+
+        var connectionString = configuration.GetConnectionString("Default")
+            ?? throw new InvalidOperationException(
+                "ConnectionStrings:Default is not configured. Set it via appsettings or DATABASE_URL.");
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
-            var connectionString = configuration.GetConnectionString("Default")
-                ?? throw new InvalidOperationException(
-                    "ConnectionStrings:Default is not configured. Set it via appsettings or DATABASE_URL.");
-
-            options.UseNpgsql(connectionString, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-                npgsql.EnableRetryOnFailure(maxRetryCount: 3);
-            });
-            options.ReplaceService<IHistoryRepository, SnakeCaseNpgsqlHistoryRepository>();
+            ConfigureAppDbContext(options, connectionString);
 
             // Finance seed runs before soft-delete so new rows get the same SavingChanges pass.
             options.AddInterceptors(
@@ -69,6 +63,13 @@ public static class InfrastructureServiceCollectionExtensions
                 sp.GetRequiredService<HistoryInterceptor>(),
                 sp.GetRequiredService<AuditInterceptor>());
         });
+
+        // Short-lived read-only contexts (e.g. LocalizationMiddleware) — no interceptors so we avoid
+        // AppDbContext ↔ ICurrentUserService circular resolution inside a child DI scope.
+        // Factory must be Scoped when AddDbContext is also registered (its DbContextOptions are Scoped).
+        services.AddDbContextFactory<AppDbContext>(
+            options => ConfigureAppDbContext(options, connectionString),
+            ServiceLifetime.Scoped);
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddHttpContextAccessor();
@@ -104,5 +105,14 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<AuditLogRetentionJob>();
 
         return services;
+    }
+
+    private static void ConfigureAppDbContext(DbContextOptionsBuilder options, string connectionString)
+    {
+        options.UseSqlServer(connectionString, sql =>
+        {
+            sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+            sql.EnableRetryOnFailure(maxRetryCount: 3);
+        });
     }
 }

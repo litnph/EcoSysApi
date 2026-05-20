@@ -10,8 +10,8 @@ public sealed class SpaceModuleConfiguration : IEntityTypeConfiguration<SpaceMod
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<SpaceModule> builder)
     {
-        // Module-specific config as PostgreSQL jsonb so handlers can index into it.
-        builder.Property(x => x.Settings).HasColumnType("jsonb");
+        // Module-specific config stored as JSON text (nvarchar(max)) for handler-driven payloads.
+        builder.Property(x => x.Settings).HasColumnType("nvarchar(max)");
 
         builder.HasIndex(x => new { x.SpaceId, x.ModuleCode }).IsUnique();
 

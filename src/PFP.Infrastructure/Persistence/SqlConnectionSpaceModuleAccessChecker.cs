@@ -1,5 +1,5 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Npgsql;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
 using PFP.Infrastructure.Persistence.Configurations.Common;
@@ -7,16 +7,16 @@ using PFP.Infrastructure.Persistence.Configurations.Common;
 namespace PFP.Infrastructure.Persistence;
 
 /// <summary>
-/// Authorisation checks for finance <see cref="SpaceModule"/> access using PostgreSQL (<c>NpgsqlCommand</c>)
+/// Authorisation checks for finance <see cref="PFP.Domain.Entities.SpaceModule"/> access using ADO.NET against SQL Server,
 /// coupled with cached <see cref="ISpaceMembershipEvaluator"/> lookups (avoiding interceptor cycles).
 /// </summary>
-public sealed class NpgsqlSpaceModuleAccessChecker : ISpaceModuleAccessChecker
+public sealed class SqlConnectionSpaceModuleAccessChecker : ISpaceModuleAccessChecker
 {
     private readonly IConfiguration _configuration;
     private readonly ISpaceMembershipEvaluator _membership;
 
     /// <summary>Creates the checker.</summary>
-    public NpgsqlSpaceModuleAccessChecker(
+    public SqlConnectionSpaceModuleAccessChecker(
         IConfiguration configuration,
         ISpaceMembershipEvaluator membership)
     {
@@ -37,7 +37,7 @@ public sealed class NpgsqlSpaceModuleAccessChecker : ISpaceModuleAccessChecker
                                ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
 
         Guid? spaceId;
-        await using (var conn = new NpgsqlConnection(connectionString))
+        await using (var conn = new SqlConnection(connectionString))
         {
             await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var cmd = conn.CreateCommand();
@@ -47,17 +47,17 @@ public sealed class NpgsqlSpaceModuleAccessChecker : ISpaceModuleAccessChecker
                   FROM space_modules
                  WHERE id = @smodule_id
                    AND module_code = @module_code
-                   AND is_enabled
-                   AND NOT is_deleted
+                   AND is_enabled = 1
+                   AND is_deleted = 0
                 """;
 
             var p = cmd.CreateParameter();
-            p.ParameterName = "smodule_id";
+            p.ParameterName = "@smodule_id";
             p.Value = smoduleId;
             cmd.Parameters.Add(p);
 
             var pCode = cmd.CreateParameter();
-            pCode.ParameterName = "module_code";
+            pCode.ParameterName = "@module_code";
             pCode.Value = moduleCodeFinance;
             cmd.Parameters.Add(pCode);
 
@@ -65,6 +65,7 @@ public sealed class NpgsqlSpaceModuleAccessChecker : ISpaceModuleAccessChecker
             spaceId = scalar switch
             {
                 Guid g => g,
+                byte[] bytes when bytes.Length == 16 => new Guid(bytes),
                 _ => null,
             };
         }

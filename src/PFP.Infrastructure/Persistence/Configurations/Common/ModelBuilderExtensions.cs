@@ -13,7 +13,7 @@ internal static class ModelBuilderExtensions
 {
     /// <summary>
     /// Renames every table, column, key, foreign key, and index to snake_case so the generated
-    /// PostgreSQL schema doesn't need quoted identifiers.
+    /// schema uses consistent lower_snake identifiers.
     /// </summary>
     public static void ApplySnakeCaseNaming(this ModelBuilder builder)
     {

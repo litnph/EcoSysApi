@@ -77,77 +77,85 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
             .Select(c => new CategoryAmountBreakdownDto(c.CategoryId!.Value, c.CategoryName, c.Amount))
             .ToList();
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        var period = await _db.FinMonthlyPeriods
-            .FirstOrDefaultAsync(
-                p => p.SmoduleId == request.SmoduleId && p.Year == request.Year && p.Month == request.Month,
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        if (period is null)
-        {
-            period = new FinMonthlyPeriod
-            {
-                SmoduleId = request.SmoduleId,
-                Year = request.Year,
-                Month = request.Month,
-            };
-            _db.FinMonthlyPeriods.Add(period);
-        }
-
-        if (period.Status == PeriodStatus.Closed)
-            throw new BusinessRuleException("This month is already closed.");
-
         var utcNow = DateTime.UtcNow;
         var userId = _currentUser.UserId.Value;
 
-        period.TotalIncome = income;
-        period.TotalExpense = expense;
-        period.Net = net;
-        period.CategoryBreakdown = categoryJson;
-        period.SourceBreakdown = sourceJson;
-        period.Status = PeriodStatus.Closed;
-        period.ClosedAt = utcNow;
-        period.ClosedBy = userId;
-
-        var closeAuditPayload = JsonSerializer.Serialize(new
+        // Compose the explicit transaction with the EF Core retrying execution strategy so transient
+        // failures retry the whole close-month unit (spec §4.4).
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var periodId = await strategy.ExecuteAsync(async () =>
         {
-            smoduleId = request.SmoduleId,
-            request.Year,
-            request.Month,
-            totalIncome = income,
-            totalExpense = expense,
-            net,
-        });
+            await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        _db.AuditLogs.Add(new AuditLog
-        {
-            UserId = userId,
-            SessionId = _currentUser.SessionId,
-            EntityType = "fin_monthly_period_close",
-            EntityId = period.Id,
-            Action = AuditAction.Created,
-            BeforeSnapshot = null,
-            AfterSnapshot = closeAuditPayload,
-            ChangedFields = null,
-            IpAddress = _currentUser.IpAddress,
-            UserAgent = _currentUser.UserAgent,
-            CreatedAt = utcNow,
-            UpdatedAt = utcNow,
-        });
+            var period = await _db.FinMonthlyPeriods
+                .FirstOrDefaultAsync(
+                    p => p.SmoduleId == request.SmoduleId && p.Year == request.Year && p.Month == request.Month,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            if (period is null)
+            {
+                period = new FinMonthlyPeriod
+                {
+                    SmoduleId = request.SmoduleId,
+                    Year = request.Year,
+                    Month = request.Month,
+                };
+                _db.FinMonthlyPeriods.Add(period);
+            }
+
+            if (period.Status == PeriodStatus.Closed)
+                throw new BusinessRuleException("This month is already closed.");
+
+            period.TotalIncome = income;
+            period.TotalExpense = expense;
+            period.Net = net;
+            period.CategoryBreakdown = categoryJson;
+            period.SourceBreakdown = sourceJson;
+            period.Status = PeriodStatus.Closed;
+            period.ClosedAt = utcNow;
+            period.ClosedBy = userId;
+
+            var closeAuditPayload = JsonSerializer.Serialize(new
+            {
+                smoduleId = request.SmoduleId,
+                request.Year,
+                request.Month,
+                totalIncome = income,
+                totalExpense = expense,
+                net,
+            });
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                SessionId = _currentUser.SessionId,
+                EntityType = "fin_monthly_period_close",
+                EntityId = period.Id,
+                Action = AuditAction.Created,
+                BeforeSnapshot = null,
+                AfterSnapshot = closeAuditPayload,
+                ChangedFields = null,
+                IpAddress = _currentUser.IpAddress,
+                UserAgent = _currentUser.UserAgent,
+                CreatedAt = utcNow,
+                UpdatedAt = utcNow,
+            });
+
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            return period.Id;
+        }).ConfigureAwait(false);
 
         var dto = new MonthlyPeriodSummaryDto(
-            period.Id,
+            periodId,
             request.SmoduleId,
             request.Year,
             request.Month,
-            period.Status,
-            period.ClosedAt,
-            period.ClosedBy,
+            PeriodStatus.Closed,
+            utcNow,
+            userId,
             CurrencyUnits.ToWhole(income),
             CurrencyUnits.ToWhole(expense),
             CurrencyUnits.ToWhole(net),

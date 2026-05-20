@@ -8,6 +8,7 @@ using PFP.Application.Common.Constants;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Models;
+using PFP.Domain.Entities;
 
 namespace PFP.Infrastructure.Identity;
 
@@ -120,12 +121,7 @@ public sealed class JwtTokenService : IJwtTokenService
                 if (session.User is null || !session.User.IsActive)
                     throw new UnauthorizedAppException("Refresh token is invalid or expired.");
 
-                var personalOrgId = await _db.Organizations
-                    .AsNoTracking()
-                    .Where(o => o.OwnerId == session.UserId && o.IsPersonal)
-                    .Select(o => o.Id)
-                    .FirstAsync(cancellationToken)
-                    .ConfigureAwait(false);
+                var orgId = await ResolveSessionOrgIdAsync(session, cancellationToken).ConfigureAwait(false);
 
                 var creds = CreateRefreshTokenCredentials();
                 var now = DateTime.UtcNow;
@@ -136,17 +132,96 @@ public sealed class JwtTokenService : IJwtTokenService
                 await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-                var (accessToken, accessExpires) = CreateAccessToken(session.UserId, session.Id, personalOrgId);
+                var (accessToken, accessExpires) = CreateAccessToken(session.UserId, session.Id, orgId);
 
                 return new RefreshTokenExchangeResult(
                     session.UserId,
-                    personalOrgId,
+                    orgId,
                     session.Id,
                     accessToken,
                     creds.PlainRefreshToken,
                     accessExpires,
                     session.ExpiresAt);
             }).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public async Task<RefreshTokenExchangeResult> SwitchOrganizationAsync(
+        Guid sessionId,
+        Guid userId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var strategy = _db.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(
+            async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+                var session = await _db.UserSessions
+                    .Include(s => s.User)
+                    .FirstOrDefaultAsync(
+                        s => s.Id == sessionId
+                             && s.UserId == userId
+                             && s.RevokedAt == null
+                             && s.ExpiresAt > DateTime.UtcNow,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (session is null || session.User is null || !session.User.IsActive)
+                    throw new UnauthorizedAppException("Session is invalid or expired.");
+
+                session.ActiveOrgId = organizationId;
+
+                var creds = CreateRefreshTokenCredentials();
+                var now = DateTime.UtcNow;
+                session.TokenHash = creds.RefreshTokenSha256Hex;
+                session.ExpiresAt = creds.ExpiresAtUtc;
+                session.LastUsedAt = now;
+
+                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                var (accessToken, accessExpires) =
+                    CreateAccessToken(session.UserId, session.Id, organizationId);
+
+                return new RefreshTokenExchangeResult(
+                    session.UserId,
+                    organizationId,
+                    session.Id,
+                    accessToken,
+                    creds.PlainRefreshToken,
+                    accessExpires,
+                    session.ExpiresAt);
+            }).ConfigureAwait(false);
+    }
+
+    private async Task<Guid> ResolveSessionOrgIdAsync(
+        UserSession session,
+        CancellationToken cancellationToken)
+    {
+        if (session.ActiveOrgId is { } activeOrgId)
+        {
+            var stillMember = await _db.OrgMembers
+                .AsNoTracking()
+                .AnyAsync(
+                    m => m.OrgId == activeOrgId && m.UserId == session.UserId && m.IsActive,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (stillMember)
+                return activeOrgId;
+
+            session.ActiveOrgId = null;
+        }
+
+        return await _db.Organizations
+            .AsNoTracking()
+            .Where(o => o.OwnerId == session.UserId && o.IsPersonal)
+            .Select(o => o.Id)
+            .FirstAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private void EnsureSecret()

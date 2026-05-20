@@ -73,77 +73,84 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
         var today = DateOnly.FromDateTime(utcNow);
         var userId = _currentUser.UserId.Value;
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        orig.IsDeleted = true;
-        orig.DeletedAt = utcNow;
-        orig.DeletedBy = userId;
-        orig.Version += 1;
-        orig.UpdatedBy = userId;
-        orig.LastSessionId = _currentUser.SessionId;
-
-        _db.FinTransactionHistory.Add(new FinTransactionHistory
+        // Spec §4.2: the soft-delete, reversal row, history row, balance revert, and audit row MUST
+        // commit atomically. Wrap with CreateExecutionStrategy so the explicit transaction composes
+        // with the SQL Server retrying execution strategy configured by EnableRetryOnFailure.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            TransactionId = orig.Id,
-            Version = orig.Version,
-            ChangedBy = userId,
-            SessionId = _currentUser.SessionId,
-            ChangeType = HistoryChangeType.Deleted,
-            ChangedFields = null,
-            Snapshot = TransactionHistoryJson.BuildTransactionStateSnapshot(orig),
-            ChangeReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim(),
-            CreatedAt = utcNow,
-            UpdatedAt = utcNow,
-        });
+            await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        if (partner is not null)
-        {
-            partner.IsDeleted = true;
-            partner.DeletedAt = utcNow;
-            partner.DeletedBy = userId;
-        }
+            orig.IsDeleted = true;
+            orig.DeletedAt = utcNow;
+            orig.DeletedBy = userId;
+            orig.Version += 1;
+            orig.UpdatedBy = userId;
+            orig.LastSessionId = _currentUser.SessionId;
 
-        if (orig.Type == TransactionType.Transfer && partner is not null)
-        {
-            _db.FinTransactions.Add(CreateReversalForLeg(orig, today));
-            _db.FinTransactions.Add(CreateReversalForLeg(partner, today));
-            ApplyBalanceRevert(orig.Source, orig);
-            ApplyBalanceRevert(partner.Source, partner);
-        }
-        else
-        {
-            _db.FinTransactions.Add(CreateReversalForLeg(orig, today));
-            ApplyBalanceRevert(orig.Source, orig);
-        }
+            _db.FinTransactionHistory.Add(new FinTransactionHistory
+            {
+                TransactionId = orig.Id,
+                Version = orig.Version,
+                ChangedBy = userId,
+                SessionId = _currentUser.SessionId,
+                ChangeType = HistoryChangeType.Deleted,
+                ChangedFields = null,
+                Snapshot = TransactionHistoryJson.BuildTransactionStateSnapshot(orig),
+                ChangeReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim(),
+                CreatedAt = utcNow,
+                UpdatedAt = utcNow,
+            });
 
-        var auditNow = DateTime.UtcNow;
-        _db.AuditLogs.Add(new AuditLog
-        {
-            UserId = userId,
-            SessionId = _currentUser.SessionId,
-            EntityType = "fin_transactions",
-            EntityId = orig.Id,
-            Action = AuditAction.Deleted,
-            BeforeSnapshot = beforeAuditJson,
-            AfterSnapshot = null,
-            ChangedFields = null,
-            IpAddress = _currentUser.IpAddress,
-            UserAgent = _currentUser.UserAgent,
-            CreatedAt = auditNow,
-            UpdatedAt = auditNow,
-        });
+            if (partner is not null)
+            {
+                partner.IsDeleted = true;
+                partner.DeletedAt = utcNow;
+                partner.DeletedBy = userId;
+            }
 
-        if (orig.Type == TransactionType.Deferred && orig.BillingCycleId is { } billCycleId)
-        {
-            var bc = await _db.FinBillingCycles
-                .FirstOrDefaultAsync(c => c.Id == billCycleId, cancellationToken)
-                .ConfigureAwait(false);
-            if (bc is not null && bc.Status == BillingCycleStatus.Open)
-                bc.TotalAmount -= orig.Amount;
-        }
+            if (orig.Type == TransactionType.Transfer && partner is not null)
+            {
+                _db.FinTransactions.Add(CreateReversalForLeg(orig, today));
+                _db.FinTransactions.Add(CreateReversalForLeg(partner, today));
+                ApplyBalanceRevert(orig.Source, orig);
+                ApplyBalanceRevert(partner.Source, partner);
+            }
+            else
+            {
+                _db.FinTransactions.Add(CreateReversalForLeg(orig, today));
+                ApplyBalanceRevert(orig.Source, orig);
+            }
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            var auditNow = DateTime.UtcNow;
+            _db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                SessionId = _currentUser.SessionId,
+                EntityType = "fin_transactions",
+                EntityId = orig.Id,
+                Action = AuditAction.Deleted,
+                BeforeSnapshot = beforeAuditJson,
+                AfterSnapshot = null,
+                ChangedFields = null,
+                IpAddress = _currentUser.IpAddress,
+                UserAgent = _currentUser.UserAgent,
+                CreatedAt = auditNow,
+                UpdatedAt = auditNow,
+            });
+
+            if (orig.Type == TransactionType.Deferred && orig.BillingCycleId is { } billCycleId)
+            {
+                var bc = await _db.FinBillingCycles
+                    .FirstOrDefaultAsync(c => c.Id == billCycleId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (bc is not null && bc.Status == BillingCycleStatus.Open)
+                    bc.TotalAmount -= orig.Amount;
+            }
+
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
         return new DeleteTransactionResponse(orig.Id);
     }

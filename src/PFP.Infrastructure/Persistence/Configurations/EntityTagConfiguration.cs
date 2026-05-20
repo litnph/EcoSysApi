@@ -15,7 +15,7 @@ public sealed class EntityTagConfiguration : IEntityTypeConfiguration<EntityTag>
 
         builder.HasIndex(x => new { x.TagId, x.EntityType, x.EntityId })
             .IsUnique()
-            .HasFilter("is_deleted = false");
+            .HasFilter("[is_deleted] = 0");
 
         builder.HasIndex(x => new { x.EntityType, x.EntityId });
 

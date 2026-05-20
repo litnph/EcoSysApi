@@ -18,7 +18,7 @@ public sealed class FinTxnSplitConfiguration : IEntityTypeConfiguration<FinTxnSp
         builder.HasOne(x => x.Transaction)
                .WithMany(t => t.Splits)
                .HasForeignKey(x => x.TransactionId)
-               .OnDelete(DeleteBehavior.Cascade);
+               .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.SettledTransaction)
                .WithMany()

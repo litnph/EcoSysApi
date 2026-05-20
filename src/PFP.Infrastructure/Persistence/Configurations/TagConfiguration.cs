@@ -15,7 +15,7 @@ public sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
 
         builder.HasIndex(x => new { x.SmoduleId, x.Name })
             .IsUnique()
-            .HasFilter("is_deleted = false");
+            .HasFilter("[is_deleted] = 0");
 
         builder.HasOne(x => x.Smodule)
                .WithMany()

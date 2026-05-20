@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PFP.Application.Common.Interfaces;
+using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
 namespace PFP.Infrastructure.BackgroundJobs;
@@ -24,6 +26,7 @@ public sealed class ExecuteDeletionRequestsJob
     /// <summary>Processes all due deletion requests (each in its own scope / transaction).</summary>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
+        var sw = Stopwatch.StartNew();
         List<Guid> requestIds;
         await using (var scope = _scopeFactory.CreateAsyncScope())
         {
@@ -38,17 +41,37 @@ public sealed class ExecuteDeletionRequestsJob
                 .ConfigureAwait(false);
         }
 
+        var executed = 0;
+        var failed = 0;
         foreach (var id in requestIds)
         {
             try
             {
                 await ProcessOneAsync(id, cancellationToken).ConfigureAwait(false);
+                executed++;
             }
             catch (Exception ex)
             {
+                failed++;
                 _logger.LogError(ex, "Failed executing account deletion request {RequestId}", id);
             }
         }
+
+        sw.Stop();
+
+        // Spec §7.1: every Hangfire job must append a SystemEventLog row on completion (success or
+        // partial failure) so operators can audit the daily 03:00 GDPR-anonymisation pass.
+        await using var summaryScope = _scopeFactory.CreateAsyncScope();
+        var summaryDb = summaryScope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        summaryDb.SystemEventLogs.Add(new SystemEventLog
+        {
+            EventType = "hangfire.execute_deletion_requests.completed",
+            JobName = nameof(ExecuteDeletionRequestsJob),
+            Payload = $"{{\"candidates\":{requestIds.Count},\"executed\":{executed},\"failed\":{failed}}}",
+            Status = failed == 0 ? "success" : "partial",
+            DurationMs = sw.ElapsedMilliseconds,
+        });
+        await summaryDb.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ProcessOneAsync(Guid requestId, CancellationToken cancellationToken)

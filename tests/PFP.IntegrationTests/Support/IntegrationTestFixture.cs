@@ -2,22 +2,22 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Testcontainers.PostgreSql;
+using Testcontainers.MsSql;
 
 namespace PFP.IntegrationTests.Support;
 
 /// <summary>
-/// Hosts <see cref="Program"/> against PostgreSQL. Either:
+/// Hosts <see cref="Program"/> against SQL Server. Either:
 /// <list type="bullet">
-/// <item>Set <c>PFP_INTEGRATION_CONNECTION</c> to a full Npgsql connection string (Neon, local Postgres, CI service), or</item>
+/// <item>Set <c>PFP_INTEGRATION_CONNECTION</c> to a full SQL Server connection string, or</item>
 /// <item>Set <c>PFP_INTEGRATION_CONNECTION_FILE</c> to a file path whose contents are that connection string, or</item>
-/// <item>Run Docker locally so Testcontainers can start <c>postgres:16-alpine</c>.</item>
+/// <item>Run Docker locally so Testcontainers can start <c>mcr.microsoft.com/mssql/server:2022-latest</c>.</item>
 /// </list>
 /// EF migrations run from the test class <c>IAsyncLifetime.InitializeAsync</c> hook.
 /// </summary>
 public sealed class IntegrationTestFixture : WebApplicationFactory<Program>
 {
-    private readonly PostgreSqlContainer? _postgres;
+    private readonly MsSqlContainer? _msSql;
     private readonly string _connectionString;
 
     /// <summary>Creates the factory and prepares the database connection.</summary>
@@ -32,18 +32,19 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>
 
         try
         {
-            _postgres = new PostgreSqlBuilder()
-                .WithImage("postgres:16-alpine")
+            _msSql = new MsSqlBuilder()
+                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+                .WithPassword("PfpTest_Integration_2026_Aa1")
                 .Build();
 
-            _postgres.StartAsync().GetAwaiter().GetResult();
-            _connectionString = _postgres.GetConnectionString();
+            _msSql.StartAsync().GetAwaiter().GetResult();
+            _connectionString = _msSql.GetConnectionString();
         }
         catch (ArgumentException ex) when (ex.ParamName is "DockerEndpointAuthConfig")
         {
             throw new InvalidOperationException(
-                "Integration tests need PostgreSQL. Start Docker Desktop so Testcontainers can run postgres:16-alpine, " +
-                "or set PFP_INTEGRATION_CONNECTION (or PFP_INTEGRATION_CONNECTION_FILE) to an Npgsql connection string. " +
+                "Integration tests need SQL Server. Start Docker Desktop so Testcontainers can run mssql/server:2022-latest, " +
+                "or set PFP_INTEGRATION_CONNECTION (or PFP_INTEGRATION_CONNECTION_FILE) to a SQL Server connection string. " +
                 "See IntegrationTestFixture remarks.",
                 ex);
         }
@@ -70,8 +71,8 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _postgres is not null)
-            _postgres.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        if (disposing && _msSql is not null)
+            _msSql.DisposeAsync().AsTask().GetAwaiter().GetResult();
 
         base.Dispose(disposing);
     }

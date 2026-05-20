@@ -1,7 +1,7 @@
 using System.Text;
 using Hangfire;
 using Hangfire.Dashboard;
-using Hangfire.PostgreSql;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -40,14 +40,35 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPlatformRateLimiting();
 
+if (builder.Configuration.GetValue("Database:AutoMigrate", false))
+{
+    var bootstrapCs = builder.Configuration.GetConnectionString("Default");
+    if (string.IsNullOrWhiteSpace(bootstrapCs))
+        throw new InvalidOperationException(
+            "ConnectionStrings:Default is not configured. Set it via appsettings or DATABASE_URL.");
+
+    await using var bootstrapDb = new AppDbContext(
+        new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlServer(
+                bootstrapCs,
+                sql => sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
+            .Options);
+    if (!await Program.ApplicationSchemaExistsAsync(bootstrapDb).ConfigureAwait(false))
+    {
+        await bootstrapDb.Database.EnsureCreatedAsync().ConfigureAwait(false);
+    }
+}
+
 var hangfireConnection = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
         "ConnectionStrings:Default is not configured. Set it via appsettings or DATABASE_URL.");
 
-builder.Services.AddHangfire(config =>
-    config.UsePostgreSqlStorage(c => c.UseNpgsqlConnection(hangfireConnection)));
+var hangfireServerEnabled = !builder.Configuration.GetValue("Hangfire:DisableServer", false);
 
-if (!builder.Configuration.GetValue("Hangfire:DisableServer", false))
+builder.Services.AddHangfire(config =>
+    config.UseSqlServerStorage(hangfireConnection));
+
+if (hangfireServerEnabled)
     builder.Services.AddHangfireServer();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
@@ -114,6 +135,21 @@ builder.Services.AddAuthorization(options =>
 });
 var app = builder.Build();
 
+if (app.Configuration.GetValue("Database:AutoMigrate", false)
+    || app.Configuration.GetValue("Database:RunSeedOnStartup", false))
+{
+    var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (app.Configuration.GetValue("Database:RunSeedOnStartup", false))
+    {
+        startupLogger.LogInformation("Seeding database (locales, fallbacks, UI strings)...");
+        await DbInitializer.EnsureAsync(db).ConfigureAwait(false);
+        startupLogger.LogInformation("Database seed completed.");
+    }
+}
+
 if (!app.Configuration.GetValue("Hangfire:DisableRecurringRegistration", false))
 {
     // Use IRecurringJobManager (DI) instead of static RecurringJob — JobStorage.Current is not set until
@@ -170,8 +206,7 @@ if (!app.Configuration.GetValue("Hangfire:DisableRecurringRegistration", false))
         new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 }
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<LocalizationMiddleware>();
+app.UsePfpMiddleware();
 
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -186,36 +221,45 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHangfireDashboard(
-    "/hangfire",
-    new DashboardOptions
-    {
-        Authorization = new[] { new BasicAuthAuthorizationFilter() },
-    });
+if (hangfireServerEnabled)
+{
+    app.MapHangfireDashboard(
+        "/hangfire",
+        new DashboardOptions
+        {
+            Authorization = new[] { new BasicAuthAuthorizationFilter() },
+        });
+}
 
 app.MapControllers();
 
-if (app.Configuration.GetValue("Database:AutoMigrate", false)
-    || app.Configuration.GetValue("Database:RunSeedOnStartup", false))
+app.Run();
+
+/// <summary>Marker type for ASP.NET Core MVC integration tests (<c>WebApplicationFactory&lt;Program&gt;</c>).</summary>
+public partial class Program
 {
-    var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-    await using var scope = app.Services.CreateAsyncScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    if (app.Configuration.GetValue("Database:AutoMigrate", false))
+    internal static async Task<bool> ApplicationSchemaExistsAsync(AppDbContext db)
     {
-        startupLogger.LogInformation("Applying database migrations...");
-        await db.Database.MigrateAsync().ConfigureAwait(false);
-    }
+        var conn = db.Database.GetDbConnection();
+        var openedHere = false;
+        if (conn.State != System.Data.ConnectionState.Open)
+        {
+            await conn.OpenAsync().ConfigureAwait(false);
+            openedHere = true;
+        }
 
-    if (app.Configuration.GetValue("Database:RunSeedOnStartup", false))
-    {
-        startupLogger.LogInformation("Seeding database (locales, fallbacks, UI strings)...");
-        await DbInitializer.EnsureAsync(db).ConfigureAwait(false);
-        startupLogger.LogInformation("Database seed completed.");
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'users') THEN 1 ELSE 0 END";
+            var scalar = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+            return scalar is int i && i == 1;
+        }
+        finally
+        {
+            if (openedHere)
+                await conn.CloseAsync().ConfigureAwait(false);
+        }
     }
 }
-
-app.Run();
-/// <summary>Marker type for ASP.NET Core MVC integration tests (<c>WebApplicationFactory&lt;Program&gt;</c>).</summary>
-public partial class Program { }

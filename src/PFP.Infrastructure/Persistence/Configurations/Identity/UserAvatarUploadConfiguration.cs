@@ -17,7 +17,7 @@ public sealed class UserAvatarUploadConfiguration : IEntityTypeConfiguration<Use
         // Partial unique index: at most one active avatar per user (Postgres-specific filter).
         builder.HasIndex(x => x.UserId)
                .IsUnique()
-               .HasFilter("is_active = true")
+               .HasFilter("[is_active] = 1")
                .HasDatabaseName("ix_user_avatar_uploads_user_id_active");
 
         builder.HasIndex(x => new { x.UserId, x.CreatedAt });

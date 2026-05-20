@@ -132,51 +132,10 @@ public sealed class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginComma
                             LastUsedAt = now,
                         });
 
-                    var orgName = $"{fullName}'s Personal";
-                    var slug = await OrganizationSlugFactory.ReserveUniqueSlugAsync(_db, fullName, user.Id, cancellationToken)
+                    var bootstrap = await PersonalOrganizationBootstrap
+                        .ProvisionAsync(_db, user.Id, fullName, now, cancellationToken)
                         .ConfigureAwait(false);
-
-                    var organization = new Organization
-                    {
-                        IsPersonal = true,
-                        Slug = slug,
-                        Name = orgName,
-                        OwnerId = user.Id,
-                        DefaultCurrency = "VND",
-                    };
-                    _db.Organizations.Add(organization);
-
-                    _db.OrgMembers.Add(
-                        new OrgMember
-                        {
-                            OrgId = organization.Id,
-                            UserId = user.Id,
-                            Role = OrgRole.Owner,
-                            IsActive = true,
-                            JoinedAt = now,
-                        });
-
-                    var rootSpace = new Space
-                    {
-                        OrgId = organization.Id,
-                        ParentId = null,
-                        Name = "Personal",
-                        Type = SpaceType.Personal,
-                        Path = $"/{organization.Id}",
-                        Depth = 0,
-                        SortOrder = 0,
-                    };
-                    _db.Spaces.Add(rootSpace);
-
-                    _db.SpaceMembers.Add(
-                        new SpaceMember
-                        {
-                            SpaceId = rootSpace.Id,
-                            UserId = user.Id,
-                            Role = SpaceRole.Manager,
-                            Inherited = false,
-                            JoinedAt = now,
-                        });
+                    var organization = bootstrap.Organization;
 
                     var refresh = _jwtTokenService.CreateRefreshTokenCredentials();
                     var session = new UserSession

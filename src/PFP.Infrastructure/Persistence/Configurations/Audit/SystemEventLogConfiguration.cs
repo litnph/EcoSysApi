@@ -17,8 +17,8 @@ public sealed class SystemEventLogConfiguration : IEntityTypeConfiguration<Syste
         builder.Property(x => x.Status).HasMaxLength(16).IsRequired();
         builder.Property(x => x.ErrorMessage).HasMaxLength(2048);
 
-        builder.Property(x => x.Payload).HasColumnType("jsonb");
-        builder.Property(x => x.StackTrace).HasColumnType("text");
+        builder.Property(x => x.Payload).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.StackTrace).HasColumnType("nvarchar(max)");
 
         builder.HasIndex(x => new { x.EventType, x.CreatedAt });
         builder.HasIndex(x => new { x.EntityType, x.EntityId, x.CreatedAt });

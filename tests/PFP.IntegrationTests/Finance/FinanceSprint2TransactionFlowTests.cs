@@ -204,15 +204,8 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var smodule = new SpaceModule
-        {
-            SpaceId = spaceId,
-            ModuleCode = ModuleCode.Finance,
-            IsEnabled = true,
-            EnabledAt = DateTime.UtcNow,
-        };
-        db.SpaceModules.Add(smodule);
-        await db.SaveChangesAsync();
+        var smodule = await db.SpaceModules
+            .FirstAsync(m => m.SpaceId == spaceId && m.ModuleCode == ModuleCode.Finance && m.IsEnabled);
 
         var category = new FinCategory
         {

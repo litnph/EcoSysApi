@@ -19,8 +19,8 @@ public abstract class VersionHistoryEntityConfiguration<THistory> : IEntityTypeC
     /// <inheritdoc/>
     public virtual void Configure(EntityTypeBuilder<THistory> builder)
     {
-        builder.Property(x => x.Snapshot).HasColumnType("jsonb");
-        builder.Property(x => x.ChangedFields).HasColumnType("jsonb");
+        builder.Property(x => x.Snapshot).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.ChangedFields).HasColumnType("nvarchar(max)");
         builder.Property(x => x.ChangeReason).HasMaxLength(1024);
 
         // Spec §3.8: (entity_id, version).

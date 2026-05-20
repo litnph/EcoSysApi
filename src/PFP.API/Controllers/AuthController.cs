@@ -16,6 +16,7 @@ using PFP.Application.Features.Auth.Logout;
 using PFP.Application.Features.Auth.RefreshToken;
 using PFP.Application.Features.Auth.Register;
 using PFP.Application.Features.Auth.ResetPassword;
+using PFP.Application.Features.Auth.SwitchOrganization;
 using PFP.Application.Features.Auth.VerifyEmail;
 using PFP.Infrastructure.Identity;
 
@@ -84,7 +85,7 @@ public sealed class AuthController : ControllerBase
 
         var result = await _mediator.Send(new GoogleLoginCommand(email, sub, name!), cancellationToken).ConfigureAwait(false);
 
-        var returnUrl = "/";
+        var returnUrl = "/organizations";
         if (auth.Properties?.Items.TryGetValue("return_url", out var storedReturn) == true
             && !string.IsNullOrWhiteSpace(storedReturn))
         {
@@ -137,6 +138,20 @@ public sealed class AuthController : ControllerBase
     public async Task<ActionResult<ApiResponse<RefreshTokenResponse>>> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken), cancellationToken).ConfigureAwait(false);
+        return Ok(ApiResults.Ok(result));
+    }
+
+    /// <summary>Re-issues JWT tokens scoped to the requested organisation (caller must be a member).</summary>
+    [HttpPost("switch-organization")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SwitchOrganizationResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<SwitchOrganizationResponse>>> SwitchOrganization(
+        [FromBody] SwitchOrganizationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator
+            .Send(new SwitchOrganizationCommand(request.OrganizationId), cancellationToken)
+            .ConfigureAwait(false);
         return Ok(ApiResults.Ok(result));
     }
 
@@ -205,6 +220,13 @@ public sealed class LoginRequest
 
     /// <summary>Plain-text password.</summary>
     public string Password { get; set; } = string.Empty;
+}
+
+/// <summary>JSON contract for <c>POST /auth/switch-organization</c>.</summary>
+public sealed class SwitchOrganizationRequest
+{
+    /// <summary>Target organisation id (caller must be an active member).</summary>
+    public Guid OrganizationId { get; set; }
 }
 
 /// <summary>JSON contract for <c>POST /auth/refresh</c>.</summary>

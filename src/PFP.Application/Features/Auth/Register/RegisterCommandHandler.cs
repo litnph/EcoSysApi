@@ -90,51 +90,11 @@ public sealed class RegisterCommandHandler : IRequestHandler<RegisterCommand, Re
                     };
                     _db.UserAuthProviders.Add(emailProvider);
 
-                    var orgName = $"{fullName}'s Personal";
-                    var slug = await OrganizationSlugFactory.ReserveUniqueSlugAsync(_db, fullName, user.Id, cancellationToken)
+                    var bootstrap = await PersonalOrganizationBootstrap
+                        .ProvisionAsync(_db, user.Id, fullName, now, cancellationToken)
                         .ConfigureAwait(false);
-
-                    var organization = new Organization
-                    {
-                        IsPersonal = true,
-                        Slug = slug,
-                        Name = orgName,
-                        OwnerId = user.Id,
-                        DefaultCurrency = "VND",
-                    };
-                    _db.Organizations.Add(organization);
-
-                    var orgMember = new OrgMember
-                    {
-                        OrgId = organization.Id,
-                        UserId = user.Id,
-                        Role = OrgRole.Owner,
-                        IsActive = true,
-                        JoinedAt = now,
-                    };
-                    _db.OrgMembers.Add(orgMember);
-
-                    var rootSpace = new Space
-                    {
-                        OrgId = organization.Id,
-                        ParentId = null,
-                        Name = "Personal",
-                        Type = SpaceType.Personal,
-                        Path = $"/{organization.Id}",
-                        Depth = 0,
-                        SortOrder = 0,
-                    };
-                    _db.Spaces.Add(rootSpace);
-
-                    var spaceMember = new SpaceMember
-                    {
-                        SpaceId = rootSpace.Id,
-                        UserId = user.Id,
-                        Role = SpaceRole.Manager,
-                        Inherited = false,
-                        JoinedAt = now,
-                    };
-                    _db.SpaceMembers.Add(spaceMember);
+                    var organization = bootstrap.Organization;
+                    var rootSpace = bootstrap.RootSpace;
 
                     var emailVerification = new UserEmailVerification
                     {

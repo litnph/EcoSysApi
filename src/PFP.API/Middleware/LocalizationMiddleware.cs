@@ -1,19 +1,27 @@
 using Microsoft.EntityFrameworkCore;
-using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Localization;
+using PFP.Infrastructure.Persistence;
 
 namespace PFP.API.Middleware;
 
 /// <summary>Parses <c>Accept-Language</c>, picks an active locale code, stores it in <see cref="RequestLocalizationKeys.HttpContextLocaleItemKey"/>.</summary>
 public sealed class LocalizationMiddleware
 {
+    private const string FallbackLocale = "vi";
+    private static readonly TimeSpan LocaleQueryTimeout = TimeSpan.FromSeconds(5);
+
     private readonly RequestDelegate _next;
+    private readonly ILogger<LocalizationMiddleware> _logger;
 
     /// <summary>Creates the middleware.</summary>
-    public LocalizationMiddleware(RequestDelegate next) => _next = next;
+    public LocalizationMiddleware(RequestDelegate next, ILogger<LocalizationMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
 
     /// <summary>Invokes the next pipeline stage.</summary>
-    public async Task InvokeAsync(HttpContext context, IServiceScopeFactory scopeFactory)
+    public async Task InvokeAsync(HttpContext context)
     {
         if (ShouldBypass(context.Request.Path))
         {
@@ -21,27 +29,26 @@ public sealed class LocalizationMiddleware
             return;
         }
 
-        // Resolve locale in a short-lived scope so the DbContext (and its pooled connection)
-        // is released before controller/MediatR handlers run — avoids starving Neon pooler slots.
+        var dbFactory = context.RequestServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+
         string selected;
-        await using (var scope = scopeFactory.CreateAsyncScope())
+        try
         {
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-
-            var active = await db.Locales.AsNoTracking()
-                .Where(l => l.IsActive)
-                .OrderByDescending(l => l.IsDefault)
-                .Select(l => new { l.Code, l.IsDefault })
-                .ToListAsync(context.RequestAborted)
-                .ConfigureAwait(false);
-
-            var defaultCode = active.FirstOrDefault(a => a.IsDefault)?.Code
-                ?? active.FirstOrDefault()?.Code
-                ?? "vi";
-
-            var activeCodes = new HashSet<string>(active.Select(a => a.Code), StringComparer.OrdinalIgnoreCase);
-
-            selected = PickLocale(context.Request.Headers.AcceptLanguage.ToString(), activeCodes, defaultCode);
+            selected = await ResolveLocaleAsync(context, dbFactory).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Locale resolution failed for {Method} {Path}; using fallback '{Fallback}'.",
+                context.Request.Method,
+                context.Request.Path,
+                FallbackLocale);
+            selected = FallbackLocale;
         }
 
         context.Items[RequestLocalizationKeys.HttpContextLocaleItemKey] = selected;
@@ -49,9 +56,36 @@ public sealed class LocalizationMiddleware
         await _next(context).ConfigureAwait(false);
     }
 
+    private static async Task<string> ResolveLocaleAsync(
+        HttpContext context,
+        IDbContextFactory<AppDbContext> dbFactory)
+    {
+        // Factory creates a short-lived context (released before controller/MediatR handlers run).
+        await using var db = await dbFactory.CreateDbContextAsync(context.RequestAborted).ConfigureAwait(false);
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+        timeoutCts.CancelAfter(LocaleQueryTimeout);
+
+        var active = await db.Locales.AsNoTracking()
+            .Where(l => l.IsActive)
+            .OrderByDescending(l => l.IsDefault)
+            .Select(l => new { l.Code, l.IsDefault })
+            .ToListAsync(timeoutCts.Token)
+            .ConfigureAwait(false);
+
+        var defaultCode = active.FirstOrDefault(a => a.IsDefault)?.Code
+            ?? active.FirstOrDefault()?.Code
+            ?? FallbackLocale;
+
+        var activeCodes = new HashSet<string>(active.Select(a => a.Code), StringComparer.OrdinalIgnoreCase);
+
+        return PickLocale(context.Request.Headers.AcceptLanguage.ToString(), activeCodes, defaultCode);
+    }
+
     private static bool ShouldBypass(PathString path) =>
         path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/hangfire", StringComparison.OrdinalIgnoreCase);
+        || path.StartsWithSegments("/hangfire", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase);
 
     private static string PickLocale(string? acceptLanguage, HashSet<string> activeCodes, string defaultCode)
     {

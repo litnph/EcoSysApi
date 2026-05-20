@@ -14,9 +14,9 @@ namespace PFP.Infrastructure.Persistence;
 /// commands.</item>
 /// <item><c>ConnectionStrings:Default</c> from the first <c>appsettings.Development.json</c> found
 /// under a <c>PFP.API</c> folder by walking up from <see cref="Directory.GetCurrentDirectory"/> and
-/// <see cref="AppContext.BaseDirectory"/> (so <c>dotnet ef</c> picks up the same Neon/local string as
+/// <see cref="AppContext.BaseDirectory"/> (so <c>dotnet ef</c> picks up the same connection string as
 /// the API when you run from the repo).</item>
-/// <item>Fallback localhost string so the model still loads when no DB is configured.</item>
+/// <item>Fallback LocalDB string so the model still loads when no DB is configured.</item>
 /// </list>
 /// Runtime wiring remains in <see cref="InfrastructureServiceCollectionExtensions.AddInfrastructure"/>.
 /// </para>
@@ -26,14 +26,15 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     /// <inheritdoc/>
     public AppDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("PFP_DESIGN_CONNECTION")
-            ?? TryReadDefaultConnectionFromApiAppsettings()
-            ?? "Host=localhost;Port=5432;Database=pfp_design;Username=pfp;Password=pfp";
+        var connectionString = Environment.GetEnvironmentVariable("PFP_DESIGN_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = TryReadDefaultConnectionFromApiAppsettings();
+        connectionString ??=
+            "Server=(localdb)\\mssqllocaldb;Database=pfp_design;Trusted_Connection=True;TrustServerCertificate=True";
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
-            .ReplaceService<IHistoryRepository, SnakeCaseNpgsqlHistoryRepository>()
+            .UseSqlServer(connectionString, sql =>
+                sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
             .Options;
 
         return new AppDbContext(options);

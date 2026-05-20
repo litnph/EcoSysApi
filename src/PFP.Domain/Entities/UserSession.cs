@@ -26,6 +26,11 @@ public sealed class UserSession : BaseEntity
     /// <summary>UTC timestamp of the latest <c>POST /auth/refresh</c> served from this session.</summary>
     public DateTime LastUsedAt { get; set; }
 
+    /// <summary>
+    /// Organisation context for JWT <c>org_id</c> on refresh. When null, the user's personal org is used.
+    /// </summary>
+    public Guid? ActiveOrgId { get; set; }
+
     // ---- Device info (best-effort, populated from request headers) ----
 
     /// <summary>Friendly device label, e.g. "iPhone 15 Pro" or "Chrome on Windows".</summary>

@@ -13,8 +13,8 @@ public sealed class FinMonthlyPeriodConfiguration : IEntityTypeConfiguration<Fin
         builder.HasIndex(x => new { x.SmoduleId, x.Year, x.Month }).IsUnique();
         builder.HasIndex(x => new { x.SmoduleId, x.Status });
 
-        builder.Property(x => x.CategoryBreakdown).HasColumnType("jsonb");
-        builder.Property(x => x.SourceBreakdown).HasColumnType("jsonb");
+        builder.Property(x => x.CategoryBreakdown).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.SourceBreakdown).HasColumnType("nvarchar(max)");
 
         builder.HasOne(x => x.Smodule)
                .WithMany(m => m.FinMonthlyPeriods)

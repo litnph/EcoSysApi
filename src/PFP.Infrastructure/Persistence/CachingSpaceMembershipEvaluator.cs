@@ -1,7 +1,7 @@
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
-using Npgsql;
 using PFP.Application.Common.Interfaces;
 using PFP.Infrastructure.Persistence.Configurations.Common;
 using PFP.Domain.Enums;
@@ -9,7 +9,7 @@ using PFP.Domain.Enums;
 namespace PFP.Infrastructure.Persistence;
 
 /// <summary>
-/// Npgsql-backed <see cref="SpaceRole"/> resolution with Redis / distributed-cache memoisation per spec Sprint&nbsp;4.
+/// SQL Server–backed <see cref="SpaceRole"/> resolution with Redis / distributed-cache memoisation per spec Sprint 4.
 /// </summary>
 public sealed class CachingSpaceMembershipEvaluator : ISpaceMembershipEvaluator
 {
@@ -56,22 +56,21 @@ public sealed class CachingSpaceMembershipEvaluator : ISpaceMembershipEvaluator
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
             """
-            SELECT role
+            SELECT TOP (1) [role]
               FROM space_members
              WHERE space_id = @space_id
                AND user_id = @user_id
                AND left_at IS NULL
-               AND NOT is_deleted
-             LIMIT 1
+               AND is_deleted = 0
             """;
 
         var pSid = cmd.CreateParameter();
-        pSid.ParameterName = "space_id";
+        pSid.ParameterName = "@space_id";
         pSid.Value = spaceId;
         cmd.Parameters.Add(pSid);
 
         var pUid = cmd.CreateParameter();
-        pUid.ParameterName = "user_id";
+        pUid.ParameterName = "@user_id";
         pUid.Value = userId;
         cmd.Parameters.Add(pUid);
 
@@ -108,11 +107,11 @@ public sealed class CachingSpaceMembershipEvaluator : ISpaceMembershipEvaluator
             await InvalidateMembershipAsync(userId, id, cancellationToken).ConfigureAwait(false);
     }
 
-    private NpgsqlConnection CreateConnection()
+    private SqlConnection CreateConnection()
     {
         var cs = _configuration.GetConnectionString("Default")
                  ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
-        return new NpgsqlConnection(cs);
+        return new SqlConnection(cs);
     }
 
     private static string BuildCacheKey(Guid userId, Guid spaceId) =>

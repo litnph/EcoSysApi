@@ -18,7 +18,7 @@ public sealed class LocaleConfiguration : IEntityTypeConfiguration<Locale>
         // At most one default locale at any time — partial unique index (spec §3.4).
         builder.HasIndex(x => x.IsDefault)
                .IsUnique()
-               .HasFilter("is_default = true")
+               .HasFilter("[is_default] = 1")
                .HasDatabaseName("ix_locales_is_default_singleton");
     }
 }

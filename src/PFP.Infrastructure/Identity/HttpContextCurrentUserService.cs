@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Localization;
 using PFP.Domain.Enums;
@@ -11,7 +12,7 @@ namespace PFP.Infrastructure.Identity;
 public sealed class HttpContextCurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IApplicationDbContext _db;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ISpaceModuleAccessChecker _spaceModuleAccess;
     private readonly ISpaceMembershipEvaluator _spaceMembership;
     private readonly IAutomationExecutionImpersonation _automationImpersonation;
@@ -19,13 +20,13 @@ public sealed class HttpContextCurrentUserService : ICurrentUserService
     /// <summary>Creates the service.</summary>
     public HttpContextCurrentUserService(
         IHttpContextAccessor httpContextAccessor,
-        IApplicationDbContext db,
+        IServiceProvider serviceProvider,
         ISpaceModuleAccessChecker spaceModuleAccess,
         ISpaceMembershipEvaluator spaceMembership,
         IAutomationExecutionImpersonation automationImpersonation)
     {
         _httpContextAccessor = httpContextAccessor;
-        _db = db;
+        _serviceProvider = serviceProvider;
         _spaceModuleAccess = spaceModuleAccess;
         _spaceMembership = spaceMembership;
         _automationImpersonation = automationImpersonation;
@@ -77,7 +78,9 @@ public sealed class HttpContextCurrentUserService : ICurrentUserService
         if (UserId is not Guid uid)
             return false;
 
-        var role = await _db.OrgMembers.AsNoTracking()
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        var role = await db.OrgMembers.AsNoTracking()
             .Where(m => m.OrgId == orgId && m.UserId == uid && m.IsActive)
             .Select(m => (OrgRole?)m.Role)
             .FirstOrDefaultAsync(cancellationToken)

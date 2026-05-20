@@ -48,24 +48,26 @@ public sealed class GetSpaceTreeQueryHandler : IRequestHandler<GetSpaceTreeQuery
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var spaceIds = spaces.Select(x => x.Id).ToHashSet();
+        // Filter by org via Space navigation — avoids EF Core 8 "empty collection in Contains"
+        // when the organisation has no spaces (see RemoveOrgMember / DeleteOrganization handlers).
+        var financeEnabledLookup = (await _db.SpaceModules.AsNoTracking()
+                .Where(m => m.Space.OrgId == request.OrgId
+                            && m.ModuleCode == ModuleCode.Finance
+                            && m.IsEnabled)
+                .Select(m => m.SpaceId)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false))
+            .ToHashSet();
 
-        var financeMods = await _db.SpaceModules.AsNoTracking()
-            .Where(m => spaceIds.Contains(m.SpaceId) && m.ModuleCode == ModuleCode.Finance && m.IsEnabled)
-            .Select(m => m.SpaceId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var financeEnabledLookup = financeMods.ToHashSet();
-
-        var byParentId = spaces
-            .GroupBy(s => s.ParentId)
-            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ToList());
+        // ToLookup (not ToDictionary): root spaces have ParentId == null and that group key
+        // cannot be stored in Dictionary<Guid?, …> (null keys throw ArgumentNullException).
+        var childrenByParentId = spaces.ToLookup(s => s.ParentId);
 
         IEnumerable<SpaceTreeDto> orderedChildren(Guid? parentKey) =>
-            byParentId.TryGetValue(parentKey, out var list)
-                ? list.Select(Project)
-                : Enumerable.Empty<SpaceTreeDto>();
+            childrenByParentId[parentKey]
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Name)
+                .Select(Project);
 
         SpaceTreeDto Project(Space s) =>
             new(

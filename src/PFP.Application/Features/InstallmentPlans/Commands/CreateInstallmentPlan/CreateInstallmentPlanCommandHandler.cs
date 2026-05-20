@@ -28,9 +28,8 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
         var txn = await _db.FinTransactions
+            .AsNoTracking()
             .Include(t => t.Source)
             .ThenInclude(s => s.Smodule)
             .ThenInclude(m => m.Space)
@@ -69,44 +68,54 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
         var startDate = DateOnly.FromDateTime(DateTime.UtcNow);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var plan = new FinInstallmentPlan
+        // Wrap explicit transaction with the retrying execution strategy so EnableRetryOnFailure
+        // can retry transient transport faults around the plan + schedule write.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var planId = await strategy.ExecuteAsync(async () =>
         {
-            SmoduleId = txn.SmoduleId,
-            OriginalTxnId = txn.Id,
-            SourceId = txn.SourceId,
-            TotalAmount = totalAmount,
-            TotalMonths = totalMonths,
-            MonthlyAmount = monthlyShare,
-            InterestRate = request.InterestRate,
-            ConversionFeeRate = request.ConversionFeeRate,
-            ConversionFeeAmount = conversionFeeAmount,
-            ConversionFeeStatus = conversionFeeStatus,
-            StartDate = startDate,
-            Status = InstallmentStatus.Active,
-        };
+            await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        _db.FinInstallmentPlans.Add(plan);
+            var plan = new FinInstallmentPlan
+            {
+                SmoduleId = txn.SmoduleId,
+                OriginalTxnId = txn.Id,
+                SourceId = txn.SourceId,
+                TotalAmount = totalAmount,
+                TotalMonths = totalMonths,
+                MonthlyAmount = monthlyShare,
+                InterestRate = request.InterestRate,
+                ConversionFeeRate = request.ConversionFeeRate,
+                ConversionFeeAmount = conversionFeeAmount,
+                ConversionFeeStatus = conversionFeeStatus,
+                StartDate = startDate,
+                Status = InstallmentStatus.Active,
+            };
 
-        for (var i = 1; i <= totalMonths; i++)
-        {
-            var amount = i == totalMonths ? lastShare : monthlyShare;
-            var dueDate = startDate.AddMonths(i - 1);
-            var status = i == 1 && dueDate <= today ? InstallmentPayStatus.Due : InstallmentPayStatus.Upcoming;
-            _db.FinInstallmentPays.Add(
-                new FinInstallmentPay
-                {
-                    PlanId = plan.Id,
-                    InstallmentNumber = i,
-                    DueDate = dueDate,
-                    Amount = amount,
-                    PaidAmount = 0,
-                    Status = status,
-                });
-        }
+            _db.FinInstallmentPlans.Add(plan);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            for (var i = 1; i <= totalMonths; i++)
+            {
+                var amount = i == totalMonths ? lastShare : monthlyShare;
+                var dueDate = startDate.AddMonths(i - 1);
+                var status = i == 1 && dueDate <= today ? InstallmentPayStatus.Due : InstallmentPayStatus.Upcoming;
+                _db.FinInstallmentPays.Add(
+                    new FinInstallmentPay
+                    {
+                        PlanId = plan.Id,
+                        InstallmentNumber = i,
+                        DueDate = dueDate,
+                        Amount = amount,
+                        PaidAmount = 0,
+                        Status = status,
+                    });
+            }
 
-        return new CreateInstallmentPlanResponse(plan.Id);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            return plan.Id;
+        }).ConfigureAwait(false);
+
+        return new CreateInstallmentPlanResponse(planId);
     }
 }

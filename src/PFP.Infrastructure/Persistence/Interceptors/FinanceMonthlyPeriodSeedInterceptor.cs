@@ -34,7 +34,10 @@ public sealed class FinanceMonthlyPeriodSeedInterceptor : SaveChangesInterceptor
     {
         if (context is null) return;
 
-        foreach (var entry in context.ChangeTracker.Entries<SpaceModule>())
+        // Snapshot so context.Add(FinMonthlyPeriod) below does not invalidate enumeration.
+        var spaceModuleEntries = context.ChangeTracker.Entries<SpaceModule>().ToList();
+
+        foreach (var entry in spaceModuleEntries)
         {
             if (entry.Entity.ModuleCode != ModuleCode.Finance || !entry.Entity.IsEnabled)
                 continue;

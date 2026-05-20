@@ -10,7 +10,7 @@ public sealed class AutomationLogConfiguration : IEntityTypeConfiguration<Automa
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<AutomationLog> builder)
     {
-        builder.Property(x => x.ActionsExecuted).HasColumnType("jsonb").IsRequired();
+        builder.Property(x => x.ActionsExecuted).HasColumnType("nvarchar(max)").IsRequired();
         builder.Property(x => x.ErrorMessage).HasMaxLength(4000);
 
         builder.HasIndex(x => new { x.RuleId, x.TriggeredAt });

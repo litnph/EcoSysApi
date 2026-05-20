@@ -44,77 +44,87 @@ public sealed class CreateOrganizationCommandHandler : IRequestHandler<CreateOrg
 
         var now = DateTime.UtcNow;
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        // Explicit transaction must run inside CreateExecutionStrategy when EnableRetryOnFailure is on.
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy
+            .ExecuteAsync(
+                async () =>
+                {
+                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-        var org = new Organization
-        {
-            IsPersonal = false,
-            Slug = slug,
-            Name = request.Name.Trim(),
-            OwnerId = userId,
-            DefaultCurrency = currency,
-            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
-        };
-        _db.Organizations.Add(org);
+                    var org = new Organization
+                    {
+                        IsPersonal = false,
+                        Slug = slug,
+                        Name = request.Name.Trim(),
+                        OwnerId = userId,
+                        DefaultCurrency = currency,
+                        Description = string.IsNullOrWhiteSpace(request.Description)
+                            ? null
+                            : request.Description.Trim(),
+                    };
+                    _db.Organizations.Add(org);
 
-        var member = new OrgMember
-        {
-            OrgId = org.Id,
-            UserId = userId,
-            Role = OrgRole.Owner,
-            IsActive = true,
-            JoinedAt = now,
-        };
-        _db.OrgMembers.Add(member);
+                    var member = new OrgMember
+                    {
+                        OrgId = org.Id,
+                        UserId = userId,
+                        Role = OrgRole.Owner,
+                        IsActive = true,
+                        JoinedAt = now,
+                    };
+                    _db.OrgMembers.Add(member);
 
-        var rootSpace = new Space
-        {
-            OrgId = org.Id,
-            ParentId = null,
-            Name = "General",
-            Type = SpaceType.Family,
-            Path = $"/{org.Id}",
-            Depth = 0,
-            SortOrder = 0,
-        };
-        _db.Spaces.Add(rootSpace);
+                    var rootSpace = new Space
+                    {
+                        OrgId = org.Id,
+                        ParentId = null,
+                        Name = "General",
+                        Type = SpaceType.Family,
+                        Path = $"/{org.Id}",
+                        Depth = 0,
+                        SortOrder = 0,
+                    };
+                    _db.Spaces.Add(rootSpace);
 
-        var financeModule = new SpaceModule
-        {
-            SpaceId = rootSpace.Id,
-            ModuleCode = ModuleCode.Finance,
-            IsEnabled = true,
-            EnabledAt = now,
-        };
-        _db.SpaceModules.Add(financeModule);
+                    var financeModule = new SpaceModule
+                    {
+                        SpaceId = rootSpace.Id,
+                        ModuleCode = ModuleCode.Finance,
+                        IsEnabled = true,
+                        EnabledAt = now,
+                    };
+                    _db.SpaceModules.Add(financeModule);
 
-        var spaceMember = new SpaceMember
-        {
-            SpaceId = rootSpace.Id,
-            UserId = userId,
-            Role = SpaceRole.Manager,
-            Inherited = false,
-            JoinedAt = now,
-        };
-        _db.SpaceMembers.Add(spaceMember);
+                    var spaceMember = new SpaceMember
+                    {
+                        SpaceId = rootSpace.Id,
+                        UserId = userId,
+                        Role = SpaceRole.Manager,
+                        Inherited = false,
+                        JoinedAt = now,
+                    };
+                    _db.SpaceMembers.Add(spaceMember);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        var dto = new OrganizationDetailDto(
-            org.Id,
-            org.Slug,
-            org.Name,
-            org.IsPersonal,
-            org.OwnerId,
-            org.DefaultCurrency,
-            org.Description,
-            OrgRole.Owner,
-            MemberCount: 1,
-            org.CreatedAt,
-            org.UpdatedAt,
-            org.Version);
+                    var dto = new OrganizationDetailDto(
+                        org.Id,
+                        org.Slug,
+                        org.Name,
+                        org.IsPersonal,
+                        org.OwnerId,
+                        org.DefaultCurrency,
+                        org.Description,
+                        OrgRole.Owner,
+                        MemberCount: 1,
+                        org.CreatedAt,
+                        org.UpdatedAt,
+                        org.Version);
 
-        return new CreateOrganizationResponse(dto);
+                    return new CreateOrganizationResponse(dto);
+                })
+            .ConfigureAwait(false);
     }
 }

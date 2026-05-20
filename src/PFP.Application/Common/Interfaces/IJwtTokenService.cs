@@ -31,4 +31,14 @@ public interface IJwtTokenService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <exception cref="UnauthorizedAppException">Thrown when the refresh token is unknown, revoked, or expired.</exception>
     Task<RefreshTokenExchangeResult> ExchangeRefreshTokenAsync(string plainRefreshToken, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the session's active organisation, rotates refresh material, and returns tokens whose access JWT
+    /// carries <paramref name="organizationId"/> as <c>org_id</c>.
+    /// </summary>
+    Task<RefreshTokenExchangeResult> SwitchOrganizationAsync(
+        Guid sessionId,
+        Guid userId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
 }

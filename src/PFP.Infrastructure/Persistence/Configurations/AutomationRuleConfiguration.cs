@@ -12,8 +12,8 @@ public sealed class AutomationRuleConfiguration : IEntityTypeConfiguration<Autom
     {
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.TriggerValue).HasMaxLength(2048).IsRequired();
-        builder.Property(x => x.Conditions).HasColumnType("jsonb").IsRequired();
-        builder.Property(x => x.Actions).HasColumnType("jsonb").IsRequired();
+        builder.Property(x => x.Conditions).HasColumnType("nvarchar(max)").IsRequired();
+        builder.Property(x => x.Actions).HasColumnType("nvarchar(max)").IsRequired();
 
         builder.HasIndex(x => new { x.SmoduleId, x.IsActive });
         builder.HasIndex(x => new { x.TriggerType, x.IsActive });

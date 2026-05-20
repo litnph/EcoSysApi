@@ -19,8 +19,8 @@
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "http://localhost:5197",
-        "Hangfire__DisableServer": "true",
-        "Hangfire__DisableRecurringRegistration": "true",
+        "Hangfire__DisableServer": "false",
+        "Hangfire__DisableRecurringRegistration": "false",
         "Database__RunSeedOnStartup": "false"
       }
     },

@@ -179,7 +179,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
         //    Seeded BEFORE the snake_case pass so the generated SQL matches the live column names.
         DbInitializer.ApplyModelSeed(builder);
 
-        // 4. Snake_case every table / column / key / fk / index for clean PostgreSQL DDL.
+        // 4. Snake_case every table / column / key / fk / index for readable relational DDL.
         //    Must run last so it catches names introduced by ApplyConfigurations.
         builder.ApplySnakeCaseNaming();
     }

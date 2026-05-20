@@ -58,15 +58,11 @@ public sealed class CleanupExpiredSessionsJob
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            if (expired.Count == 0)
-            {
-                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                return 0;
-            }
-
             foreach (var session in expired)
                 db.UserSessions.Remove(session);
 
+            // Spec §7.1: write a SystemEventLog row on every run — even when nothing was removed —
+            // so an operator can confirm the daily 02:00 schedule actually fired.
             db.SystemEventLogs.Add(new SystemEventLog
             {
                 EventType = "session.cleanup",
