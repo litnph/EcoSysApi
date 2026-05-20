@@ -26,12 +26,11 @@ public sealed class DebtRecordsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetDebtRecordsResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetDebtRecordsResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         [FromQuery(Name = "direction")] DebtDirection? direction,
         [FromQuery(Name = "status")] DebtStatus? status,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetDebtRecordsQuery(smoduleId, direction, status), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetDebtRecordsQuery(direction, status), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetDebtRecordsResponse> { Data = result });
     }
 
@@ -39,10 +38,9 @@ public sealed class DebtRecordsController : ControllerBase
     [HttpGet("summary")]
     [ProducesResponseType(typeof(ApiResponse<GetDebtSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetDebtSummaryResponse>>> Summary(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetDebtSummaryQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetDebtSummaryQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetDebtSummaryResponse> { Data = result });
     }
 
@@ -65,7 +63,6 @@ public sealed class DebtRecordsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var command = new CreateDebtRecordCommand(
-            body.SmoduleId,
             body.Direction,
             body.PersonName,
             body.PersonContact,
@@ -106,9 +103,6 @@ public sealed class DebtRecordsController : ControllerBase
 /// <summary>JSON body for <see cref="DebtRecordsController.Create"/>.</summary>
 public sealed class CreateDebtRecordBody
 {
-    /// <summary>Finance module that owns the debt record.</summary>
-    public Guid SmoduleId { get; init; }
-
     /// <summary><c>borrowed</c> (the user owes someone) or <c>lent</c> (someone owes the user).</summary>
     public DebtDirection Direction { get; init; }
 

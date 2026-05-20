@@ -25,10 +25,9 @@ public sealed class InvestmentsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetInvestmentsResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetInvestmentsResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetInvestmentsQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetInvestmentsQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetInvestmentsResponse> { Data = result });
     }
 

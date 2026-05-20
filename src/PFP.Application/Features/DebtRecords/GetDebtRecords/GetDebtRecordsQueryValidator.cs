@@ -8,11 +8,5 @@ public sealed class GetDebtRecordsQueryValidator : AbstractValidator<GetDebtReco
 {
     public GetDebtRecordsQueryValidator(IApplicationDbContext db)
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-
-        RuleFor(x => x)
-            .MustAsync(async (q, ct) =>
-                await db.SpaceModules.AnyAsync(m => m.Id == q.SmoduleId, ct).ConfigureAwait(false))
-            .WithMessage("Space module was not found.");
-    }
+}
 }

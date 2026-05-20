@@ -26,10 +26,9 @@ public sealed class SavingsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetSavingsResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetSavingsResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetSavingsQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetSavingsQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetSavingsResponse> { Data = result });
     }
 

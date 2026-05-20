@@ -40,7 +40,6 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
                 _currentUser,
                 request.EntityType,
                 request.EntityId,
-                SpaceRole.Editor,
                 cancellationToken)
             .ConfigureAwait(false);
 

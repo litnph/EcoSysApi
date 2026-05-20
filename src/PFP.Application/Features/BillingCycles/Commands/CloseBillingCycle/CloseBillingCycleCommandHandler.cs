@@ -30,23 +30,12 @@ public sealed class CloseBillingCycleCommandHandler : IRequestHandler<CloseBilli
 
         var cycle = await _db.FinBillingCycles
             .Include(bc => bc.Source)
-            .ThenInclude(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(bc => bc.Id == request.CycleId, cancellationToken)
             .ConfigureAwait(false);
 
         if (cycle is null)
             throw new NotFoundException("Billing cycle was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(cycle.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to close this billing cycle.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && cycle.Source.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this billing cycle.");
-
-        if (cycle.Status != BillingCycleStatus.Open)
+if (cycle.Status != BillingCycleStatus.Open)
             throw new BusinessRuleException("Only an open billing cycle can be closed.");
 
         // Total charges in the cycle: deferred spends (reversals net out because they carry the same sign as the original row).

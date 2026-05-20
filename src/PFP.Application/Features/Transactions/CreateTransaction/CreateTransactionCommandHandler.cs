@@ -29,24 +29,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to post transactions for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        if (request.Type is TransactionType.DebtBorrow
+if (request.Type is TransactionType.DebtBorrow
             or TransactionType.LoanGive
             or TransactionType.DebtRepay
             or TransactionType.LoanCollect)
@@ -69,7 +52,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (request.MonthlyPeriodId is not { } mpId)
             return;
         var mpExists = await _db.FinMonthlyPeriods
-            .AnyAsync(p => p.Id == mpId && p.SmoduleId == request.SmoduleId, cancellationToken)
+            .AnyAsync(p => p.Id == mpId, cancellationToken)
             .ConfigureAwait(false);
         if (!mpExists)
             throw new NotFoundException("Monthly period was not found for this module.");
@@ -98,7 +81,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -111,9 +94,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = TruncateDescription($"Borrowed: {personName}");
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.DebtBorrow,
+        {            Type = TransactionType.DebtBorrow,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -129,9 +110,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         source.Balance += CurrencyUnits.FromWhole(request.Amount);
 
         var debt = new FinDebtRecord
-        {
-            SmoduleId = request.SmoduleId,
-            Direction = DebtDirection.Borrowed,
+        {            Direction = DebtDirection.Borrowed,
             PersonName = personName,
             PersonContact = string.IsNullOrWhiteSpace(request.PersonContact) ? null : request.PersonContact.Trim(),
             OriginalTxnId = txn.Id,
@@ -167,7 +146,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -180,9 +159,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = TruncateDescription($"Loan given: {personName}");
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.LoanGive,
+        {            Type = TransactionType.LoanGive,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -198,9 +175,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         source.Balance -= CurrencyUnits.FromWhole(request.Amount);
 
         var debt = new FinDebtRecord
-        {
-            SmoduleId = request.SmoduleId,
-            Direction = DebtDirection.Lent,
+        {            Direction = DebtDirection.Lent,
             PersonName = personName,
             PersonContact = string.IsNullOrWhiteSpace(request.PersonContact) ? null : request.PersonContact.Trim(),
             OriginalTxnId = txn.Id,
@@ -237,7 +212,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var debt = await _db.FinDebtRecords
             .FirstOrDefaultAsync(
-                d => d.Id == request.DebtRecordId!.Value && d.SmoduleId == request.SmoduleId,
+                d => d.Id == request.DebtRecordId!.Value,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -245,7 +220,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             throw new NotFoundException("Debt record was not found.");
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -257,9 +232,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = TruncateDescription($"Debt repayment: {debt.PersonName}");
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.DebtRepay,
+        {            Type = TransactionType.DebtRepay,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -316,7 +289,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var debt = await _db.FinDebtRecords
             .FirstOrDefaultAsync(
-                d => d.Id == request.DebtRecordId!.Value && d.SmoduleId == request.SmoduleId,
+                d => d.Id == request.DebtRecordId!.Value,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -324,7 +297,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             throw new NotFoundException("Debt record was not found.");
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -336,9 +309,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = TruncateDescription($"Loan collected: {debt.PersonName}");
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.LoanCollect,
+        {            Type = TransactionType.LoanCollect,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -395,7 +366,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             ?? throw new BusinessRuleException("Category is required for this transaction type.");
 
         var category = await _db.FinCategories
-            .FirstOrDefaultAsync(c => c.Id == categoryId && c.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken)
             .ConfigureAwait(false);
 
         if (category is null)
@@ -404,7 +375,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -423,7 +394,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         {
             var loaded = await _db.FinBillingCycles
                 .FirstOrDefaultAsync(
-                    bc => bc.Id == explicitId && bc.SourceId == source.Id && bc.SmoduleId == request.SmoduleId,
+                    bc => bc.Id == explicitId && bc.SourceId == source.Id,
                     cancellationToken)
                 .ConfigureAwait(false);
             if (loaded is null || loaded.Status != BillingCycleStatus.Open)
@@ -433,7 +404,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         else
         {
             var loaded = await _db.FinBillingCycles
-                .Where(bc => bc.SourceId == source.Id && bc.SmoduleId == request.SmoduleId && bc.Status == BillingCycleStatus.Open)
                 .OrderByDescending(bc => bc.PeriodStart)
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -445,9 +415,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = BuildDirectIncomeDescription(TransactionType.Direct, category.Name);
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.Deferred,
+        {            Type = TransactionType.Deferred,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -488,7 +456,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             ?? throw new BusinessRuleException("Category is required for this transaction type.");
 
         var category = await _db.FinCategories
-            .FirstOrDefaultAsync(c => c.Id == categoryId && c.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken)
             .ConfigureAwait(false);
 
         if (category is null)
@@ -500,7 +468,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -517,9 +485,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = BuildDirectIncomeDescription(TransactionType.Split, category.Name);
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.Split,
+        {            Type = TransactionType.Split,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -570,7 +536,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             ?? throw new BusinessRuleException("Category is required for this transaction type.");
 
         var category = await _db.FinCategories
-            .FirstOrDefaultAsync(c => c.Id == categoryId && c.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken)
             .ConfigureAwait(false);
 
         if (category is null)
@@ -579,7 +545,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
@@ -596,9 +562,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = BuildDirectIncomeDescription(request.Type, category.Name);
 
         var txn = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = request.Type,
+        {            Type = request.Type,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -644,11 +608,11 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var fromSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         var toSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == toSourceId && s.SmoduleId == request.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == toSourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (fromSource is null || fromSource.IsDeleted)
@@ -672,9 +636,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         var description = BuildTransferDescription(fromSource.Name, toSource.Name);
 
         var outbound = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.Transfer,
+        {            Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
             Amount = -CurrencyUnits.FromWhole(request.Amount),
             Currency = fromSource.Currency,
@@ -689,9 +651,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         };
 
         var inbound = new FinTransaction
-        {
-            SmoduleId = request.SmoduleId,
-            Type = TransactionType.Transfer,
+        {            Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = toSource.Currency,

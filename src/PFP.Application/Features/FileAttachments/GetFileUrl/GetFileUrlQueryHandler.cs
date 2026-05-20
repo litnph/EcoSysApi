@@ -43,7 +43,6 @@ public sealed class GetFileUrlQueryHandler : IRequestHandler<GetFileUrlQuery, Si
                 _currentUser,
                 att.EntityType,
                 att.EntityId,
-                SpaceRole.Viewer,
                 cancellationToken)
             .ConfigureAwait(false);
 

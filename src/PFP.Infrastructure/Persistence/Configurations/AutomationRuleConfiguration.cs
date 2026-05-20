@@ -13,16 +13,7 @@ public sealed class AutomationRuleConfiguration : IEntityTypeConfiguration<Autom
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.TriggerValue).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.Conditions).HasColumnType("nvarchar(max)").IsRequired();
-        builder.Property(x => x.Actions).HasColumnType("nvarchar(max)").IsRequired();
-
-        builder.HasIndex(x => new { x.SmoduleId, x.IsActive });
-        builder.HasIndex(x => new { x.TriggerType, x.IsActive });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.AutomationRules)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
+        builder.Property(x => x.Actions).HasColumnType("nvarchar(max)").IsRequired();        builder.HasIndex(x => new { x.TriggerType, x.IsActive });
         builder.HasOne(x => x.CreatedBy)
                .WithMany(u => u.AutomationRulesCreated)
                .HasForeignKey(x => x.CreatedByUserId)

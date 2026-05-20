@@ -63,7 +63,7 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
             user.Id,
             user.FullName,
             user.Email,
-            user.IsEmailVerified,
+            user.Role,
             profile.LanguageCode,
             profile.Timezone,
             profile.DateFormat,

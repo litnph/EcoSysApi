@@ -21,12 +21,6 @@ public sealed class FinBillingCycleConfiguration : IEntityTypeConfiguration<FinB
         builder.HasIndex(x => new { x.SourceId, x.Status });
         builder.HasIndex(x => new { x.SourceId, x.PeriodStart, x.PeriodEnd });
         builder.HasIndex(x => new { x.SourceId, x.PeriodStart }).IsUnique();
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinBillingCycles)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.Source)
                .WithMany(s => s.BillingCycles)
                .HasForeignKey(x => x.SourceId)

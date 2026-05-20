@@ -27,24 +27,13 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
             throw new UnauthorizedAppException("Authentication is required.");
 
         var saving = await _db.FinSavings
-            .Include(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .Include(s => s.Source)
             .FirstOrDefaultAsync(s => s.Id == request.SavingId, cancellationToken)
             .ConfigureAwait(false);
 
         if (saving is null)
             throw new NotFoundException("Savings record was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(saving.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage savings for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && saving.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this savings record.");
-
-        if (saving.Status is SavingStatus.Withdrawn)
+if (saving.Status is SavingStatus.Withdrawn)
             throw new BusinessRuleException("This savings record is already marked as withdrawn.");
 
         if (saving.CurrentAmount < CurrencyUnits.FromWhole(request.Amount))
@@ -60,7 +49,7 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
         if (request.MonthlyPeriodId is { } mpId)
         {
             var mpOk = await _db.FinMonthlyPeriods
-                .AnyAsync(p => p.Id == mpId && p.SmoduleId == saving.SmoduleId, cancellationToken)
+                .AnyAsync(p => p.Id == mpId, cancellationToken)
                 .ConfigureAwait(false);
             if (!mpOk)
                 throw new NotFoundException("Monthly period was not found for this module.");
@@ -71,8 +60,7 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
 
         var txn = new FinTransaction
         {
-            SmoduleId = saving.SmoduleId,
-            Type = TransactionType.Transfer,
+Type = TransactionType.Transfer,
             Status = TxnStatus.Completed,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,

@@ -4,16 +4,10 @@ using PFP.Domain.Enums;
 namespace PFP.Domain.Entities;
 
 /// <summary>
-/// A user-owned source of funds: cash, bank account, credit card, e-wallet, or investment account.
+/// A source of funds: cash, bank account, credit card, e-wallet, or investment account.
 /// Maps to <c>FIN_SOURCES</c>.
 /// <para>
-/// Per spec §3.6 every finance row references the space indirectly through
-/// <see cref="SmoduleId"/> → <see cref="SpaceModule"/> — never through <see cref="Space"/> or
-/// <see cref="Organization"/> directly. This indirection lets each space toggle the finance
-/// module independently while preserving the FK graph.
-/// </para>
-/// <para>
-/// <b>Balance is sacrosanct.</b> Per spec §4.6 the <see cref="Balance"/> column is NEVER updated
+/// <b>Balance is sacrosanct.</b> The <see cref="Balance"/> column is NEVER updated
 /// in place. It moves only through (a) the creation of a <see cref="FinTransaction"/>, (b) a
 /// reversal row emitted by the soft-delete flow, or (c) a reconciliation pass by
 /// <c>IBalanceCalculator.RecalculateBalance</c>. Repositories MUST NOT expose a setter shortcut.
@@ -31,9 +25,6 @@ namespace PFP.Domain.Entities;
 /// </summary>
 public sealed class FinSource : VersionedEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/> (the row that activates the finance module on a space).</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>Display name shown in the source picker / dashboard.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -90,9 +81,6 @@ public sealed class FinSource : VersionedEntity
     public string? ExternalRef { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     /// <summary>All transactions whose <c>SourceId</c> points at this source (outgoing side for transfers).</summary>
     public ICollection<FinTransaction> Transactions { get; set; } = new List<FinTransaction>();
 

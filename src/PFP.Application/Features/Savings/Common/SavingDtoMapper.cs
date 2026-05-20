@@ -8,7 +8,6 @@ internal static class SavingDtoMapper
     public static SavingListItemDto ToListItem(FinSaving s, string sourceName) =>
         new(
             s.Id,
-            s.SmoduleId,
             s.SourceId,
             sourceName,
             s.Name,
@@ -24,7 +23,6 @@ internal static class SavingDtoMapper
     public static SavingDetailDto ToDetail(FinSaving s, string sourceName) =>
         new(
             s.Id,
-            s.SmoduleId,
             s.SourceId,
             sourceName,
             s.Name,

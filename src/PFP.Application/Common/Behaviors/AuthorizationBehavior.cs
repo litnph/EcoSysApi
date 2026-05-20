@@ -1,41 +1,24 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Domain.Enums;
 
 namespace PFP.Application.Common.Behaviors;
 
-/// <summary>
-/// MediatR pipeline stage that enforces the authorisation declared by
-/// <see cref="IAuthorizeRequest"/> on a command or query (spec §2.3 / §6.2).
-/// <para>
-/// Performs three independent checks (skipping any that the request did not declare):
-/// </para>
-/// <list type="number">
-/// <item>Authenticated session present in <see cref="ICurrentUserService"/>.</item>
-/// <item><c>RequiredOrgId</c> + <c>MinimumOrgRole</c> via <see cref="ICurrentUserService.IsOrgMemberAsync"/>.</item>
-/// <item><c>RequiredSpaceId</c> + <c>MinimumSpaceRole</c> via <see cref="ICurrentUserService.IsSpaceMemberAsync"/>.</item>
-/// <item><c>RequiredSpaceModuleId</c> + <c>MinimumSpaceModuleRole</c> via <see cref="ICurrentUserService.HasSpaceModuleAccessAsync"/>.</item>
-/// </list>
-/// <para>
-/// Throws <see cref="UnauthorizedAppException"/> on missing credentials and
-/// <see cref="ForbiddenException"/> on role / membership mismatch — the API exception
-/// middleware maps those to HTTP 401 and 403 respectively.
-/// </para>
-/// </summary>
-/// <typeparam name="TRequest">Incoming command or query.</typeparam>
-/// <typeparam name="TResponse">Handler return type.</typeparam>
+/// <summary>MediatR pipeline stage enforcing <see cref="IAuthorizeRequest"/>.</summary>
 public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
     private readonly ICurrentUserService _currentUser;
+    private readonly IApplicationDbContext _db;
 
-    /// <summary>Creates the behaviour.</summary>
-    public AuthorizationBehavior(ICurrentUserService currentUser)
+    public AuthorizationBehavior(ICurrentUserService currentUser, IApplicationDbContext db)
     {
         _currentUser = currentUser;
+        _db = db;
     }
 
-    /// <inheritdoc/>
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
@@ -46,31 +29,18 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
             if (auth.RequireAuthenticated && !_currentUser.IsAuthenticated)
                 throw new UnauthorizedAppException("Authentication is required.");
 
-            if (auth.RequiredOrgId is { } orgId)
+            if (auth.RequireAdmin)
             {
-                var ok = await _currentUser.IsOrgMemberAsync(orgId, auth.MinimumOrgRole, cancellationToken)
-                    .ConfigureAwait(false);
-                if (!ok)
-                    throw new ForbiddenException("You do not have the required organisation role.");
-            }
+                if (_currentUser.UserId is not { } userId)
+                    throw new UnauthorizedAppException("Authentication is required.");
 
-            if (auth.RequiredSpaceId is { } spaceId)
-            {
-                var ok = await _currentUser.IsSpaceMemberAsync(spaceId, auth.MinimumSpaceRole, cancellationToken)
+                var isAdmin = await _db.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.Id == userId && u.Role == UserRole.Admin && u.IsActive, cancellationToken)
                     .ConfigureAwait(false);
-                if (!ok)
-                    throw new ForbiddenException("You do not have the required space role.");
-            }
 
-            if (auth.RequiredSpaceModuleId is { } smoduleId)
-            {
-                var ok = await _currentUser.HasSpaceModuleAccessAsync(
-                        smoduleId,
-                        auth.MinimumSpaceModuleRole,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (!ok)
-                    throw new ForbiddenException("You do not have access to this space module.");
+                if (!isAdmin)
+                    throw new ForbiddenException("Admin role is required.");
             }
         }
 

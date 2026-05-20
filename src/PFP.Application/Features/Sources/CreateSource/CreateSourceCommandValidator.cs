@@ -9,8 +9,7 @@ public sealed class CreateSourceCommandValidator : AbstractValidator<CreateSourc
     /// <summary>Registers field rules for source creation.</summary>
     public CreateSourceCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.Currency)
             .MaximumLength(3)

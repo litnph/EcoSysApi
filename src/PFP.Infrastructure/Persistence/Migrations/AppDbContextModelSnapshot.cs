@@ -91,7 +91,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntityType", "EntityId", "CreatedAt")
                         .HasDatabaseName("ix_audit_logs_entity_type_entity_id_created_at");
 
-                    b.ToTable("audit_logs", (string)null);
+                    b.ToTable("audit_logs");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.AuditLogRetention", b =>
@@ -132,14 +132,14 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
-                        .HasName("pk_audit_log_retentions");
+                        .HasName("pk_audit_log_retention");
 
                     b.HasIndex("EntityType")
                         .IsUnique()
-                        .HasDatabaseName("ix_audit_log_retentions_entity_type")
+                        .HasDatabaseName("ix_audit_log_retention_entity_type")
                         .HasFilter("[entity_type] IS NOT NULL");
 
-                    b.ToTable("audit_log_retentions", (string)null);
+                    b.ToTable("audit_log_retention");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.AutomationLog", b =>
@@ -190,7 +190,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("RuleId", "TriggeredAt")
                         .HasDatabaseName("ix_automation_logs_rule_id_triggered_at");
 
-                    b.ToTable("automation_logs", (string)null);
+                    b.ToTable("automation_logs");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.AutomationRule", b =>
@@ -248,10 +248,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("name");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<string>("TriggerType")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)")
@@ -273,13 +269,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedByUserId")
                         .HasDatabaseName("ix_automation_rules_created_by_user_id");
 
-                    b.HasIndex("SmoduleId", "IsActive")
-                        .HasDatabaseName("ix_automation_rules_smodule_id_is_active");
-
                     b.HasIndex("TriggerType", "IsActive")
                         .HasDatabaseName("ix_automation_rules_trigger_type_is_active");
 
-                    b.ToTable("automation_rules", (string)null);
+                    b.ToTable("automation_rules");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Comment", b =>
@@ -359,7 +352,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntityType", "EntityId", "CreatedAt")
                         .HasDatabaseName("ix_comments_entity_type_entity_id_created_at");
 
-                    b.ToTable("comments", (string)null);
+                    b.ToTable("comments");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.EntityTag", b =>
@@ -427,7 +420,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_entity_tags_tag_id_entity_type_entity_id")
                         .HasFilter("[is_deleted] = 0");
 
-                    b.ToTable("entity_tags", (string)null);
+                    b.ToTable("entity_tags");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FeatureFlag", b =>
@@ -481,7 +474,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_feature_flags_key");
 
-                    b.ToTable("feature_flags", (string)null);
+                    b.ToTable("feature_flags");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FeatureFlagOverride", b =>
@@ -529,7 +522,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("FlagId", "TargetType", "TargetId")
                         .HasDatabaseName("ix_feature_flag_overrides_flag_id_target_type_target_id");
 
-                    b.ToTable("feature_flag_overrides", (string)null);
+                    b.ToTable("feature_flag_overrides");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FileAttachment", b =>
@@ -614,7 +607,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_file_attachments_entity_type_entity_id");
 
-                    b.ToTable("file_attachments", (string)null);
+                    b.ToTable("file_attachments");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinCategory", b =>
@@ -675,7 +668,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("kind");
 
                     b.Property<string>("Name")
@@ -693,10 +686,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(2048)")
                         .HasColumnName("path");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
                         .HasColumnName("sort_order");
@@ -708,20 +697,14 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_categories");
 
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fin_categories_code");
+
                     b.HasIndex("ParentId")
                         .HasDatabaseName("ix_fin_categories_parent_id");
 
-                    b.HasIndex("SmoduleId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_fin_categories_smodule_id_code");
-
-                    b.HasIndex("SmoduleId", "Kind")
-                        .HasDatabaseName("ix_fin_categories_smodule_id_kind");
-
-                    b.HasIndex("SmoduleId", "ParentId")
-                        .HasDatabaseName("ix_fin_categories_smodule_id_parent_id");
-
-                    b.ToTable("fin_categories", (string)null);
+                    b.ToTable("fin_categories");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinMonthlyPeriod", b =>
@@ -756,17 +739,13 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("net");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<string>("SourceBreakdown")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("source_breakdown");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalExpense")
@@ -793,14 +772,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("ClosedBy")
                         .HasDatabaseName("ix_fin_monthly_periods_closed_by");
 
-                    b.HasIndex("SmoduleId", "Status")
-                        .HasDatabaseName("ix_fin_monthly_periods_smodule_id_status");
-
-                    b.HasIndex("SmoduleId", "Year", "Month")
+                    b.HasIndex("Year", "Month")
                         .IsUnique()
-                        .HasDatabaseName("ix_fin_monthly_periods_smodule_id_year_month");
+                        .HasDatabaseName("ix_fin_monthly_periods_year_month");
 
-                    b.ToTable("fin_monthly_periods", (string)null);
+                    b.ToTable("fin_monthly_periods");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinSource", b =>
@@ -890,10 +866,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("payment_due_day");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
                         .HasColumnName("sort_order");
@@ -904,7 +876,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -922,16 +894,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_sources");
 
-                    b.HasIndex("SmoduleId")
-                        .HasDatabaseName("ix_fin_sources_smodule_id");
-
-                    b.HasIndex("SmoduleId", "IsArchived")
-                        .HasDatabaseName("ix_fin_sources_smodule_id_is_archived");
-
-                    b.HasIndex("SmoduleId", "Type")
-                        .HasDatabaseName("ix_fin_sources_smodule_id_type");
-
-                    b.ToTable("fin_sources", (string)null);
+                    b.ToTable("fin_sources");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinSourceHistory", b =>
@@ -942,8 +905,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
@@ -986,16 +948,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_source_history");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_fin_source_history_created_at");
+                    b.HasIndex("EntityId")
+                        .HasDatabaseName("ix_fin_source_history_entity_id");
 
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_fin_source_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_fin_source_history_entity_id_version");
-
-                    b.ToTable("fin_source_history", (string)null);
+                    b.ToTable("fin_source_history");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinTransaction", b =>
@@ -1086,10 +1042,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("ref_txn_id");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("source_id");
@@ -1110,7 +1062,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1149,16 +1101,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("SourceId")
                         .HasDatabaseName("ix_fin_transactions_source_id");
 
-                    b.HasIndex("SmoduleId", "TxnDate")
-                        .HasDatabaseName("ix_fin_transactions_smodule_id_txn_date");
-
                     b.HasIndex("SourceId", "TxnDate")
                         .HasDatabaseName("ix_fin_transactions_source_id_txn_date");
 
-                    b.HasIndex("SmoduleId", "Type", "TxnDate")
-                        .HasDatabaseName("ix_fin_transactions_smodule_id_type_txn_date");
-
-                    b.ToTable("fin_transactions", (string)null);
+                    b.ToTable("fin_transactions");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinTransactionHistory", b =>
@@ -1169,8 +1115,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
@@ -1213,16 +1158,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_transaction_history");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_fin_transaction_history_created_at");
+                    b.HasIndex("TransactionId")
+                        .HasDatabaseName("ix_fin_transaction_history_transaction_id");
 
-                    b.HasIndex("TransactionId", "CreatedAt")
-                        .HasDatabaseName("ix_fin_transaction_history_transaction_id_created_at");
-
-                    b.HasIndex("TransactionId", "Version")
-                        .HasDatabaseName("ix_fin_transaction_history_transaction_id_version");
-
-                    b.ToTable("fin_transaction_history", (string)null);
+                    b.ToTable("fin_transaction_history");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinBillingCycle", b =>
@@ -1261,10 +1200,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("period_start");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("source_id");
@@ -1290,9 +1225,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_billing_cycles");
 
-                    b.HasIndex("SmoduleId")
-                        .HasDatabaseName("ix_fin_billing_cycles_smodule_id");
-
                     b.HasIndex("SourceId", "PeriodStart")
                         .IsUnique()
                         .HasDatabaseName("ix_fin_billing_cycles_source_id_period_start");
@@ -1303,7 +1235,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("SourceId", "PeriodStart", "PeriodEnd")
                         .HasDatabaseName("ix_fin_billing_cycles_source_id_period_start_period_end");
 
-                    b.ToTable("fin_billing_cycles", (string)null);
+                    b.ToTable("fin_billing_cycles");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecord", b =>
@@ -1333,7 +1265,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Direction")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("direction");
 
                     b.Property<DateOnly?>("DueDate")
@@ -1378,13 +1310,9 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("remaining_amount");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1405,13 +1333,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("OriginalTxnId")
                         .HasDatabaseName("ix_fin_debt_records_original_txn_id");
 
-                    b.HasIndex("SmoduleId", "DueDate")
-                        .HasDatabaseName("ix_fin_debt_records_smodule_id_due_date");
-
-                    b.HasIndex("SmoduleId", "Direction", "Status")
-                        .HasDatabaseName("ix_fin_debt_records_smodule_id_direction_status");
-
-                    b.ToTable("fin_debt_records", (string)null);
+                    b.ToTable("fin_debt_records");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecordHistory", b =>
@@ -1422,8 +1344,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
@@ -1466,16 +1387,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_debt_record_history");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_fin_debt_record_history_created_at");
+                    b.HasIndex("EntityId")
+                        .HasDatabaseName("ix_fin_debt_record_history_entity_id");
 
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_fin_debt_record_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_fin_debt_record_history_entity_id_version");
-
-                    b.ToTable("fin_debt_record_history", (string)null);
+                    b.ToTable("fin_debt_record_history");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtTransaction", b =>
@@ -1529,7 +1444,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("DebtRecordId", "TxnDate")
                         .HasDatabaseName("ix_fin_debt_transactions_debt_record_id_txn_date");
 
-                    b.ToTable("fin_debt_transactions", (string)null);
+                    b.ToTable("fin_debt_transactions");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInstallmentPay", b =>
@@ -1595,7 +1510,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("PlanId", "Status")
                         .HasDatabaseName("ix_fin_installment_pays_installment_plan_id_status");
 
-                    b.ToTable("fin_installment_pays", (string)null);
+                    b.ToTable("fin_installment_pays");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInstallmentPlan", b =>
@@ -1662,10 +1577,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("origin_transaction_id");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("source_id");
@@ -1676,7 +1587,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalAmount")
@@ -1712,10 +1623,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("SourceId")
                         .HasDatabaseName("ix_fin_installment_plans_source_id");
 
-                    b.HasIndex("SmoduleId", "Status")
-                        .HasDatabaseName("ix_fin_installment_plans_smodule_id_status");
-
-                    b.ToTable("fin_installment_plans", (string)null);
+                    b.ToTable("fin_installment_plans");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInstallmentPlanHistory", b =>
@@ -1726,8 +1634,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
@@ -1770,16 +1677,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_installment_plan_history");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_fin_installment_plan_history_created_at");
+                    b.HasIndex("EntityId")
+                        .HasDatabaseName("ix_fin_installment_plan_history_entity_id");
 
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_fin_installment_plan_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_fin_installment_plan_history_entity_id_version");
-
-                    b.ToTable("fin_installment_plan_history", (string)null);
+                    b.ToTable("fin_installment_plan_history");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInvestment", b =>
@@ -1827,10 +1728,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("note");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<decimal>("TotalInvested")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
@@ -1843,7 +1740,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1853,10 +1750,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_investments");
 
-                    b.HasIndex("SmoduleId", "Type")
-                        .HasDatabaseName("ix_fin_investments_smodule_id_type");
-
-                    b.ToTable("fin_investments", (string)null);
+                    b.ToTable("fin_investments");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInvestmentTxn", b =>
@@ -1920,7 +1814,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("InvestmentId", "TxnDate")
                         .HasDatabaseName("ix_fin_investment_txns_investment_id_txn_date");
 
-                    b.ToTable("fin_investment_txns", (string)null);
+                    b.ToTable("fin_investment_txns");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinSaving", b =>
@@ -1971,10 +1865,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("note");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("source_id");
@@ -1985,7 +1875,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("status");
 
                     b.Property<decimal?>("TargetAmount")
@@ -2008,10 +1898,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("SourceId")
                         .HasDatabaseName("ix_fin_savings_source_id");
 
-                    b.HasIndex("SmoduleId", "Status")
-                        .HasDatabaseName("ix_fin_savings_smodule_id_status");
-
-                    b.ToTable("fin_savings", (string)null);
+                    b.ToTable("fin_savings");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinTxnSplit", b =>
@@ -2083,7 +1970,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("TransactionId", "Status")
                         .HasDatabaseName("ix_fin_txn_splits_transaction_id_status");
 
-                    b.ToTable("fin_txn_splits", (string)null);
+                    b.ToTable("fin_txn_splits");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Locale", b =>
@@ -2147,7 +2034,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_locales_is_default_singleton")
                         .HasFilter("[is_default] = 1");
 
-                    b.ToTable("locales", (string)null);
+                    b.ToTable("locales");
 
                     b.HasData(
                         new
@@ -2235,669 +2122,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "IsRead", "CreatedAt")
                         .HasDatabaseName("ix_notifications_user_id_is_read_created_at");
 
-                    b.ToTable("notifications", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrgMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<Guid?>("InvitedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("invited_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_active");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<DateTime?>("JoinedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("joined_at");
-
-                    b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("last_session_id");
-
-                    b.Property<DateTime?>("LeftAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("left_at");
-
-                    b.Property<Guid>("OrgId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("org_id");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("role");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_org_members");
-
-                    b.HasIndex("OrgId", "UserId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_org_members_org_id_user_id");
-
-                    b.HasIndex("UserId", "IsActive")
-                        .HasDatabaseName("ix_org_members_user_id_is_active");
-
-                    b.ToTable("org_members", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrgMemberHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("change_reason");
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("change_type");
-
-                    b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("changed_by");
-
-                    b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("changed_fields");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("entity_id");
-
-                    b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("session_id");
-
-                    b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("snapshot");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_org_member_history");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_org_member_history_created_at");
-
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_org_member_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_org_member_history_entity_id_version");
-
-                    b.ToTable("org_member_history", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Organization", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DefaultCurrency")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)")
-                        .HasColumnName("default_currency");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<bool>("IsPersonal")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_personal");
-
-                    b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("last_session_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("owner_id");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
-                        .HasColumnName("slug");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_organizations");
-
-                    b.HasIndex("OwnerId")
-                        .HasDatabaseName("ix_organizations_owner_id");
-
-                    b.HasIndex("Slug")
-                        .IsUnique()
-                        .HasDatabaseName("ix_organizations_slug");
-
-                    b.ToTable("organizations", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrganizationHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("change_reason");
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("change_type");
-
-                    b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("changed_by");
-
-                    b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("changed_fields");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("entity_id");
-
-                    b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("session_id");
-
-                    b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("snapshot");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_organization_history");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_organization_history_created_at");
-
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_organization_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_organization_history_entity_id_version");
-
-                    b.ToTable("organization_history", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Space", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<int>("Depth")
-                        .HasColumnType("int")
-                        .HasColumnName("depth");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("last_session_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("OrgId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("org_id");
-
-                    b.Property<Guid?>("ParentId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("parent_id");
-
-                    b.Property<string>("Path")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)")
-                        .HasColumnName("path");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int")
-                        .HasColumnName("sort_order");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("type");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_spaces");
-
-                    b.HasIndex("ParentId")
-                        .HasDatabaseName("ix_spaces_parent_id");
-
-                    b.HasIndex("Path")
-                        .HasDatabaseName("ix_spaces_path");
-
-                    b.HasIndex("OrgId", "ParentId")
-                        .HasDatabaseName("ix_spaces_org_id_parent_id");
-
-                    b.ToTable("spaces", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("change_reason");
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("change_type");
-
-                    b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("changed_by");
-
-                    b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("changed_fields");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("entity_id");
-
-                    b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("session_id");
-
-                    b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("snapshot");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_space_history");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_space_history_created_at");
-
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_space_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_space_history_entity_id_version");
-
-                    b.ToTable("space_history", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<bool>("Inherited")
-                        .HasColumnType("bit")
-                        .HasColumnName("inherited");
-
-                    b.Property<Guid?>("InheritedFromSpaceId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("inherited_from_space_id");
-
-                    b.Property<Guid?>("InvitedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("invited_by");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<DateTime?>("JoinedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("joined_at");
-
-                    b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("last_session_id");
-
-                    b.Property<DateTime?>("LeftAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("left_at");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("role");
-
-                    b.Property<Guid>("SpaceId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("space_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_space_members");
-
-                    b.HasIndex("InheritedFromSpaceId")
-                        .HasDatabaseName("ix_space_members_inherited_from_space_id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_space_members_user_id");
-
-                    b.HasIndex("SpaceId", "UserId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_space_members_space_id_user_id");
-
-                    b.ToTable("space_members", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceMemberHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ChangeReason")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
-                        .HasColumnName("change_reason");
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("change_type");
-
-                    b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("changed_by");
-
-                    b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("changed_fields");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("entity_id");
-
-                    b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("session_id");
-
-                    b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("snapshot");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_space_member_history");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_space_member_history_created_at");
-
-                    b.HasIndex("EntityId", "CreatedAt")
-                        .HasDatabaseName("ix_space_member_history_entity_id_created_at");
-
-                    b.HasIndex("EntityId", "Version")
-                        .HasDatabaseName("ix_space_member_history_entity_id_version");
-
-                    b.ToTable("space_member_history", (string)null);
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceModule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<DateTime?>("DisabledAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("disabled_at");
-
-                    b.Property<DateTime>("EnabledAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("enabled_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_enabled");
-
-                    b.Property<string>("ModuleCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)")
-                        .HasColumnName("module_code");
-
-                    b.Property<string>("Settings")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("settings");
-
-                    b.Property<Guid>("SpaceId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("space_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_space_modules");
-
-                    b.HasIndex("SpaceId", "ModuleCode")
-                        .IsUnique()
-                        .HasDatabaseName("ix_space_modules_space_id_module_code");
-
-                    b.ToTable("space_modules", (string)null);
+                    b.ToTable("notifications");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.SystemEventLog", b =>
@@ -2975,7 +2200,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("EntityType", "EntityId", "CreatedAt")
                         .HasDatabaseName("ix_system_event_logs_entity_type_entity_id_created_at");
 
-                    b.ToTable("system_event_logs", (string)null);
+                    b.ToTable("system_event_logs");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Tag", b =>
@@ -3013,10 +2238,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("name");
 
-                    b.Property<Guid>("SmoduleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("smodule_id");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -3028,12 +2249,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_tags");
 
-                    b.HasIndex("SmoduleId", "Name")
+                    b.HasIndex("Name")
                         .IsUnique()
-                        .HasDatabaseName("ix_tags_smodule_id_name")
+                        .HasDatabaseName("ix_tags_name")
                         .HasFilter("[is_deleted] = 0");
 
-                    b.ToTable("tags", (string)null);
+                    b.ToTable("tags");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Translation", b =>
@@ -3091,7 +2312,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_translations_entity_type_entity_id_field_locale_code");
 
-                    b.ToTable("translations", (string)null);
+                    b.ToTable("translations");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.TranslationFallback", b =>
@@ -3135,7 +2356,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_translation_fallbacks_locale_code_priority");
 
-                    b.ToTable("translation_fallbacks", (string)null);
+                    b.ToTable("translation_fallbacks");
 
                     b.HasData(
                         new
@@ -3780,10 +3001,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_deleted");
 
-                    b.Property<bool>("IsEmailVerified")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_email_verified");
-
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("last_login_at");
@@ -3792,6 +3009,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("password_hash");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("role");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -3804,7 +3026,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserAuthProvider", b =>
@@ -3854,17 +3076,17 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_user_auth_providers");
+                        .HasName("pk_user_auth_provider");
 
                     b.HasIndex("UserId")
-                        .HasDatabaseName("ix_user_auth_providers_user_id");
+                        .HasDatabaseName("ix_user_auth_provider_user_id");
 
                     b.HasIndex("Provider", "ProviderUserId")
                         .IsUnique()
-                        .HasDatabaseName("ix_user_auth_providers_provider_provider_user_id")
+                        .HasDatabaseName("ix_user_auth_provider_provider_provider_user_id")
                         .HasFilter("[provider_user_id] IS NOT NULL");
 
-                    b.ToTable("user_auth_providers", (string)null);
+                    b.ToTable("user_auth_provider");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserAvatarUpload", b =>
@@ -3922,7 +3144,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_user_avatar_uploads_user_id_created_at");
 
-                    b.ToTable("user_avatar_uploads", (string)null);
+                    b.ToTable("user_avatar_uploads");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserDataExport", b =>
@@ -3989,7 +3211,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "Status")
                         .HasDatabaseName("ix_user_data_exports_user_id_status");
 
-                    b.ToTable("user_data_exports", (string)null);
+                    b.ToTable("user_data_exports");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserDeletionRequest", b =>
@@ -4058,7 +3280,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "Status")
                         .HasDatabaseName("ix_user_deletion_requests_user_id_status");
 
-                    b.ToTable("user_deletion_requests", (string)null);
+                    b.ToTable("user_deletion_requests");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserEmailVerification", b =>
@@ -4105,19 +3327,19 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("verified_at");
 
                     b.HasKey("Id")
-                        .HasName("pk_user_email_verifications");
+                        .HasName("pk_user_email_verification");
 
                     b.HasIndex("ExpiresAt")
-                        .HasDatabaseName("ix_user_email_verifications_expires_at");
+                        .HasDatabaseName("ix_user_email_verification_expires_at");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()
-                        .HasDatabaseName("ix_user_email_verifications_token_hash");
+                        .HasDatabaseName("ix_user_email_verification_token_hash");
 
                     b.HasIndex("UserId", "Type")
-                        .HasDatabaseName("ix_user_email_verifications_user_id_type");
+                        .HasDatabaseName("ix_user_email_verification_user_id_type");
 
-                    b.ToTable("user_email_verifications", (string)null);
+                    b.ToTable("user_email_verification");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserLoginAttempt", b =>
@@ -4176,7 +3398,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_user_login_attempts_user_id_created_at");
 
-                    b.ToTable("user_login_attempts", (string)null);
+                    b.ToTable("user_login_attempts");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserNotificationPref", b =>
@@ -4225,7 +3447,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_user_notification_prefs_user_id_module_code_channel_event_type");
 
-                    b.ToTable("user_notification_prefs", (string)null);
+                    b.ToTable("user_notification_prefs");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserPasswordReset", b =>
@@ -4272,19 +3494,19 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_user_password_resets");
+                        .HasName("pk_user_password_reset");
 
                     b.HasIndex("ExpiresAt")
-                        .HasDatabaseName("ix_user_password_resets_expires_at");
+                        .HasDatabaseName("ix_user_password_reset_expires_at");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()
-                        .HasDatabaseName("ix_user_password_resets_token_hash");
+                        .HasDatabaseName("ix_user_password_reset_token_hash");
 
                     b.HasIndex("UserId")
-                        .HasDatabaseName("ix_user_password_resets_user_id");
+                        .HasDatabaseName("ix_user_password_reset_user_id");
 
-                    b.ToTable("user_password_resets", (string)null);
+                    b.ToTable("user_password_reset");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserProfile", b =>
@@ -4354,7 +3576,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_user_profiles_user_id");
 
-                    b.ToTable("user_profiles", (string)null);
+                    b.ToTable("user_profiles");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.UserSession", b =>
@@ -4431,7 +3653,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "ExpiresAt")
                         .HasDatabaseName("ix_user_sessions_user_id_expires_at");
 
-                    b.ToTable("user_sessions", (string)null);
+                    b.ToTable("user_sessions");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.AuditLog", b =>
@@ -4466,16 +3688,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_automation_rules_users_created_by_user_id");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("AutomationRules")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_automation_rules_space_modules_smodule_id");
-
                     b.Navigation("CreatedBy");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Comment", b =>
@@ -4551,16 +3764,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_fin_categories_fin_categories_parent_id");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinCategories")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_categories_space_modules_smodule_id");
-
                     b.Navigation("Parent");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinMonthlyPeriod", b =>
@@ -4571,28 +3775,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_fin_monthly_periods_users_closed_by");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinMonthlyPeriods")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_monthly_periods_space_modules_smodule_id");
-
                     b.Navigation("ClosedByUser");
-
-                    b.Navigation("Smodule");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.FinSource", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinSources")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_sources_space_modules_smodule_id");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinSourceHistory", b =>
@@ -4645,13 +3828,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_fin_transactions_fin_transactions_ref_txn_id");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinTransactions")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_transactions_space_modules_smodule_id");
-
                     b.HasOne("PFP.Domain.Entities.FinSource", "Source")
                         .WithMany("Transactions")
                         .HasForeignKey("SourceId")
@@ -4671,8 +3847,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Navigation("RefTransaction");
 
-                    b.Navigation("Smodule");
-
                     b.Navigation("Source");
                 });
 
@@ -4690,21 +3864,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinBillingCycle", b =>
                 {
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinBillingCycles")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_billing_cycles_space_modules_smodule_id");
-
                     b.HasOne("PFP.Domain.Entities.FinSource", "Source")
                         .WithMany("BillingCycles")
                         .HasForeignKey("SourceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_fin_billing_cycles_fin_sources_source_id");
-
-                    b.Navigation("Smodule");
 
                     b.Navigation("Source");
                 });
@@ -4717,16 +3882,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_fin_debt_records_fin_transactions_original_txn_id");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinDebtRecords")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_debt_records_space_modules_smodule_id");
-
                     b.Navigation("OriginalTransaction");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecordHistory", b =>
@@ -4796,13 +3952,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_fin_installment_plans_fin_transactions_origin_transaction_id");
 
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinInstallmentPlans")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_installment_plans_space_modules_smodule_id");
-
                     b.HasOne("PFP.Domain.Entities.FinSource", "Source")
                         .WithMany("InstallmentPlans")
                         .HasForeignKey("SourceId")
@@ -4813,8 +3962,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("ConversionFeeTxn");
 
                     b.Navigation("OriginalTransaction");
-
-                    b.Navigation("Smodule");
 
                     b.Navigation("Source");
                 });
@@ -4829,18 +3976,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_fin_installment_plan_history_fin_installment_plans_entity_id");
 
                     b.Navigation("Entity");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInvestment", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinInvestments")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_investments_space_modules_smodule_id");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinInvestmentTxn", b =>
@@ -4865,21 +4000,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinSaving", b =>
                 {
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany("FinSavings")
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_fin_savings_space_modules_smodule_id");
-
                     b.HasOne("PFP.Domain.Entities.FinSource", "Source")
                         .WithMany()
                         .HasForeignKey("SourceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_fin_savings_fin_sources_source_id");
-
-                    b.Navigation("Smodule");
 
                     b.Navigation("Source");
                 });
@@ -4914,160 +4040,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_notifications_users_user_id");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrgMember", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Organization", "Org")
-                        .WithMany("Members")
-                        .HasForeignKey("OrgId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_org_members_organizations_org_id");
-
-                    b.HasOne("PFP.Domain.Entities.User", "User")
-                        .WithMany("OrgMemberships")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_org_members_users_user_id");
-
-                    b.Navigation("Org");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrgMemberHistory", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.OrgMember", "Entity")
-                        .WithMany("History")
-                        .HasForeignKey("EntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_org_member_history_org_members_entity_id");
-
-                    b.Navigation("Entity");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Organization", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.User", "Owner")
-                        .WithMany("OwnedOrganizations")
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_organizations_users_owner_id");
-
-                    b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.OrganizationHistory", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Organization", "Entity")
-                        .WithMany("History")
-                        .HasForeignKey("EntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_organization_history_organizations_entity_id");
-
-                    b.Navigation("Entity");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Space", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Organization", "Org")
-                        .WithMany("Spaces")
-                        .HasForeignKey("OrgId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_spaces_organizations_org_id");
-
-                    b.HasOne("PFP.Domain.Entities.Space", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_spaces_spaces_parent_id");
-
-                    b.Navigation("Org");
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceHistory", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Space", "Entity")
-                        .WithMany("History")
-                        .HasForeignKey("EntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_space_history_spaces_entity_id");
-
-                    b.Navigation("Entity");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceMember", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Space", "InheritedFromSpace")
-                        .WithMany()
-                        .HasForeignKey("InheritedFromSpaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_space_members_spaces_inherited_from_space_id");
-
-                    b.HasOne("PFP.Domain.Entities.Space", "Space")
-                        .WithMany("Members")
-                        .HasForeignKey("SpaceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_space_members_spaces_space_id");
-
-                    b.HasOne("PFP.Domain.Entities.User", "User")
-                        .WithMany("SpaceMemberships")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_space_members_users_user_id");
-
-                    b.Navigation("InheritedFromSpace");
-
-                    b.Navigation("Space");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceMemberHistory", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.SpaceMember", "Entity")
-                        .WithMany("History")
-                        .HasForeignKey("EntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_space_member_history_space_members_entity_id");
-
-                    b.Navigation("Entity");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceModule", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.Space", "Space")
-                        .WithMany("Modules")
-                        .HasForeignKey("SpaceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_space_modules_spaces_space_id");
-
-                    b.Navigation("Space");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Tag", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.SpaceModule", "Smodule")
-                        .WithMany()
-                        .HasForeignKey("SmoduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_tags_space_modules_smodule_id");
-
-                    b.Navigation("Smodule");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Translation", b =>
@@ -5126,7 +4098,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_user_auth_providers_users_user_id");
+                        .HasConstraintName("fk_user_auth_provider_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -5174,7 +4146,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_user_email_verifications_users_user_id");
+                        .HasConstraintName("fk_user_email_verification_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -5209,7 +4181,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_user_password_resets_users_user_id");
+                        .HasConstraintName("fk_user_password_reset_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -5323,59 +4295,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("UIStrings");
                 });
 
-            modelBuilder.Entity("PFP.Domain.Entities.OrgMember", b =>
-                {
-                    b.Navigation("History");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Organization", b =>
-                {
-                    b.Navigation("History");
-
-                    b.Navigation("Members");
-
-                    b.Navigation("Spaces");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.Space", b =>
-                {
-                    b.Navigation("Children");
-
-                    b.Navigation("History");
-
-                    b.Navigation("Members");
-
-                    b.Navigation("Modules");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceMember", b =>
-                {
-                    b.Navigation("History");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.SpaceModule", b =>
-                {
-                    b.Navigation("AutomationRules");
-
-                    b.Navigation("FinBillingCycles");
-
-                    b.Navigation("FinCategories");
-
-                    b.Navigation("FinDebtRecords");
-
-                    b.Navigation("FinInstallmentPlans");
-
-                    b.Navigation("FinInvestments");
-
-                    b.Navigation("FinMonthlyPeriods");
-
-                    b.Navigation("FinSavings");
-
-                    b.Navigation("FinSources");
-
-                    b.Navigation("FinTransactions");
-                });
-
             modelBuilder.Entity("PFP.Domain.Entities.Tag", b =>
                 {
                     b.Navigation("EntityTags");
@@ -5401,17 +4320,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Notifications");
 
-                    b.Navigation("OrgMemberships");
-
-                    b.Navigation("OwnedOrganizations");
-
                     b.Navigation("PasswordResets");
 
                     b.Navigation("Profile");
 
                     b.Navigation("Sessions");
-
-                    b.Navigation("SpaceMemberships");
                 });
 #pragma warning restore 612, 618
         }

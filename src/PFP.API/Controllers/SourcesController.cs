@@ -26,10 +26,9 @@ public sealed class SourcesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetSourcesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetSourcesResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetSourcesQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetSourcesQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetSourcesResponse> { Data = result });
     }
 

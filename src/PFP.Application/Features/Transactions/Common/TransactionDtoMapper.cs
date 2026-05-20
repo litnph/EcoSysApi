@@ -13,7 +13,6 @@ public static class TransactionDtoMapper
         string? categoryName) =>
         new(
             t.Id,
-            t.SmoduleId,
             t.Type,
             t.Status,
             CurrencyUnits.ToWhole(t.Amount),
@@ -41,7 +40,6 @@ public static class TransactionDtoMapper
 
         return new TransactionDetailDto(
             t.Id,
-            t.SmoduleId,
             t.Type,
             t.Status,
             CurrencyUnits.ToWhole(t.Amount),

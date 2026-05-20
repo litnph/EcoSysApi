@@ -20,12 +20,9 @@ public sealed class GetTagsQueryHandler : IRequestHandler<GetTagsQuery, IReadOnl
 
     public async Task<IReadOnlyList<TagListItemDto>> Handle(GetTagsQuery request, CancellationToken cancellationToken)
     {
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, request.SmoduleId, SpaceRole.Viewer, cancellationToken).ConfigureAwait(false);
-
         return await _db.Tags.AsNoTracking()
-            .Where(t => t.SmoduleId == request.SmoduleId)
             .OrderBy(t => t.Name)
-            .Select(t => new TagListItemDto(t.Id, t.SmoduleId, t.Name, t.Color, t.UsageCount))
+            .Select(t => new TagListItemDto(t.Id, t.Name, t.Color, t.UsageCount))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

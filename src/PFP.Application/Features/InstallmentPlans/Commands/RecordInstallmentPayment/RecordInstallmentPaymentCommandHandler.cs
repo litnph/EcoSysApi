@@ -33,23 +33,12 @@ public sealed class RecordInstallmentPaymentCommandHandler : IRequestHandler<Rec
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var plan = await _db.FinInstallmentPlans
-            .Include(p => p.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId, cancellationToken)
             .ConfigureAwait(false);
 
         if (plan is null || plan.Status != InstallmentStatus.Active)
             throw new NotFoundException("Installment plan was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(plan.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to record payments for this plan.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && plan.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this plan.");
-
-        var pay = await _db.FinInstallmentPays
+var pay = await _db.FinInstallmentPays
             .FirstOrDefaultAsync(
                 p => p.PlanId == request.PlanId && p.InstallmentNumber == request.InstallmentNumber,
                 cancellationToken)
@@ -62,7 +51,7 @@ public sealed class RecordInstallmentPaymentCommandHandler : IRequestHandler<Rec
             throw new BusinessRuleException("The installment must be due or overdue to accept a payment.");
 
         var paymentSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.PaymentSourceId && s.SmoduleId == plan.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.PaymentSourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (paymentSource is null || paymentSource.IsDeleted)
@@ -79,8 +68,7 @@ public sealed class RecordInstallmentPaymentCommandHandler : IRequestHandler<Rec
 
         var txn = new FinTransaction
         {
-            SmoduleId = plan.SmoduleId,
-            Type = TransactionType.Direct,
+Type = TransactionType.Direct,
             Status = TxnStatus.Completed,
             Amount = pay.Amount,
             Currency = paymentSource.Currency,

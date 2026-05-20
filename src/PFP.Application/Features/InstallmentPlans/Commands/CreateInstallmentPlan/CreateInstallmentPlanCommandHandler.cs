@@ -31,23 +31,12 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
         var txn = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
-            .ThenInclude(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(t => t.Id == request.OriginalTxnId, cancellationToken)
             .ConfigureAwait(false);
 
         if (txn is null || txn.IsDeleted || txn.Type != TransactionType.Deferred)
             throw new NotFoundException("Transaction was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(txn.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to create installment plans for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && txn.Source.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this transaction.");
-
-        if (txn.Source.Type != SourceType.CreditCard)
+if (txn.Source.Type != SourceType.CreditCard)
             throw new BusinessRuleException("Installment plans can only be created for credit card sources.");
 
         var totalAmount = txn.Amount;
@@ -76,9 +65,7 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
             await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
             var plan = new FinInstallmentPlan
-            {
-                SmoduleId = txn.SmoduleId,
-                OriginalTxnId = txn.Id,
+            {                OriginalTxnId = txn.Id,
                 SourceId = txn.SourceId,
                 TotalAmount = totalAmount,
                 TotalMonths = totalMonths,

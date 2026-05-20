@@ -25,23 +25,12 @@ public sealed class GetInvestmentDetailQueryHandler : IRequestHandler<GetInvestm
 
         var entity = await _db.FinInvestments
             .AsNoTracking()
-            .Include(i => i.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Investment was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read investments for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this investment.");
-
-        var txns = await _db.FinInvestmentTxns
+var txns = await _db.FinInvestmentTxns
             .AsNoTracking()
             .Where(t => t.InvestmentId == entity.Id)
             .OrderByDescending(t => t.TxnDate)

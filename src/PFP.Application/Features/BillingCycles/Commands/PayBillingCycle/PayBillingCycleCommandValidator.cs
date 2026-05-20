@@ -46,7 +46,7 @@ public sealed class PayBillingCycleCommandValidator : AbstractValidator<PayBilli
                 var bc = await db.FinBillingCycles.AsNoTracking().FirstOrDefaultAsync(b => b.Id == cmd.CycleId, ct).ConfigureAwait(false);
                 var paySrc = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.PaymentSourceId, ct).ConfigureAwait(false);
                 if (bc is null || paySrc is null) return false;
-                return paySrc.SmoduleId == bc.SmoduleId;
+                return paySrc is not null;
             })
             .WithMessage("Payment source must belong to the same finance module as the billing cycle.");
 

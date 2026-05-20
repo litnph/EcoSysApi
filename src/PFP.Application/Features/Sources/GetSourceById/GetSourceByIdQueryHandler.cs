@@ -29,22 +29,11 @@ public sealed class GetSourceByIdQueryHandler : IRequestHandler<GetSourceByIdQue
 
         var entity = await _db.FinSources
             .AsNoTracking()
-            .Include(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Finance source was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read finance sources for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this finance source.");
-
-        return new GetSourceByIdResponse(FinSourceDtoMapper.ToDto(entity));
+return new GetSourceByIdResponse(FinSourceDtoMapper.ToDto(entity));
     }
 }

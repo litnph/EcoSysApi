@@ -10,12 +10,5 @@ public sealed class GetMonthlyPeriodsListQueryValidator : AbstractValidator<GetM
 {
     public GetMonthlyPeriodsListQueryValidator(IApplicationDbContext db)
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-
-        RuleFor(x => x)
-            .MustAsync(async (q, ct) =>
-                await db.SpaceModules.AnyAsync(m => m.Id == q.SmoduleId && m.ModuleCode == ModuleCode.Finance, ct)
-                    .ConfigureAwait(false))
-            .WithMessage("Finance module was not found for this id.");
-    }
+}
 }

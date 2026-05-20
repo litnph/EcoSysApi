@@ -5,7 +5,6 @@ namespace PFP.Application.Features.InstallmentPlans.Common;
 /// <summary>List row for <see cref="GetInstallmentPlans.GetInstallmentPlansQuery"/>.</summary>
 public sealed record InstallmentPlanListItemDto(
     Guid Id,
-    Guid SmoduleId,
     Guid SourceId,
     string SourceName,
     string OriginalTxnDescription,
@@ -28,7 +27,6 @@ public sealed record InstallmentPayItemDto(
 /// <summary>Full plan detail for <see cref="GetInstallmentPlanDetail.GetInstallmentPlanDetailQuery"/>.</summary>
 public sealed record InstallmentPlanDetailDto(
     Guid Id,
-    Guid SmoduleId,
     Guid SourceId,
     string SourceName,
     Guid OriginalTxnId,

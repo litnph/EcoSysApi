@@ -15,7 +15,6 @@ namespace PFP.Application.Features.DebtRecords.CreateDebtRecord;
 /// </para>
 /// </summary>
 public sealed record CreateDebtRecordCommand(
-    Guid SmoduleId,
     DebtDirection Direction,
     string PersonName,
     string? PersonContact,

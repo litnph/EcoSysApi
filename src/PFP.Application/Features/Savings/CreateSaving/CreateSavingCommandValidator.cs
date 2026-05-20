@@ -6,8 +6,7 @@ public sealed class CreateSavingCommandValidator : AbstractValidator<CreateSavin
 {
     public CreateSavingCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.SourceId).NotEmpty();
+RuleFor(x => x.SourceId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.TargetAmount).GreaterThan(0).When(x => x.TargetAmount.HasValue);
         RuleFor(x => x.InterestRate).GreaterThanOrEqualTo(0);

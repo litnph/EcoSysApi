@@ -17,15 +17,7 @@ public sealed class FinCategoryConfiguration : IEntityTypeConfiguration<FinCateg
         builder.Property(x => x.Path).HasMaxLength(2048);
         builder.Property(x => x.Description).HasMaxLength(1024);
 
-        builder.HasIndex(x => new { x.SmoduleId, x.Code }).IsUnique();
-        builder.HasIndex(x => new { x.SmoduleId, x.Kind });
-        builder.HasIndex(x => new { x.SmoduleId, x.ParentId });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinCategories)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
+        builder.HasIndex(x => x.Code).IsUnique();
         builder.HasOne(x => x.Parent)
                .WithMany(c => c.Children)
                .HasForeignKey(x => x.ParentId)

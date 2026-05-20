@@ -9,8 +9,7 @@ public sealed class CreateCategoryCommandValidator : AbstractValidator<CreateCat
     /// <summary>Registers validation rules.</summary>
     public CreateCategoryCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Kind).IsInEnum();
         RuleFor(x => x.ParentId)
             .Must(id => id is null || id != Guid.Empty)

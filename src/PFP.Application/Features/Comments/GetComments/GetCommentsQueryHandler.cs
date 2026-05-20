@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Comments.Common;
@@ -30,8 +31,8 @@ public sealed class GetCommentsQueryHandler : IRequestHandler<GetCommentsQuery, 
             ? TagCommentConsts.FinanceModuleCode
             : request.ModuleCode.Trim().ToLowerInvariant();
 
-        await FinanceModuleAccessHelper
-            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, SpaceRole.Viewer, cancellationToken)
+        await FinanceAccessHelper
+            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, cancellationToken)
             .ConfigureAwait(false);
 
         var rows = await (

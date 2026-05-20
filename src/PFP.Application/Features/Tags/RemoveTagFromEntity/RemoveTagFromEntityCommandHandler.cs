@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.TagsComments.Common;
@@ -29,11 +30,8 @@ public sealed class RemoveTagFromEntityCommandHandler : IRequestHandler<RemoveTa
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
-
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, tag.SmoduleId, SpaceRole.Editor, cancellationToken).ConfigureAwait(false);
-
-        _ = await FinanceModuleAccessHelper
-            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, SpaceRole.Editor, cancellationToken)
+        _ = await FinanceAccessHelper
+            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, cancellationToken)
             .ConfigureAwait(false);
 
         var link = await _db.EntityTags.FirstOrDefaultAsync(

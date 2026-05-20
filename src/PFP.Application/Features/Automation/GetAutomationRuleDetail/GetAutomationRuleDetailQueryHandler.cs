@@ -25,22 +25,11 @@ public sealed class GetAutomationRuleDetailQueryHandler : IRequestHandler<GetAut
 
         var entity = await _db.AutomationRules
             .AsNoTracking()
-            .Include(r => r.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Automation rule was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read this automation rule.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this automation rule.");
-
-        return new GetAutomationRuleDetailResponse(AutomationRuleDtoMapper.ToDetail(entity));
+return new GetAutomationRuleDetailResponse(AutomationRuleDtoMapper.ToDetail(entity));
     }
 }

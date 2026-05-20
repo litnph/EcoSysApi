@@ -26,26 +26,8 @@ public sealed class GetSourcesQueryHandler : IRequestHandler<GetSourcesQuery, Ge
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read finance sources for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var rows = await _db.FinSources
+var rows = await _db.FinSources
             .AsNoTracking()
-            .Where(s => s.SmoduleId == request.SmoduleId)
             .OrderBy(s => s.SortOrder)
             .ThenBy(s => s.Name)
             .ToListAsync(cancellationToken)

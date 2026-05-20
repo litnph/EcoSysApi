@@ -9,7 +9,6 @@ public sealed class GetCategoriesQueryValidator : AbstractValidator<GetCategorie
     /// <summary>Registers validation rules.</summary>
     public GetCategoriesQueryValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Kind).IsInEnum();
+RuleFor(x => x.Kind).IsInEnum();
     }
 }

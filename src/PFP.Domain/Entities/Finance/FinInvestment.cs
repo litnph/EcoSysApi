@@ -8,9 +8,6 @@ namespace PFP.Domain.Entities.Finance;
 /// </summary>
 public sealed class FinInvestment : SoftDeletableEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/>.</summary>
-    public Guid SmoduleId { get; set; }
-
     public string Name { get; set; } = string.Empty;
 
     public InvestmentType Type { get; set; }
@@ -29,9 +26,6 @@ public sealed class FinInvestment : SoftDeletableEntity
     public string? Note { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     /// <summary>Append-only ledger rows.</summary>
     public ICollection<FinInvestmentTxn> InvestmentTxns { get; set; } = new List<FinInvestmentTxn>();
 }

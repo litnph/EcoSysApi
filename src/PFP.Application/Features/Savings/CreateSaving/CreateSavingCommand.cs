@@ -4,7 +4,6 @@ using PFP.Domain.Enums;
 namespace PFP.Application.Features.Savings.CreateSaving;
 
 public sealed record CreateSavingCommand(
-    Guid SmoduleId,
     Guid SourceId,
     string Name,
     long? TargetAmount,

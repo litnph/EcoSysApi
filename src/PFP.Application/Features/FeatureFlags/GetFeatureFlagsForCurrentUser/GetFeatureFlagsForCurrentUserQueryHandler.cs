@@ -19,5 +19,5 @@ public sealed class GetFeatureFlagsForCurrentUserQueryHandler
     public Task<IReadOnlyList<FeatureFlagForPrincipalDto>> Handle(
         GetFeatureFlagsForCurrentUserQuery request,
         CancellationToken cancellationToken) =>
-        _featureFlags.GetAllResolvedForPrincipalAsync(_currentUser.UserId, _currentUser.CurrentOrgId, cancellationToken);
+        _featureFlags.GetAllResolvedForPrincipalAsync(_currentUser.UserId, null, cancellationToken);
 }

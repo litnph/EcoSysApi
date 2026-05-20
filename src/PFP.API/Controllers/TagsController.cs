@@ -28,10 +28,9 @@ public sealed class TagsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<TagListItemDto>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<TagListItemDto>>>> ListByModule(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var rows = await _mediator.Send(new GetTagsQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var rows = await _mediator.Send(new GetTagsQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<IReadOnlyList<TagListItemDto>> { Data = rows });
     }
 

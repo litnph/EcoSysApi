@@ -26,10 +26,9 @@ public sealed class AutomationRulesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetAutomationRulesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetAutomationRulesResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetAutomationRulesQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetAutomationRulesQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetAutomationRulesResponse> { Data = result });
     }
 

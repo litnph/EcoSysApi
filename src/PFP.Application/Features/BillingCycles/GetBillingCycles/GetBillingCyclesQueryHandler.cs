@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
+using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.BillingCycles.GetBillingCycles;
@@ -26,27 +27,9 @@ public sealed class GetBillingCyclesQueryHandler : IRequestHandler<GetBillingCyc
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read billing cycles for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var q = _db.FinBillingCycles
+        IQueryable<FinBillingCycle> q = _db.FinBillingCycles
             .AsNoTracking()
-            .Include(bc => bc.Source)
-            .Where(bc => bc.SmoduleId == request.SmoduleId);
+            .Include(bc => bc.Source);
 
         if (request.SourceId is { } sid)
             q = q.Where(bc => bc.SourceId == sid);

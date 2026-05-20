@@ -4,7 +4,6 @@ namespace PFP.Application.Features.DebtRecords.GetDebtRecords;
 
 public sealed record DebtRecordListItemDto(
     Guid Id,
-    Guid SmoduleId,
     DebtDirection Direction,
     string PersonName,
     string? PersonContact,

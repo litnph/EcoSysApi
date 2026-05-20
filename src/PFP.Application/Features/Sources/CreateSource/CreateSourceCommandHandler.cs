@@ -27,31 +27,12 @@ public sealed class CreateSourceCommandHandler : IRequestHandler<CreateSourceCom
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage finance sources for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var nowUser = _currentUser.UserId.Value;
+var nowUser = _currentUser.UserId.Value;
         var sessionId = _currentUser.SessionId!.Value;
         var currency = string.IsNullOrWhiteSpace(request.Currency) ? "VND" : request.Currency.Trim().ToUpperInvariant();
 
         var entity = new FinSource
-        {
-            SmoduleId = request.SmoduleId,
-            Name = request.Name.Trim(),
+        {            Name = request.Name.Trim(),
             Type = request.Type,
             Balance = 0,
             Currency = currency,

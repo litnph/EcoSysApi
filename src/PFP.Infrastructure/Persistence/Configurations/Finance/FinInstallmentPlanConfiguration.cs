@@ -18,17 +18,8 @@ public sealed class FinInstallmentPlanConfiguration : IEntityTypeConfiguration<F
         builder.Property(x => x.StartDate).HasColumnType("date");
         builder.Property(x => x.CancellationReason).HasMaxLength(1024);
 
-        builder.Property(x => x.OriginalTxnId).HasColumnName("origin_transaction_id");
-
-        builder.HasIndex(x => new { x.SmoduleId, x.Status });
-        builder.HasIndex(x => x.OriginalTxnId);
+        builder.Property(x => x.OriginalTxnId).HasColumnName("origin_transaction_id");        builder.HasIndex(x => x.OriginalTxnId);
         builder.HasIndex(x => x.SourceId);
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinInstallmentPlans)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.Source)
                .WithMany(s => s.InstallmentPlans)
                .HasForeignKey(x => x.SourceId)

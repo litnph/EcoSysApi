@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.TagsComments.Common;
@@ -58,7 +59,7 @@ public sealed class DeleteCommentCommandHandler : IRequestHandler<DeleteCommentC
         var type = entity.EntityType;
         if (string.Equals(type, nameof(FinTransaction), StringComparison.Ordinal))
         {
-            await FinanceModuleAccessHelper.RequireFinTransactionAnchorAsync(_db, _currentUser, entity.EntityId, SpaceRole.Viewer, cancellationToken).ConfigureAwait(false);
+            await FinanceAccessHelper.RequireFinTransactionAnchorAsync(_db, _currentUser, entity.EntityId, cancellationToken).ConfigureAwait(false);
             return;
         }
 

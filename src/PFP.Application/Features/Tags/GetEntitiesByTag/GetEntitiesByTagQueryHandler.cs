@@ -28,9 +28,6 @@ public sealed class GetEntitiesByTagQueryHandler : IRequestHandler<GetEntitiesBy
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
-
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, tag.SmoduleId, SpaceRole.Viewer, cancellationToken).ConfigureAwait(false);
-
         var raw = await _db.EntityTags.AsNoTracking()
             .Where(e => e.TagId == tag.Id)
             .OrderBy(e => e.EntityType)

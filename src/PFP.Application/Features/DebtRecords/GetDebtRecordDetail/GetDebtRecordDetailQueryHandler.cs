@@ -31,24 +31,7 @@ public sealed class GetDebtRecordDetailQueryHandler : IRequestHandler<GetDebtRec
 
         if (record is null)
             throw new NotFoundException("Debt record was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(record.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read this debt record.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == record.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this debt record.");
-
-        var txRows = await _db.FinDebtTransactions
+var txRows = await _db.FinDebtTransactions
             .AsNoTracking()
             .Where(t => t.DebtRecordId == record.Id)
             .OrderBy(t => t.TxnDate)
@@ -62,7 +45,6 @@ public sealed class GetDebtRecordDetailQueryHandler : IRequestHandler<GetDebtRec
 
         var dto = new DebtRecordDetailDto(
             record.Id,
-            record.SmoduleId,
             record.Direction,
             record.PersonName,
             record.PersonContact,

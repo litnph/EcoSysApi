@@ -19,20 +19,9 @@ internal static class MonthlyPeriodSummaryCalculator
         WriteIndented = false,
     };
 
-    /// <summary>Expense types included in total expense / breakdowns.</summary>
-    public static readonly TransactionType[] ExpenseAggregateTypes =
-    {
-        TransactionType.Direct,
-        TransactionType.Deferred,
-        TransactionType.Split,
-        TransactionType.DebtBorrow,
-        TransactionType.LoanGive,
-    };
-
-    /// <summary>Transactions included in monthly aggregates (not transfer/reversal; not soft-deleted).</summary>
+    /// <summary>Transactions in the calendar month (not soft-deleted).</summary>
     public static IQueryable<FinTransaction> MonthTransactions(
         IApplicationDbContext db,
-        Guid smoduleId,
         int year,
         int month)
     {
@@ -40,12 +29,7 @@ internal static class MonthlyPeriodSummaryCalculator
         var end = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
         return db.FinTransactions
             .AsNoTracking()
-            .Where(t => t.SmoduleId == smoduleId
-                        && !t.IsDeleted
-                        && t.Type != TransactionType.Reversal
-                        && t.Type != TransactionType.Transfer
-                        && t.TxnDate >= start
-                        && t.TxnDate <= end);
+            .Where(t => t.TxnDate >= start && t.TxnDate <= end);
     }
 
     private static bool IsExpenseAggregate(TransactionType t) =>
@@ -59,12 +43,11 @@ internal static class MonthlyPeriodSummaryCalculator
     public static async Task<(decimal TotalIncome, decimal TotalExpense, decimal Net, IReadOnlyList<MonthCategoryBreakdownItemDto> Categories, IReadOnlyList<MonthSourceBreakdownItemDto> Sources)>
         ComputeBreakdownsAsync(
             IApplicationDbContext db,
-            Guid smoduleId,
             int year,
             int month,
             CancellationToken cancellationToken)
     {
-        var q = MonthTransactions(db, smoduleId, year, month);
+        var q = MonthTransactions(db, year, month);
 
         var income = await q
             .Where(t => t.Type == TransactionType.Income)
@@ -155,12 +138,11 @@ internal static class MonthlyPeriodSummaryCalculator
     public static async Task<(decimal TotalIncome, decimal TotalExpense, IReadOnlyList<CategoryAmountBreakdownDto> TopExpenseCategories)>
         ComputeAsync(
             IApplicationDbContext db,
-            Guid smoduleId,
             int year,
             int month,
             CancellationToken cancellationToken)
     {
-        var (income, expense, _, categories, _) = await ComputeBreakdownsAsync(db, smoduleId, year, month, cancellationToken)
+        var (income, expense, _, categories, _) = await ComputeBreakdownsAsync(db, year, month, cancellationToken)
             .ConfigureAwait(false);
 
         var top = categories
@@ -175,19 +157,18 @@ internal static class MonthlyPeriodSummaryCalculator
     /// <summary>Full report payload including daily grid and MoM comparison.</summary>
     public static async Task<MonthlyReportDto> BuildReportAsync(
         IApplicationDbContext db,
-        Guid smoduleId,
         int year,
         int month,
         CancellationToken cancellationToken)
     {
-        var (income, expense, net, categories, sources) = await ComputeBreakdownsAsync(db, smoduleId, year, month, cancellationToken)
+        var (income, expense, net, categories, sources) = await ComputeBreakdownsAsync(db, year, month, cancellationToken)
             .ConfigureAwait(false);
 
         decimal? savings = income > 0
             ? decimal.Round(net / income * 100m, 2, MidpointRounding.AwayFromZero)
             : null;
 
-        var q = MonthTransactions(db, smoduleId, year, month);
+        var q = MonthTransactions(db, year, month);
         var txnRows = await q
             .Select(t => new { t.TxnDate, t.Type, t.Amount })
             .ToListAsync(cancellationToken)
@@ -225,7 +206,7 @@ internal static class MonthlyPeriodSummaryCalculator
             .ConfigureAwait(false);
 
         var prev = PrevMonth(year, month);
-        var (pIncome, pExpense, pNet, _, _) = await ComputeBreakdownsAsync(db, smoduleId, prev.Year, prev.Month, cancellationToken)
+        var (pIncome, pExpense, pNet, _, _) = await ComputeBreakdownsAsync(db, prev.Year, prev.Month, cancellationToken)
             .ConfigureAwait(false);
 
         static decimal? Pct(decimal cur, decimal prevVal) =>

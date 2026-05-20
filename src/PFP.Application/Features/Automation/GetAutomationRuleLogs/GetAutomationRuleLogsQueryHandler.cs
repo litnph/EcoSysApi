@@ -25,23 +25,12 @@ public sealed class GetAutomationRuleLogsQueryHandler : IRequestHandler<GetAutom
 
         var rule = await _db.AutomationRules
             .AsNoTracking()
-            .Include(r => r.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(r => r.Id == request.RuleId, cancellationToken)
             .ConfigureAwait(false);
 
         if (rule is null)
             throw new NotFoundException("Automation rule was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(rule.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read logs for this automation rule.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && rule.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this automation rule.");
-
-        var total = await _db.AutomationLogs
+var total = await _db.AutomationLogs
             .AsNoTracking()
             .Where(l => l.RuleId == request.RuleId)
             .CountAsync(cancellationToken)

@@ -7,6 +7,5 @@ public sealed class GetPendingSplitsQueryValidator : AbstractValidator<GetPendin
 {
     public GetPendingSplitsQueryValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-    }
+}
 }

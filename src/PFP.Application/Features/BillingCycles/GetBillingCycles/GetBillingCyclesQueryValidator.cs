@@ -8,6 +8,5 @@ public sealed class GetBillingCyclesQueryValidator : AbstractValidator<GetBillin
     /// <summary>Registers validation rules.</summary>
     public GetBillingCyclesQueryValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-    }
+}
 }

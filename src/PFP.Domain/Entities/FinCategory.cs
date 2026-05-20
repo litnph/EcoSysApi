@@ -8,7 +8,7 @@ namespace PFP.Domain.Entities;
 /// Tree: <see cref="ParentId"/> is optional; children must share the same <see cref="Kind"/> as the parent.
 /// </para>
 /// <para>
-/// <see cref="Code"/> is a stable unique key per <see cref="SmoduleId"/> (machine-generated or seeded).
+/// <see cref="Code"/> is a stable unique key (machine-generated or seeded).
 /// </para>
 /// <para>
 /// <see cref="IsSystem"/> marks platform-seeded rows that user flows may protect from rename/delete.
@@ -16,13 +16,10 @@ namespace PFP.Domain.Entities;
 /// </summary>
 public sealed class FinCategory : SoftDeletableEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/>.</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>Display name (max 100 in EF mapping).</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Stable machine code — unique per <see cref="SmoduleId"/>.</summary>
+    /// <summary>Stable machine code — unique across the app.</summary>
     public string Code { get; set; } = string.Empty;
 
     /// <summary>Money-flow bucket for this category.</summary>
@@ -58,9 +55,6 @@ public sealed class FinCategory : SoftDeletableEntity
     public string? Description { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinCategory? Parent { get; set; }
 
     public ICollection<FinCategory> Children { get; set; } = new List<FinCategory>();

@@ -27,7 +27,6 @@ public sealed class GetTransactionAttachmentsQueryHandler : IRequestHandler<GetT
                 _currentUser,
                 nameof(FinTransaction),
                 request.TransactionId,
-                SpaceRole.Viewer,
                 cancellationToken)
             .ConfigureAwait(false);
 

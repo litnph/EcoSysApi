@@ -6,8 +6,6 @@ namespace PFP.Domain.Entities.Finance;
 /// <summary>Installment conversion plan for a deferred credit-card transaction. Maps to <c>fin_installment_plans</c>.</summary>
 public sealed class FinInstallmentPlan : VersionedEntity
 {
-    public Guid SmoduleId { get; set; }
-
     /// <summary>FK to the original <see cref="FinTransaction"/> (type <see cref="TransactionType.Deferred"/>).</summary>
     public Guid OriginalTxnId { get; set; }
 
@@ -36,9 +34,6 @@ public sealed class FinInstallmentPlan : VersionedEntity
 
     /// <summary>Optional reason when <see cref="Status"/> becomes <see cref="InstallmentStatus.Cancelled"/>.</summary>
     public string? CancellationReason { get; set; }
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinSource Source { get; set; } = null!;
 
     public FinTransaction OriginalTransaction { get; set; } = null!;

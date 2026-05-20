@@ -14,14 +14,6 @@ public sealed class FinSavingConfiguration : IEntityTypeConfiguration<FinSaving>
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(500);
         builder.Property(x => x.InterestRate).HasPrecision(5, 4);
-
-        builder.HasIndex(x => new { x.SmoduleId, x.Status });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinSavings)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.Source)
                .WithMany()
                .HasForeignKey(x => x.SourceId)

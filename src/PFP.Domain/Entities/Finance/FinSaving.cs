@@ -8,9 +8,6 @@ namespace PFP.Domain.Entities.Finance;
 /// </summary>
 public sealed class FinSaving : SoftDeletableEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/> (finance module activation).</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>FK to the liquid <see cref="FinSource"/> linked to this savings record.</summary>
     public Guid SourceId { get; set; }
 
@@ -36,8 +33,5 @@ public sealed class FinSaving : SoftDeletableEntity
     public string? Note { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinSource Source { get; set; } = null!;
 }

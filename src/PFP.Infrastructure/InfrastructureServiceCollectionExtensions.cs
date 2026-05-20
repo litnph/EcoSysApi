@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Options;
+using PFP.Infrastructure.Gdpr;
 using PFP.Infrastructure.Identity;
-using PFP.Infrastructure.BackgroundJobs;
 using PFP.Infrastructure.Persistence;
 using PFP.Infrastructure.Persistence.Interceptors;
 using PFP.Infrastructure.Services;
@@ -14,19 +13,8 @@ using PFP.Infrastructure.Storage;
 
 namespace PFP.Infrastructure;
 
-/// <summary>
-/// DI bootstrap for the Infrastructure layer. The API project calls
-/// <see cref="AddInfrastructure"/> from <c>Program.cs</c> to wire up persistence (and, later,
-/// identity / storage / cache / background-jobs modules).
-/// </summary>
 public static class InfrastructureServiceCollectionExtensions
 {
-    /// <summary>
-    /// Registers <see cref="AppDbContext"/>, EF Core <c>SaveChanges</c> interceptors, and a SQL Server connection.
-    /// Interceptor order: <c>FinanceMonthlyPeriodSeed</c> → <c>SoftDelete</c> → <c>History</c> → <c>Audit</c>.
-    /// </summary>
-    /// <param name="services">DI container.</param>
-    /// <param name="configuration">Bound configuration; the connection string is read from <c>ConnectionStrings:Default</c>.</param>
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -35,18 +23,12 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<HistoryInterceptor>();
         services.AddScoped<AuditInterceptor>();
         services.AddScoped<FinanceMonthlyPeriodSeedInterceptor>();
+
         var redis = configuration.GetConnectionString("Redis");
         if (!string.IsNullOrWhiteSpace(redis))
-        {
             services.AddStackExchangeRedisCache(options => options.Configuration = redis);
-        }
         else
-        {
             services.AddDistributedMemoryCache();
-        }
-
-        services.AddScoped<ISpaceMembershipEvaluator, CachingSpaceMembershipEvaluator>();
-        services.AddScoped<ISpaceModuleAccessChecker, SqlConnectionSpaceModuleAccessChecker>();
 
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException(
@@ -55,8 +37,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             ConfigureAppDbContext(options, connectionString);
-
-            // Finance seed runs before soft-delete so new rows get the same SavingChanges pass.
             options.AddInterceptors(
                 sp.GetRequiredService<FinanceMonthlyPeriodSeedInterceptor>(),
                 sp.GetRequiredService<SoftDeleteInterceptor>(),
@@ -64,9 +44,6 @@ public static class InfrastructureServiceCollectionExtensions
                 sp.GetRequiredService<AuditInterceptor>());
         });
 
-        // Short-lived read-only contexts (e.g. LocalizationMiddleware) — no interceptors so we avoid
-        // AppDbContext ↔ ICurrentUserService circular resolution inside a child DI scope.
-        // Factory must be Scoped when AddDbContext is also registered (its DbContextOptions are Scoped).
         services.AddDbContextFactory<AppDbContext>(
             options => ConfigureAppDbContext(options, connectionString),
             ServiceLifetime.Scoped);
@@ -74,9 +51,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddHttpContextAccessor();
         services.AddScoped<IClientRequestContext, HttpClientRequestContext>();
-        services.AddScoped<AutomationJobEnvironment>();
-        services.AddScoped<IAutomationExecutionImpersonation>(sp => sp.GetRequiredService<AutomationJobEnvironment>());
-        services.AddScoped<IAutomationTriggerFacts>(sp => sp.GetRequiredService<AutomationJobEnvironment>());
         services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
         services.AddScoped<ITranslationService, TranslationService>();
         services.AddScoped<IFeatureFlagService, FeatureFlagService>();
@@ -84,25 +58,14 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ITokenHasher, Sha256TokenHasher>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.Configure<GoogleOAuthOptions>(configuration.GetSection(GoogleOAuthOptions.SectionName));
         services.Configure<R2ExportStorageOptions>(configuration.GetSection(R2ExportStorageOptions.SectionName));
         services.AddSingleton<IUserDataExportStorage, R2UserDataExportStorage>();
         services.Configure<R2AttachmentsStorageOptions>(configuration.GetSection(R2AttachmentsStorageOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.AddSingleton<IStorageService, CloudflareR2StorageService>();
-        services.AddSingleton<IDataExportJobScheduler, HangfireDataExportJobScheduler>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddSingleton<IAuthEmailDispatcher, LoggingAuthEmailDispatcher>();
-
-        services.AddScoped<GenerateBillingCyclesJob>();
-        services.AddScoped<CheckOverdueBillingCyclesJob>();
-        services.AddScoped<CheckDueInstallmentPaysJob>();
-        services.AddScoped<IAutomationRuleExecutor, AutomationRuleExecutor>();
-        services.AddScoped<ExecuteAutomationRulesJob>();
-        services.AddScoped<ProcessDataExportsJob>();
-        services.AddScoped<ExecuteDeletionRequestsJob>();
-        services.AddScoped<CleanupExpiredSessionsJob>();
-        services.AddScoped<AuditLogRetentionJob>();
+        services.AddSingleton<IAuthEmailDispatcher, NullAuthEmailDispatcher>();
+        services.AddSingleton<IDataExportJobScheduler, NoOpDataExportJobScheduler>();
 
         return services;
     }

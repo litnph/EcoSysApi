@@ -27,7 +27,6 @@ internal static class TransactionHistoryJson
         new
         {
             t.Id,
-            t.SmoduleId,
             t.Type,
             t.Status,
             t.Amount,

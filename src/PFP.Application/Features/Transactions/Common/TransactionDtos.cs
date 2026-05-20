@@ -5,7 +5,6 @@ namespace PFP.Application.Features.Transactions.Common;
 /// <summary>Single row in a paginated transaction list.</summary>
 public sealed record TransactionListItemDto(
     Guid Id,
-    Guid SmoduleId,
     TransactionType Type,
     TxnStatus Status,
     long Amount,
@@ -36,7 +35,6 @@ public sealed record TransactionCategorySummaryDto(Guid Id, string Name, Categor
 /// <summary>Full transaction detail for GET-by-id.</summary>
 public sealed record TransactionDetailDto(
     Guid Id,
-    Guid SmoduleId,
     TransactionType Type,
     TxnStatus Status,
     long Amount,

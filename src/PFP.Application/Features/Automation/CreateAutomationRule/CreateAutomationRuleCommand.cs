@@ -4,7 +4,6 @@ using PFP.Domain.Enums;
 namespace PFP.Application.Features.Automation.CreateAutomationRule;
 
 public sealed record CreateAutomationRuleCommand(
-    Guid SmoduleId,
     string Name,
     TriggerType TriggerType,
     string TriggerValue,

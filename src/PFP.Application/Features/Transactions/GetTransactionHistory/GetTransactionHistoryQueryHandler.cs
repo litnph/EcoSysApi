@@ -28,23 +28,12 @@ public sealed class GetTransactionHistoryQueryHandler : IRequestHandler<GetTrans
         var txn = await _db.FinTransactions
             .IgnoreQueryFilters()
             .AsNoTracking()
-            .Include(t => t.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(t => t.Id == request.TransactionId, cancellationToken)
             .ConfigureAwait(false);
 
         if (txn is null)
             throw new NotFoundException("Transaction was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(txn.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read this transaction history.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && txn.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this transaction.");
-
-        var rows = await _db.FinTransactionHistory
+var rows = await _db.FinTransactionHistory
             .AsNoTracking()
             .Where(h => h.TransactionId == request.TransactionId)
             .OrderBy(h => h.Version)

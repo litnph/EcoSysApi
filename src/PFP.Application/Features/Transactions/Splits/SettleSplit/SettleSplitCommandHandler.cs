@@ -33,23 +33,12 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
 
         var split = await _db.FinTxnSplits
             .Include(s => s.Transaction)
-            .ThenInclude(t => t.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken)
             .ConfigureAwait(false);
 
         if (split is null)
             throw new NotFoundException("Split was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(split.Transaction.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to settle splits for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && split.Transaction.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this transaction.");
-
-        if (split.Status != SplitStatus.Pending)
+if (split.Status != SplitStatus.Pending)
             throw new BusinessRuleException("Only pending splits can be settled.");
 
         var payAmount = request.Amount is { } requested
@@ -60,7 +49,7 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
 
         var paymentSource = await _db.FinSources
             .FirstOrDefaultAsync(
-                s => s.Id == request.PaymentSourceId && s.SmoduleId == split.Transaction.SmoduleId,
+                s => s.Id == request.PaymentSourceId,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -74,7 +63,6 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
             throw new BusinessRuleException("Payment source currency must match the original split transaction.");
 
         var incomeCategory = await _db.FinCategories
-            .Where(c => c.SmoduleId == split.Transaction.SmoduleId && c.Kind == CategoryKind.Income)
             .OrderBy(c => c.Name)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -91,9 +79,7 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
         var description = BuildDirectIncomeDescription(incomeCategory.Name);
 
         var income = new FinTransaction
-        {
-            SmoduleId = split.Transaction.SmoduleId,
-            Type = TransactionType.Income,
+        {            Type = TransactionType.Income,
             Status = TxnStatus.Completed,
             Amount = payAmount,
             Currency = paymentSource.Currency,

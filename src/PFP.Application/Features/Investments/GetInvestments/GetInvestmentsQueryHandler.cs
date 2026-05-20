@@ -22,26 +22,8 @@ public sealed class GetInvestmentsQueryHandler : IRequestHandler<GetInvestmentsQ
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read investments for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var rows = await _db.FinInvestments
+var rows = await _db.FinInvestments
             .AsNoTracking()
-            .Where(i => i.SmoduleId == request.SmoduleId)
             .OrderBy(i => i.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

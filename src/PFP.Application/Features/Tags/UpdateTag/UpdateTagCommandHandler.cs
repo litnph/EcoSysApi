@@ -27,13 +27,10 @@ public sealed class UpdateTagCommandHandler : IRequestHandler<UpdateTagCommand, 
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
-
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, tag.SmoduleId, SpaceRole.Editor, cancellationToken).ConfigureAwait(false);
-
         var name = request.Name.Trim();
         if (await _db.Tags.AnyAsync(
                 t =>
-                    t.SmoduleId == tag.SmoduleId
+                    t.Id == tag.Id
                     && t.Name == name
                     && t.Id != tag.Id,
                 cancellationToken).ConfigureAwait(false))

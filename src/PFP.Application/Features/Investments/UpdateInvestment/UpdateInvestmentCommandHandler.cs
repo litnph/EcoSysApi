@@ -24,24 +24,13 @@ public sealed class UpdateInvestmentCommandHandler : IRequestHandler<UpdateInves
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.FinInvestments
-            .Include(i => i.Smodule)
-            .ThenInclude(m => m.Space)
             .Include(i => i.InvestmentTxns)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Investment was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage investments for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this investment.");
-
-        entity.Name = request.Name.Trim();
+entity.Name = request.Name.Trim();
         entity.Type = request.Type;
         entity.CurrentValue = request.CurrentValue;
         entity.Currency = request.Currency.Trim().ToUpperInvariant();

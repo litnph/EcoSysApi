@@ -4,7 +4,6 @@ namespace PFP.Application.Features.Investments.Common;
 
 public sealed record InvestmentListItemDto(
     Guid Id,
-    Guid SmoduleId,
     string Name,
     InvestmentType Type,
     long CurrentValue,
@@ -26,7 +25,6 @@ public sealed record InvestmentTxnDto(
 
 public sealed record InvestmentDetailDto(
     Guid Id,
-    Guid SmoduleId,
     string Name,
     InvestmentType Type,
     long CurrentValue,

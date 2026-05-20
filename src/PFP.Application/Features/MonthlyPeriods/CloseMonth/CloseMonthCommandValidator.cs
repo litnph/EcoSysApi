@@ -11,7 +11,6 @@ public sealed class CloseMonthCommandValidator : AbstractValidator<CloseMonthCom
     /// <summary>Registers validation rules.</summary>
     public CloseMonthCommandValidator(IApplicationDbContext db)
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
         RuleFor(x => x.Year).InclusiveBetween(2000, 2100);
         RuleFor(x => x.Month).InclusiveBetween(1, 12);
 
@@ -26,18 +25,10 @@ public sealed class CloseMonthCommandValidator : AbstractValidator<CloseMonthCom
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
-                await db.SpaceModules.AnyAsync(m => m.Id == cmd.SmoduleId && m.ModuleCode == ModuleCode.Finance, ct)
-                    .ConfigureAwait(false))
-            .WithMessage("Finance module was not found for this id.");
-
-        RuleFor(x => x)
-            .MustAsync(async (cmd, ct) =>
             {
                 var p = await db.FinMonthlyPeriods
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        m => m.SmoduleId == cmd.SmoduleId && m.Year == cmd.Year && m.Month == cmd.Month,
-                        ct)
+                    .FirstOrDefaultAsync(m => m.Year == cmd.Year && m.Month == cmd.Month, ct)
                     .ConfigureAwait(false);
                 if (p is null)
                     return true;

@@ -33,21 +33,11 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
         var txn = await _db.FinTransactions
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .Include(t => t.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(t => t.Id == request.TransactionId, cancellationToken)
             .ConfigureAwait(false);
 
         if (txn is null || txn.IsDeleted)
             throw new NotFoundException("Transaction was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(txn.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new ForbiddenException("You do not have permission to update this transaction.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && txn.Smodule.Space.OrgId != orgId)
-            throw new ForbiddenException("The current organisation does not own this transaction.");
 
         if (txn.Type == TransactionType.Reversal)
             throw new BusinessRuleException("Reversal transactions are immutable.");
@@ -55,7 +45,7 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
         if (request.CategoryId is { } categoryId)
         {
             var categoryExists = await _db.FinCategories
-                .AnyAsync(c => c.Id == categoryId && c.SmoduleId == txn.SmoduleId, cancellationToken)
+                .AnyAsync(c => c.Id == categoryId, cancellationToken)
                 .ConfigureAwait(false);
             if (!categoryExists)
                 throw new NotFoundException("Category was not found in this module.");
@@ -64,7 +54,7 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
         if (request.MonthlyPeriodId is { } mpId)
         {
             var mpExists = await _db.FinMonthlyPeriods
-                .AnyAsync(p => p.Id == mpId && p.SmoduleId == txn.SmoduleId, cancellationToken)
+                .AnyAsync(p => p.Id == mpId, cancellationToken)
                 .ConfigureAwait(false);
             if (!mpExists)
                 throw new NotFoundException("Monthly period was not found in this module.");

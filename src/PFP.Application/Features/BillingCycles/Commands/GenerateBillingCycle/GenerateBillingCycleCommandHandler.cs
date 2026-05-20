@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
@@ -34,34 +35,15 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
     /// <inheritdoc />
     public async Task<GenerateBillingCycleResponse> Handle(GenerateBillingCycleCommand request, CancellationToken cancellationToken)
     {
+        if (_currentUser.IsAuthenticated && _currentUser.UserId is null)
+            throw new UnauthorizedAppException("Authentication is required.");
+
         var source = await _db.FinSources
-            .Include(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)
             throw new NotFoundException("Source was not found.");
-
-        if (_currentUser.IsAuthenticated)
-        {
-            if (_currentUser.UserId is null)
-                throw new UnauthorizedAppException("Authentication is required.");
-
-            if (!await _currentUser
-                    .HasSpaceModuleAccessAsync(source.SmoduleId, SpaceRole.Editor, cancellationToken)
-                    .ConfigureAwait(false))
-                throw new UnauthorizedAppException("You do not have permission to generate billing cycles for this module.");
-
-            if (_currentUser.CurrentOrgId is { } orgId && source.Smodule.Space.OrgId != orgId)
-                throw new UnauthorizedAppException("The current organisation does not own this source.");
-        }
-        else
-        {
-            // Hangfire / system jobs — no end-user principal; trust caller (scheduled job) after source exists.
-            if (!source.Smodule.IsEnabled || source.Smodule.ModuleCode != ModuleCode.Finance)
-                throw new UnauthorizedAppException("The finance module is not active for this source.");
-        }
 
         if (source.Type != SourceType.CreditCard)
             throw new BusinessRuleException("Only credit-card sources can have billing cycles.");
@@ -86,7 +68,6 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
 
         var cycle = new FinBillingCycle
         {
-            SmoduleId = source.SmoduleId,
             SourceId = source.Id,
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,

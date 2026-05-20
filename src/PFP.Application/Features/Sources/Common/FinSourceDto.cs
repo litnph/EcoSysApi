@@ -5,7 +5,6 @@ namespace PFP.Application.Features.Sources.Common;
 /// <summary>API projection of a <c>FIN_SOURCES</c> row (spec §5.3 — monetary fields as whole units).</summary>
 public sealed record FinSourceDto(
     Guid Id,
-    Guid SmoduleId,
     string Name,
     SourceType Type,
     long Balance,

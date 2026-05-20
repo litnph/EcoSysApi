@@ -10,7 +10,6 @@ public static class FinSourceDtoMapper
     public static FinSourceDto ToDto(FinSource entity) =>
         new(
             entity.Id,
-            entity.SmoduleId,
             entity.Name,
             entity.Type,
             CurrencyUnits.ToWhole(entity.Balance),

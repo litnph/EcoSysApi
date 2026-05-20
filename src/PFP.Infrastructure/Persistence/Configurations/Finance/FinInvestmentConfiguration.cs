@@ -13,13 +13,5 @@ public sealed class FinInvestmentConfiguration : IEntityTypeConfiguration<FinInv
     {
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(500);
-        builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
-
-        builder.HasIndex(x => new { x.SmoduleId, x.Type });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinInvestments)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-    }
+        builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();    }
 }

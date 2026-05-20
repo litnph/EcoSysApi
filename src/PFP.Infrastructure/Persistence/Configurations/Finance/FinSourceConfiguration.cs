@@ -15,15 +15,5 @@ public sealed class FinSourceConfiguration : IEntityTypeConfiguration<FinSource>
         builder.Property(x => x.Icon).HasMaxLength(64);
         builder.Property(x => x.Color).HasMaxLength(16);
         builder.Property(x => x.Description).HasMaxLength(1024);
-        builder.Property(x => x.ExternalRef).HasMaxLength(255);
-
-        builder.HasIndex(x => x.SmoduleId);
-        builder.HasIndex(x => new { x.SmoduleId, x.Type });
-        builder.HasIndex(x => new { x.SmoduleId, x.IsArchived });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinSources)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-    }
+        builder.Property(x => x.ExternalRef).HasMaxLength(255);    }
 }

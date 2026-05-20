@@ -6,7 +6,6 @@ namespace PFP.Application.Features.Transactions.GetTransactions;
 
 /// <summary>Lists transactions with optional filters and pagination.</summary>
 public sealed record GetTransactionsQuery(
-    Guid SmoduleId,
     Guid? SourceId,
     TransactionType? Type,
     Guid? CategoryId,

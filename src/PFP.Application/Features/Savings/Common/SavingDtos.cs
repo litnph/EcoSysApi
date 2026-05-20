@@ -5,7 +5,6 @@ namespace PFP.Application.Features.Savings.Common;
 /// <summary>List row for a savings book.</summary>
 public sealed record SavingListItemDto(
     Guid Id,
-    Guid SmoduleId,
     Guid SourceId,
     string SourceName,
     string Name,
@@ -21,7 +20,6 @@ public sealed record SavingListItemDto(
 /// <summary>Detail payload including linked source.</summary>
 public sealed record SavingDetailDto(
     Guid Id,
-    Guid SmoduleId,
     Guid SourceId,
     string SourceName,
     string Name,

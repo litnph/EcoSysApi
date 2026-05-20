@@ -9,7 +9,6 @@ public static class CategoryDtoMapper
     public static CategoryTreeNodeDto ToSingleNode(FinCategory c) =>
         new(
             c.Id,
-            c.SmoduleId,
             c.Name,
             c.Kind,
             c.ParentId,
@@ -23,7 +22,6 @@ public static class CategoryDtoMapper
     public static CategoryFlatDto ToFlatDto(FinCategory c) =>
         new(
             c.Id,
-            c.SmoduleId,
             c.Name,
             c.Kind,
             c.ParentId,
@@ -49,7 +47,6 @@ public static class CategoryDtoMapper
                 : new List<CategoryTreeNodeDto>();
             return new CategoryTreeNodeDto(
                 c.Id,
-                c.SmoduleId,
                 c.Name,
                 c.Kind,
                 c.ParentId,

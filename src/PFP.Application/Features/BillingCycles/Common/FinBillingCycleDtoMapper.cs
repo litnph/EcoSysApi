@@ -11,7 +11,6 @@ public static class FinBillingCycleDtoMapper
     public static FinBillingCycleDto ToDto(FinBillingCycle cycle, string sourceName) =>
         new(
             cycle.Id,
-            cycle.SmoduleId,
             cycle.SourceId,
             sourceName,
             cycle.PeriodStart,

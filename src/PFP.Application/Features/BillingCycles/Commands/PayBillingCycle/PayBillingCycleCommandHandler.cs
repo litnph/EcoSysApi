@@ -33,8 +33,6 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
 
         var cycle = await _db.FinBillingCycles
             .Include(bc => bc.Source)
-            .ThenInclude(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(bc => bc.Id == request.CycleId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -43,20 +41,11 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
 
         if (cycle.Status is not (BillingCycleStatus.Closed or BillingCycleStatus.Overdue))
             throw new BusinessRuleException("Billing cycle must be closed or overdue to accept a payment.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(cycle.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to pay this billing cycle.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && cycle.Source.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this billing cycle.");
-
-        if (request.PaymentSourceId == cycle.SourceId)
+if (request.PaymentSourceId == cycle.SourceId)
             throw new BusinessRuleException("Payment source cannot be the same as the credit card source for this cycle.");
 
         var paymentSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.PaymentSourceId && s.SmoduleId == cycle.SmoduleId, cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == request.PaymentSourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (paymentSource is null || paymentSource.IsDeleted)
@@ -83,8 +72,7 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
 
         var payTxn = new FinTransaction
         {
-            SmoduleId = cycle.SmoduleId,
-            Type = TransactionType.Direct,
+Type = TransactionType.Direct,
             Status = TxnStatus.Completed,
             Amount = paymentAmount,
             Currency = paymentSource.Currency,

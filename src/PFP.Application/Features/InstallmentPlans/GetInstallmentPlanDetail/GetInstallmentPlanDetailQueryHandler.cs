@@ -40,13 +40,7 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
 
         if (plan is null)
             throw new NotFoundException("Installment plan was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(plan.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to view this installment plan.");
-
-        var pays = plan.Pays
+var pays = plan.Pays
             .OrderBy(p => p.InstallmentNumber)
             .Select(p => new InstallmentPayItemDto(
                 p.InstallmentNumber,
@@ -60,7 +54,6 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
 
         var dto = new InstallmentPlanDetailDto(
             plan.Id,
-            plan.SmoduleId,
             plan.SourceId,
             plan.Source.Name,
             plan.OriginalTxnId,

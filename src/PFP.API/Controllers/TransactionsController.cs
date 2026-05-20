@@ -33,7 +33,6 @@ public sealed class TransactionsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetTransactionsResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetTransactionsResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         [FromQuery(Name = "source_id")] Guid? sourceId,
         [FromQuery(Name = "type")] TransactionType? type,
         [FromQuery(Name = "category_id")] Guid? categoryId,
@@ -45,9 +44,7 @@ public sealed class TransactionsController : ControllerBase
         [FromQuery(Name = "page_size")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetTransactionsQuery(
-            smoduleId,
-            sourceId,
+        var query = new GetTransactionsQuery(sourceId,
             type,
             categoryId,
             dateFrom,

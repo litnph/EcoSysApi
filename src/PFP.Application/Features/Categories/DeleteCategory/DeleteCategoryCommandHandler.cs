@@ -27,8 +27,6 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.FinCategories
-            .Include(c => c.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
@@ -37,16 +35,7 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
 
         if (entity.IsSystem)
             throw new BusinessRuleException("Không thể xóa danh mục hệ thống.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage finance categories for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this finance category.");
-
-        if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == request.Id, cancellationToken).ConfigureAwait(false))
+if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == request.Id, cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("Không thể xóa danh mục đang được sử dụng bởi giao dịch.");
 
         if (await _db.FinCategories.AnyAsync(c => c.ParentId == request.Id, cancellationToken).ConfigureAwait(false))

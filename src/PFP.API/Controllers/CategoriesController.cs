@@ -26,11 +26,10 @@ public sealed class CategoriesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetCategoriesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetCategoriesResponse>>> GetTree(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         [FromQuery(Name = "kind")] CategoryKind kind,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetCategoriesQuery(smoduleId, kind), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetCategoriesQuery(kind), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetCategoriesResponse> { Data = result });
     }
 
@@ -38,11 +37,10 @@ public sealed class CategoriesController : ControllerBase
     [HttpGet("flat")]
     [ProducesResponseType(typeof(ApiResponse<GetFlatCategoriesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetFlatCategoriesResponse>>> GetFlat(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         [FromQuery(Name = "kind")] CategoryKind kind,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetFlatCategoriesQuery(smoduleId, kind), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetFlatCategoriesQuery(kind), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetFlatCategoriesResponse> { Data = result });
     }
 

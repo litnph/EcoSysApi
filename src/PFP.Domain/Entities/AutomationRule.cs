@@ -5,9 +5,6 @@ namespace PFP.Domain.Entities;
 /// <summary>User-defined automation for a finance module. Maps to <c>AUTOMATION_RULES</c>.</summary>
 public sealed class AutomationRule : SoftDeletableEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/> (finance).</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>
     /// User who owns this rule’s side-effects (MediatR handlers impersonate this identity during execution).
     /// </summary>
@@ -32,9 +29,6 @@ public sealed class AutomationRule : SoftDeletableEntity
 
     /// <summary>Result of the last job evaluation / execution.</summary>
     public RunStatus? LastRunStatus { get; set; }
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public User CreatedBy { get; set; } = null!;
 
     public ICollection<AutomationLog> Logs { get; set; } = new List<AutomationLog>();

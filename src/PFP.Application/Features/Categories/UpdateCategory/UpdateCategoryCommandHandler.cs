@@ -29,8 +29,6 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.FinCategories
-            .Include(c => c.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
@@ -39,16 +37,7 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
 
         if (entity.IsSystem)
             throw new BusinessRuleException("Không thể chỉnh sửa danh mục hệ thống.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage finance categories for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this finance category.");
-
-        if (request.Kind != entity.Kind)
+if (request.Kind != entity.Kind)
         {
             if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == entity.Id, cancellationToken).ConfigureAwait(false))
                 throw new BusinessRuleException("Không thể đổi loại danh mục khi đã có giao dịch sử dụng danh mục này.");
@@ -64,7 +53,7 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
                 throw new BusinessRuleException("Danh mục không thể là cha của chính nó.");
 
             parent = await _db.FinCategories
-                .FirstOrDefaultAsync(c => c.Id == parentId && c.SmoduleId == entity.SmoduleId, cancellationToken)
+                .FirstOrDefaultAsync(c => c.Id == parentId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (parent is null)
@@ -80,7 +69,7 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         if (request.IsDefault)
-            await ClearOtherDefaultsAsync(entity.SmoduleId, request.Kind, entity.Id, cancellationToken).ConfigureAwait(false);
+            await ClearOtherDefaultsAsync( request.Kind, entity.Id, cancellationToken).ConfigureAwait(false);
 
         entity.Name = request.Name.Trim();
         entity.Kind = request.Kind;
@@ -117,13 +106,11 @@ public sealed class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategor
     }
 
     private async Task ClearOtherDefaultsAsync(
-        Guid smoduleId,
         CategoryKind kind,
         Guid exceptId,
         CancellationToken cancellationToken)
     {
         var rows = await _db.FinCategories
-            .Where(c => c.SmoduleId == smoduleId && c.Kind == kind && c.IsDefault && c.Id != exceptId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         foreach (var row in rows)

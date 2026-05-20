@@ -5,7 +5,6 @@ namespace PFP.Application.Features.Automation.Common;
 
 public sealed record AutomationRuleListItemDto(
     Guid Id,
-    Guid SmoduleId,
     string Name,
     TriggerType TriggerType,
     bool IsActive,
@@ -14,7 +13,6 @@ public sealed record AutomationRuleListItemDto(
 
 public sealed record AutomationRuleDetailDto(
     Guid Id,
-    Guid SmoduleId,
     Guid CreatedByUserId,
     string Name,
     TriggerType TriggerType,
@@ -38,12 +36,11 @@ public sealed record AutomationLogEntryDto(
 internal static class AutomationRuleDtoMapper
 {
     public static AutomationRuleListItemDto ToListItem(AutomationRule r) =>
-        new(r.Id, r.SmoduleId, r.Name, r.TriggerType, r.IsActive, r.LastRunStatus, r.LastRunAt);
+        new(r.Id, r.Name, r.TriggerType, r.IsActive, r.LastRunStatus, r.LastRunAt);
 
     public static AutomationRuleDetailDto ToDetail(AutomationRule r) =>
         new(
             r.Id,
-            r.SmoduleId,
             r.CreatedByUserId,
             r.Name,
             r.TriggerType,

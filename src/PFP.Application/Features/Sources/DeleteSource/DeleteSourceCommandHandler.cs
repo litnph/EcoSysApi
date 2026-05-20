@@ -27,23 +27,12 @@ public sealed class DeleteSourceCommandHandler : IRequestHandler<DeleteSourceCom
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.FinSources
-            .Include(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Finance source was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage finance sources for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this finance source.");
-
-        var hasTransactions = await _db.FinTransactions
+var hasTransactions = await _db.FinTransactions
             .AnyAsync(
                 t => t.SourceId == request.Id || t.DestSourceId == request.Id,
                 cancellationToken)

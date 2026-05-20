@@ -32,23 +32,12 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
 
         var orig = await _db.FinTransactions
             .Include(t => t.Source)
-            .Include(t => t.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(t => t.Id == request.TransactionId, cancellationToken)
             .ConfigureAwait(false);
 
         if (orig is null)
             throw new NotFoundException("Transaction was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(orig.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to delete this transaction.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && orig.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this transaction.");
-
-        FinTransaction? partner = null;
+FinTransaction? partner = null;
         if (orig.Type == TransactionType.Transfer)
         {
             if (orig.RefTxnId is null)
@@ -57,7 +46,7 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
             partner = await _db.FinTransactions
                 .Include(t => t.Source)
                 .FirstOrDefaultAsync(
-                    t => t.Id == orig.RefTxnId.Value && t.SmoduleId == orig.SmoduleId,
+                    t => t.Id == orig.RefTxnId.Value,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -164,8 +153,7 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
 
         return new FinTransaction
         {
-            SmoduleId = sourceTxn.SmoduleId,
-            Type = TransactionType.Reversal,
+Type = TransactionType.Reversal,
             Status = TxnStatus.Completed,
             Amount = sourceTxn.Amount,
             Currency = sourceTxn.Currency,

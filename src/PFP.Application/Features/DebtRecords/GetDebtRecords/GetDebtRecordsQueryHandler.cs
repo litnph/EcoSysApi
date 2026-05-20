@@ -23,26 +23,9 @@ public sealed class GetDebtRecordsQueryHandler : IRequestHandler<GetDebtRecordsQ
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
+var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read debt records for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        var query = _db.FinDebtRecords.AsNoTracking().Where(r => r.SmoduleId == request.SmoduleId);
+        var query = _db.FinDebtRecords.AsNoTracking();
 
         if (request.Direction is { } dir)
             query = query.Where(r => r.Direction == dir);
@@ -59,7 +42,6 @@ public sealed class GetDebtRecordsQueryHandler : IRequestHandler<GetDebtRecordsQ
 
         var items = rows.Select(r => new DebtRecordListItemDto(
             r.Id,
-            r.SmoduleId,
             r.Direction,
             r.PersonName,
             r.PersonContact,

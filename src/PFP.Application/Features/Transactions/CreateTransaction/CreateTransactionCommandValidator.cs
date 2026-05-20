@@ -20,8 +20,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
     /// <summary>Registers validation rules.</summary>
     public CreateTransactionCommandValidator(IApplicationDbContext db)
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Amount).GreaterThan(0);
+RuleFor(x => x.Amount).GreaterThan(0);
         RuleFor(x => x.Type)
             .Must(t => t is TransactionType.Direct
                        or TransactionType.Income
@@ -125,7 +124,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (!DebtTypes.Contains(cmd.Type)) return true;
                 var src = await db.FinSources
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct)
+                    .FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct)
                     .ConfigureAwait(false);
                 return src is not null && !src.IsDeleted;
             })
@@ -138,23 +137,11 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                     return true;
                 var to = await db.FinSources
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.Id == cmd.ToSourceId.Value && s.SmoduleId == cmd.SmoduleId, ct)
+                    .FirstOrDefaultAsync(s => s.Id == cmd.ToSourceId.Value, ct)
                     .ConfigureAwait(false);
                 return to is not null && !to.IsDeleted;
             })
             .WithMessage("Destination source was not found for this module or is inactive.");
-
-        RuleFor(x => x)
-            .MustAsync(async (cmd, ct) =>
-            {
-                if (cmd.Type != TransactionType.Transfer || cmd.ToSourceId is null)
-                    return true;
-                var from = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
-                var to = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.ToSourceId.Value, ct).ConfigureAwait(false);
-                if (from is null || to is null) return false;
-                return from.SmoduleId == cmd.SmoduleId && to.SmoduleId == cmd.SmoduleId;
-            })
-            .WithMessage("Both sources must belong to the requested finance module.");
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
@@ -174,9 +161,9 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type is not (TransactionType.Direct or TransactionType.Split))
                     return true;
                 var cat = await db.FinCategories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cmd.CategoryId, ct).ConfigureAwait(false);
-                return cat is not null && cat.SmoduleId == cmd.SmoduleId && cat.Kind == CategoryKind.Expense;
+                return cat is not null && cat.Kind == CategoryKind.Expense;
             })
-            .WithMessage("Direct and split transactions require an expense category in this module.");
+            .WithMessage("Direct and split transactions require an expense category.");
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
@@ -184,9 +171,9 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.Income)
                     return true;
                 var cat = await db.FinCategories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cmd.CategoryId, ct).ConfigureAwait(false);
-                return cat is not null && cat.SmoduleId == cmd.SmoduleId && cat.Kind == CategoryKind.Income;
+                return cat is not null && cat.Kind == CategoryKind.Income;
             })
-            .WithMessage("Income transactions require an income category in this module.");
+            .WithMessage("Income transactions require an income category.");
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
@@ -194,16 +181,16 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.Deferred)
                     return true;
                 var cat = await db.FinCategories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cmd.CategoryId, ct).ConfigureAwait(false);
-                return cat is not null && cat.SmoduleId == cmd.SmoduleId && cat.Kind == CategoryKind.Expense;
+                return cat is not null && cat.Kind == CategoryKind.Expense;
             })
-            .WithMessage("Deferred transactions require an expense category in this module.");
+            .WithMessage("Deferred transactions require an expense category.");
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
             {
                 if (cmd.Type != TransactionType.Deferred)
                     return true;
-                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
+                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && !src.IsDeleted && src.Type == SourceType.CreditCard;
             })
             .WithMessage("Deferred transactions require an active credit-card source in this module.");
@@ -215,9 +202,9 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                     return true;
                 var bc = await db.FinBillingCycles.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bcId, ct).ConfigureAwait(false);
                 if (bc is null) return false;
-                return bc.SourceId == cmd.SourceId && bc.SmoduleId == cmd.SmoduleId && bc.Status == BillingCycleStatus.Open;
+                return bc.SourceId == cmd.SourceId && bc.Status == BillingCycleStatus.Open;
             })
-            .WithMessage("BillingCycleId must reference an open billing cycle for the same credit card and module.");
+            .WithMessage("BillingCycleId must reference an open billing cycle for the same credit card.");
 
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
@@ -225,7 +212,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.DebtRepay || cmd.DebtRecordId is not { } id)
                     return true;
                 var debt = await db.FinDebtRecords.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id, ct).ConfigureAwait(false);
-                if (debt is null || debt.SmoduleId != cmd.SmoduleId || debt.IsDeleted)
+                if (debt is null)
                     return false;
                 if (debt.Status != DebtStatus.Active || debt.Direction != DebtDirection.Borrowed)
                     return false;
@@ -242,7 +229,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
                 if (cmd.Type != TransactionType.LoanCollect || cmd.DebtRecordId is not { } id)
                     return true;
                 var debt = await db.FinDebtRecords.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id, ct).ConfigureAwait(false);
-                if (debt is null || debt.SmoduleId != cmd.SmoduleId || debt.IsDeleted)
+                if (debt is null)
                     return false;
                 if (debt.Status != DebtStatus.Active || debt.Direction != DebtDirection.Lent)
                     return false;
@@ -258,7 +245,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
             {
                 if (cmd.Type is not (TransactionType.Direct or TransactionType.Split))
                     return true;
-                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
+                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
@@ -268,7 +255,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
             {
                 if (cmd.Type != TransactionType.LoanGive)
                     return true;
-                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
+                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
@@ -278,7 +265,7 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
             {
                 if (cmd.Type != TransactionType.DebtRepay)
                     return true;
-                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId && s.SmoduleId == cmd.SmoduleId, ct).ConfigureAwait(false);
+                var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
                 return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");

@@ -26,12 +26,11 @@ public sealed class BillingCyclesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetBillingCyclesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetBillingCyclesResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         [FromQuery(Name = "source_id")] Guid? sourceId,
         [FromQuery(Name = "status")] BillingCycleStatus? status,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetBillingCyclesQuery(smoduleId, sourceId, status), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetBillingCyclesQuery(sourceId, status), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetBillingCyclesResponse> { Data = result });
     }
 

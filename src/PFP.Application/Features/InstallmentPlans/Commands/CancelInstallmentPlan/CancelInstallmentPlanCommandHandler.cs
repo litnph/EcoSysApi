@@ -29,24 +29,13 @@ public sealed class CancelInstallmentPlanCommandHandler : IRequestHandler<Cancel
         await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var plan = await _db.FinInstallmentPlans
-            .Include(p => p.Smodule)
-            .ThenInclude(m => m.Space)
             .Include(p => p.Pays)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId, cancellationToken)
             .ConfigureAwait(false);
 
         if (plan is null || plan.Status != InstallmentStatus.Active)
             throw new NotFoundException("Installment plan was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(plan.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to cancel this plan.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && plan.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this plan.");
-
-        plan.Status = InstallmentStatus.Cancelled;
+plan.Status = InstallmentStatus.Cancelled;
         plan.CancellationReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 
         foreach (var pay in plan.Pays)

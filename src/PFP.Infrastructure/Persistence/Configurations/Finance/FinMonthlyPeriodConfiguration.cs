@@ -10,17 +10,9 @@ public sealed class FinMonthlyPeriodConfiguration : IEntityTypeConfiguration<Fin
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<FinMonthlyPeriod> builder)
     {
-        builder.HasIndex(x => new { x.SmoduleId, x.Year, x.Month }).IsUnique();
-        builder.HasIndex(x => new { x.SmoduleId, x.Status });
-
+        builder.HasIndex(x => new { x.Year, x.Month }).IsUnique();
         builder.Property(x => x.CategoryBreakdown).HasColumnType("nvarchar(max)");
         builder.Property(x => x.SourceBreakdown).HasColumnType("nvarchar(max)");
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinMonthlyPeriods)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.ClosedByUser)
                .WithMany()
                .HasForeignKey(x => x.ClosedBy)

@@ -16,7 +16,6 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IClientRequestContext _client;
 
-    /// <summary>Creates the handler.</summary>
     public LoginCommandHandler(
         IApplicationDbContext db,
         IPasswordHasher passwordHasher,
@@ -29,7 +28,6 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         _client = client;
     }
 
-    /// <inheritdoc/>
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var email = AuthEmailNormalizer.Normalize(request.Email);
@@ -42,120 +40,78 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
 
         if (user is null)
         {
-            await AppendLoginAttemptAsync(
-                    null,
-                    email,
-                    isSuccess: false,
-                    LoginFailureReasons.UserNotFound,
-                    cancellationToken)
+            await AppendLoginAttemptAsync(null, email, false, LoginFailureReasons.UserNotFound, cancellationToken)
                 .ConfigureAwait(false);
             throw new UnauthorizedAppException("Invalid email or password.");
         }
 
         if (!user.IsActive)
         {
-            await AppendLoginAttemptAsync(
-                    user.Id,
-                    email,
-                    isSuccess: false,
-                    LoginFailureReasons.UserNotFound,
-                    cancellationToken)
+            await AppendLoginAttemptAsync(user.Id, email, false, LoginFailureReasons.UserNotFound, cancellationToken)
                 .ConfigureAwait(false);
             throw new UnauthorizedAppException("Invalid email or password.");
         }
 
         if (await IsAccountLockedAsync(user.Id, cancellationToken).ConfigureAwait(false))
         {
-            await AppendLoginAttemptAsync(
-                    user.Id,
-                    email,
-                    isSuccess: false,
-                    LoginFailureReasons.AccountLocked,
-                    cancellationToken)
+            await AppendLoginAttemptAsync(user.Id, email, false, LoginFailureReasons.AccountLocked, cancellationToken)
                 .ConfigureAwait(false);
             throw new UnauthorizedAppException("This account is temporarily locked. Try again later.");
         }
 
-        if (string.IsNullOrEmpty(user.PasswordHash))
+        if (string.IsNullOrEmpty(user.PasswordHash)
+            || !_passwordHasher.Verify(user.PasswordHash, request.Password))
         {
             await AppendLoginAttemptAsync(
                     user.Id,
                     email,
-                    isSuccess: false,
-                    LoginFailureReasons.MissingPassword,
+                    false,
+                    string.IsNullOrEmpty(user.PasswordHash)
+                        ? LoginFailureReasons.MissingPassword
+                        : LoginFailureReasons.InvalidPassword,
                     cancellationToken)
                 .ConfigureAwait(false);
             throw new UnauthorizedAppException("Invalid email or password.");
         }
-
-        if (!_passwordHasher.Verify(user.PasswordHash, request.Password))
-        {
-            await AppendLoginAttemptAsync(
-                    user.Id,
-                    email,
-                    isSuccess: false,
-                    LoginFailureReasons.InvalidPassword,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            throw new UnauthorizedAppException("Invalid email or password.");
-        }
-
-        var personalOrgId = await _db.Organizations
-            .AsNoTracking()
-            .Where(o => o.OwnerId == user.Id && o.IsPersonal)
-            .Select(o => o.Id)
-            .FirstAsync(cancellationToken)
-            .ConfigureAwait(false);
 
         var refreshCreds = _jwtTokenService.CreateRefreshTokenCredentials();
-        var plainRefresh = refreshCreds.PlainRefreshToken;
-        var refreshHash = refreshCreds.RefreshTokenSha256Hex;
-        var refreshExpires = refreshCreds.ExpiresAtUtc;
-
         var strategy = _db.Database.CreateExecutionStrategy();
-        return await strategy
-            .ExecuteAsync(
-                async () =>
-                {
-                    await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-                    var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
-                    tracked.LastLoginAt = now;
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-                    var session = new UserSession
-                    {
-                        UserId = tracked.Id,
-                        TokenHash = refreshHash,
-                        ExpiresAt = refreshExpires,
-                        LastUsedAt = now,
-                        IpAddress = _client.IpAddress,
-                        UserAgent = _client.UserAgent,
-                    };
-                    _db.UserSessions.Add(session);
+            var tracked = await _db.Users.FirstAsync(u => u.Id == user.Id, cancellationToken).ConfigureAwait(false);
+            tracked.LastLoginAt = now;
 
-                    await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            var session = new UserSession
+            {
+                UserId = tracked.Id,
+                TokenHash = refreshCreds.RefreshTokenSha256Hex,
+                ExpiresAt = refreshCreds.ExpiresAtUtc,
+                LastUsedAt = now,
+                IpAddress = _client.IpAddress,
+                UserAgent = _client.UserAgent,
+            };
+            _db.UserSessions.Add(session);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-                    var (accessToken, accessExpires) =
-                        _jwtTokenService.CreateAccessToken(tracked.Id, session.Id, personalOrgId);
+            var (accessToken, accessExpires) = _jwtTokenService.CreateAccessToken(tracked.Id, session.Id);
 
-                    await AppendLoginAttemptAsync(tracked.Id, email, isSuccess: true, null, cancellationToken)
-                        .ConfigureAwait(false);
+            await AppendLoginAttemptAsync(tracked.Id, email, true, null, cancellationToken).ConfigureAwait(false);
+            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-                    return new LoginResponse(
-                        tracked.Id,
-                        personalOrgId,
-                        session.Id,
-                        tracked.Email,
-                        tracked.FullName,
-                        tracked.IsEmailVerified,
-                        accessToken,
-                        plainRefresh,
-                        accessExpires,
-                        refreshExpires);
-                })
-            .ConfigureAwait(false);
+            return new LoginResponse(
+                tracked.Id,
+                session.Id,
+                tracked.Email,
+                tracked.FullName,
+                tracked.Role,
+                accessToken,
+                refreshCreds.PlainRefreshToken,
+                accessExpires,
+                refreshCreds.ExpiresAtUtc);
+        }).ConfigureAwait(false);
     }
 
     private async Task<bool> IsAccountLockedAsync(Guid userId, CancellationToken cancellationToken)
@@ -172,16 +128,13 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         var streak = 0;
         foreach (var row in recent)
         {
-            if (row.IsSuccess)
-                break;
+            if (row.IsSuccess) break;
             streak++;
         }
 
-        if (streak < AuthConstants.MaxFailedLoginAttemptsInWindow)
-            return false;
+        if (streak < AuthConstants.MaxFailedLoginAttemptsInWindow) return false;
 
-        var lastFailureAt = recent[0].CreatedAt;
-        return lastFailureAt.Add(AuthConstants.AccountLockDuration) > DateTime.UtcNow;
+        return recent[0].CreatedAt.Add(AuthConstants.AccountLockDuration) > DateTime.UtcNow;
     }
 
     private async Task AppendLoginAttemptAsync(
@@ -191,17 +144,15 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         string? failureReason,
         CancellationToken cancellationToken)
     {
-        _db.UserLoginAttempts.Add(
-            new UserLoginAttempt
-            {
-                UserId = userId,
-                AttemptedEmail = attemptedEmail,
-                IsSuccess = isSuccess,
-                FailureReason = failureReason,
-                IpAddress = _client.IpAddress,
-                UserAgent = _client.UserAgent,
-            });
-
+        _db.UserLoginAttempts.Add(new UserLoginAttempt
+        {
+            UserId = userId,
+            AttemptedEmail = attemptedEmail,
+            IsSuccess = isSuccess,
+            FailureReason = failureReason,
+            IpAddress = _client.IpAddress,
+            UserAgent = _client.UserAgent,
+        });
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

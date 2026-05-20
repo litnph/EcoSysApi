@@ -9,9 +9,6 @@ namespace PFP.Domain.Entities.Finance;
 /// </summary>
 public sealed class FinBillingCycle : BaseEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/>.</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>FK to <see cref="FinSource"/> (must be <see cref="SourceType.CreditCard"/>).</summary>
     public Guid SourceId { get; set; }
 
@@ -43,9 +40,6 @@ public sealed class FinBillingCycle : BaseEntity
     public DateTime? PaidAt { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinSource Source { get; set; } = null!;
 
     public ICollection<FinTransaction> Transactions { get; set; } = new List<FinTransaction>();

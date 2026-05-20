@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.TagsComments.Common;
@@ -32,14 +33,11 @@ public sealed class AddTagToEntityCommandHandler : IRequestHandler<AddTagToEntit
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
-
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, tag.SmoduleId, SpaceRole.Editor, cancellationToken).ConfigureAwait(false);
-
-        var txn = await FinanceModuleAccessHelper
-            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, SpaceRole.Editor, cancellationToken)
+        var txn = await FinanceAccessHelper
+            .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (txn.SmoduleId != tag.SmoduleId)
+        if (false)
             throw new BusinessRuleException("The transaction does not belong to the same finance module as this tag.");
 
         if (await _db.EntityTags.AnyAsync(

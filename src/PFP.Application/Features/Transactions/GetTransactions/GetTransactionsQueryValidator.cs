@@ -8,8 +8,7 @@ public sealed class GetTransactionsQueryValidator : AbstractValidator<GetTransac
     /// <summary>Registers validation rules.</summary>
     public GetTransactionsQueryValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
+RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
     }
 }

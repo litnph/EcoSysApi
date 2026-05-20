@@ -10,7 +10,6 @@ internal static class InvestmentDtoMapper
         var pnl = i.CurrentValue + i.TotalReturned - i.TotalInvested;
         return new InvestmentListItemDto(
             i.Id,
-            i.SmoduleId,
             i.Name,
             i.Type,
             CurrencyUnits.ToWhole(i.CurrentValue),
@@ -37,7 +36,6 @@ internal static class InvestmentDtoMapper
         var pnl = i.CurrentValue + i.TotalReturned - i.TotalInvested;
         return new InvestmentDetailDto(
             i.Id,
-            i.SmoduleId,
             i.Name,
             i.Type,
             CurrencyUnits.ToWhole(i.CurrentValue),

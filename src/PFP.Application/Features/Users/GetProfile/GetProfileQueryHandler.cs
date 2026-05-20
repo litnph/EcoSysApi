@@ -29,7 +29,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
 
         var user = await _db.Users.AsNoTracking()
             .Where(u => u.Id == userId)
-            .Select(u => new { u.Id, u.Email, u.FullName, u.IsEmailVerified })
+            .Select(u => new { u.Id, u.Email, u.FullName, u.Role })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -52,7 +52,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
             user.Id,
             user.FullName,
             user.Email,
-            user.IsEmailVerified,
+            user.Role,
             profile?.LanguageCode ?? "vi",
             profile?.Timezone ?? "Asia/Ho_Chi_Minh",
             profile?.DateFormat ?? "dd/MM/yyyy",

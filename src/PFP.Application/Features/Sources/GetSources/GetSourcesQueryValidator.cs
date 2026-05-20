@@ -6,6 +6,7 @@ namespace PFP.Application.Features.Sources.GetSources;
 public sealed class GetSourcesQueryValidator : AbstractValidator<GetSourcesQuery>
 {
     /// <summary>Registers query rules.</summary>
-    public GetSourcesQueryValidator() =>
-        RuleFor(x => x.SmoduleId).NotEmpty();
+    public GetSourcesQueryValidator()
+    {
+    }
 }

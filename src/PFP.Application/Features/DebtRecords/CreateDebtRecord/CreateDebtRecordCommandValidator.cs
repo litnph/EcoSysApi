@@ -8,8 +8,7 @@ public sealed class CreateDebtRecordCommandValidator : AbstractValidator<CreateD
     /// <summary>Registers field rules.</summary>
     public CreateDebtRecordCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Direction).IsInEnum();
+RuleFor(x => x.Direction).IsInEnum();
         RuleFor(x => x.PersonName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.PersonContact).MaximumLength(200).When(x => x.PersonContact is not null);
         RuleFor(x => x.Amount).GreaterThan(0);

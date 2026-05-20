@@ -8,9 +8,6 @@ namespace PFP.Domain.Entities;
 /// </summary>
 public sealed class FinMonthlyPeriod : BaseEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/>.</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>Calendar year (e.g. <c>2026</c>).</summary>
     public int Year { get; set; }
 
@@ -42,8 +39,5 @@ public sealed class FinMonthlyPeriod : BaseEntity
     public string? SourceBreakdown { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public User? ClosedByUser { get; set; }
 }

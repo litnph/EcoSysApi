@@ -27,18 +27,11 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to view installment plans for this module.");
-
-        var q = _db.FinInstallmentPlans
+        IQueryable<FinInstallmentPlan> q = _db.FinInstallmentPlans
             .AsNoTracking()
             .Include(p => p.Source)
             .Include(p => p.OriginalTransaction)
-            .Include(p => p.Pays)
-            .Where(p => p.SmoduleId == request.SmoduleId);
+            .Include(p => p.Pays);
 
         if (request.Status is { } st)
             q = q.Where(p => p.Status == st);
@@ -58,7 +51,6 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
         var remaining = p.Pays.Where(x => x.Status != InstallmentPayStatus.Paid).Sum(x => x.Amount);
         return new InstallmentPlanListItemDto(
             p.Id,
-            p.SmoduleId,
             p.SourceId,
             p.Source.Name,
             p.OriginalTransaction.Description,

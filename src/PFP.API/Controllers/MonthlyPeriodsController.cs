@@ -25,10 +25,9 @@ public sealed class MonthlyPeriodsController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetMonthlyPeriodsListResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetMonthlyPeriodsListResponse>>> List(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetMonthlyPeriodsListQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetMonthlyPeriodsListQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetMonthlyPeriodsListResponse> { Data = result });
     }
 
@@ -36,10 +35,9 @@ public sealed class MonthlyPeriodsController : ControllerBase
     [HttpGet("current")]
     [ProducesResponseType(typeof(ApiResponse<GetCurrentMonthSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetCurrentMonthSummaryResponse>>> GetCurrent(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetCurrentMonthSummaryQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetCurrentMonthSummaryQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetCurrentMonthSummaryResponse> { Data = result });
     }
 
@@ -49,10 +47,9 @@ public sealed class MonthlyPeriodsController : ControllerBase
     public async Task<ActionResult<ApiResponse<GetMonthlyReportResponse>>> GetReport(
         int year,
         int month,
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetMonthlyReportQuery(smoduleId, year, month), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetMonthlyReportQuery(year, month), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetMonthlyReportResponse> { Data = result });
     }
 
@@ -62,10 +59,9 @@ public sealed class MonthlyPeriodsController : ControllerBase
     public async Task<ActionResult<ApiResponse<GetMonthlyPeriodResponse>>> GetByYearMonth(
         int year,
         int month,
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetMonthlyPeriodQuery(smoduleId, year, month), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetMonthlyPeriodQuery(year, month), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetMonthlyPeriodResponse> { Data = result });
     }
 
@@ -76,7 +72,7 @@ public sealed class MonthlyPeriodsController : ControllerBase
         [FromBody] CloseMonthRequest body,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new CloseMonthCommand(body.SmoduleId, body.Year, body.Month), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new CloseMonthCommand( body.Year, body.Month), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<CloseMonthResponse> { Data = result });
     }
 }

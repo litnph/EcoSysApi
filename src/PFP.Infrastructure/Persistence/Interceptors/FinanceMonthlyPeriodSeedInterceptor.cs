@@ -6,8 +6,8 @@ using PFP.Domain.Enums;
 namespace PFP.Infrastructure.Persistence.Interceptors;
 
 /// <summary>
-/// When a finance <see cref="SpaceModule"/> row is first activated (or re-enabled), inserts the
-/// current UTC calendar month row into <c>FIN_MONTHLY_PERIODS</c> if it does not yet exist.
+/// When the first <see cref="FinSource"/> is created, ensures the current UTC calendar month exists in
+/// <c>FIN_MONTHLY_PERIODS</c>.
 /// </summary>
 public sealed class FinanceMonthlyPeriodSeedInterceptor : SaveChangesInterceptor
 {
@@ -34,59 +34,38 @@ public sealed class FinanceMonthlyPeriodSeedInterceptor : SaveChangesInterceptor
     {
         if (context is null) return;
 
-        // Snapshot so context.Add(FinMonthlyPeriod) below does not invalidate enumeration.
-        var spaceModuleEntries = context.ChangeTracker.Entries<SpaceModule>().ToList();
+        var addedSources = context.ChangeTracker.Entries<FinSource>()
+            .Where(e => e.State == EntityState.Added)
+            .ToList();
 
-        foreach (var entry in spaceModuleEntries)
+        if (addedSources.Count == 0)
+            return;
+
+        var utc = DateTime.UtcNow;
+        var year = utc.Year;
+        var month = utc.Month;
+
+        if (HasPeriodTrackedOrPersisted(context, year, month))
+            return;
+
+        context.Add(new FinMonthlyPeriod
         {
-            if (entry.Entity.ModuleCode != ModuleCode.Finance || !entry.Entity.IsEnabled)
-                continue;
-
-            var becameEnabled = entry.State == EntityState.Added
-                || (entry.State == EntityState.Modified
-                    && entry.Property(nameof(SpaceModule.IsEnabled)).IsModified
-                    && entry.Entity.IsEnabled
-                    && !(bool)(entry.Property(nameof(SpaceModule.IsEnabled)).OriginalValue ?? false));
-
-            if (!becameEnabled) continue;
-
-            var utc = DateTime.UtcNow;
-            var year = utc.Year;
-            var month = utc.Month;
-            var smoduleId = entry.Entity.Id;
-
-            if (HasPeriodTrackedOrPersisted(context, smoduleId, year, month, entry.State))
-                continue;
-
-            context.Add(new FinMonthlyPeriod
-            {
-                SmoduleId = smoduleId,
-                Year = year,
-                Month = month,
-                TotalIncome = 0,
-                TotalExpense = 0,
-                Net = 0,
-                Status = PeriodStatus.Open,
-            });
-        }
+            Year = year,
+            Month = month,
+            TotalIncome = 0,
+            TotalExpense = 0,
+            Net = 0,
+            Status = PeriodStatus.Open,
+        });
     }
 
-    private static bool HasPeriodTrackedOrPersisted(
-        DbContext context,
-        Guid smoduleId,
-        int year,
-        int month,
-        EntityState spaceModuleState)
+    private static bool HasPeriodTrackedOrPersisted(DbContext context, int year, int month)
     {
         if (context.ChangeTracker.Entries<FinMonthlyPeriod>()
-            .Any(e => e.Entity.SmoduleId == smoduleId && e.Entity.Year == year && e.Entity.Month == month
-                      && e.State != EntityState.Deleted))
+            .Any(e => e.Entity.Year == year && e.Entity.Month == month && e.State != EntityState.Deleted))
             return true;
 
-        if (spaceModuleState == EntityState.Added)
-            return false;
-
         return context.Set<FinMonthlyPeriod>().AsNoTracking()
-            .Any(p => p.SmoduleId == smoduleId && p.Year == year && p.Month == month);
+            .Any(p => p.Year == year && p.Month == month);
     }
 }

@@ -34,7 +34,6 @@ public sealed class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand
                 _currentUser,
                 att.EntityType,
                 att.EntityId,
-                SpaceRole.Editor,
                 cancellationToken)
             .ConfigureAwait(false);
 

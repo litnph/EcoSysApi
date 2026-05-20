@@ -7,7 +7,6 @@ namespace PFP.Application.Features.Transactions.CreateTransaction;
 /// Creates a finance transaction (direct, income, transfer, deferred, or debt / loan flows).
 /// </summary>
 public sealed record CreateTransactionCommand(
-    Guid SmoduleId,
     TransactionType Type,
     long Amount,
     Guid SourceId,

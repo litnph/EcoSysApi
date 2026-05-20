@@ -25,23 +25,12 @@ public sealed class DeleteDebtRecordCommandHandler : IRequestHandler<DeleteDebtR
 
         var record = await _db.FinDebtRecords
             .Include(r => r.FinDebtTransactions)
-            .Include(r => r.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(r => r.Id == request.DebtRecordId, cancellationToken)
             .ConfigureAwait(false);
 
         if (record is null || record.IsDeleted)
             throw new NotFoundException("Debt record was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(record.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to delete this debt record.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && record.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this debt record.");
-
-        if (record.FinDebtTransactions.Count > 0)
+if (record.FinDebtTransactions.Count > 0)
             throw new BusinessRuleException("Cannot delete a debt record that already has repayment or collection movements.");
 
         _db.FinDebtRecords.Remove(record);

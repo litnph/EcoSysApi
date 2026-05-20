@@ -49,7 +49,6 @@ public sealed class RecordDebtPaymentCommandHandler : IRequestHandler<RecordDebt
         };
 
         var inner = new CreateTransactionCommand(
-            SmoduleId: debt.SmoduleId,
             Type: txnType,
             Amount: request.Amount,
             SourceId: request.SourceId,

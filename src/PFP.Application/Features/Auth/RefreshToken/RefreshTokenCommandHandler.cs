@@ -23,7 +23,6 @@ public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCom
 
         return new RefreshTokenResponse(
             result.UserId,
-            result.OrganizationId,
             result.SessionId,
             result.AccessToken,
             result.PlainRefreshToken,

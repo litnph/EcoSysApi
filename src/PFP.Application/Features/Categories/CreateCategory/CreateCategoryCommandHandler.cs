@@ -27,28 +27,11 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage finance categories for this module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        FinCategory? parent = null;
+FinCategory? parent = null;
         if (request.ParentId is { } parentId)
         {
             parent = await _db.FinCategories
-                .FirstOrDefaultAsync(c => c.Id == parentId && c.SmoduleId == request.SmoduleId, cancellationToken)
+                .FirstOrDefaultAsync(c => c.Id == parentId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (parent is null)
@@ -60,9 +43,7 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
 
         var depth = parent?.Depth + 1 ?? 0;
         var entity = new FinCategory
-        {
-            SmoduleId = request.SmoduleId,
-            Name = request.Name.Trim(),
+        {            Name = request.Name.Trim(),
             Code = CategoryCodeFactory.NewUniqueCode(),
             Kind = request.Kind,
             ParentId = request.ParentId,
@@ -78,7 +59,7 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         if (request.IsDefault)
-            await ClearOtherDefaultsAsync(request.SmoduleId, request.Kind, exceptId: null, cancellationToken).ConfigureAwait(false);
+            await ClearOtherDefaultsAsync(request.Kind, exceptId: null, cancellationToken).ConfigureAwait(false);
 
         _db.FinCategories.Add(entity);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -88,12 +69,11 @@ public sealed class CreateCategoryCommandHandler : IRequestHandler<CreateCategor
     }
 
     private async Task ClearOtherDefaultsAsync(
-        Guid smoduleId,
         CategoryKind kind,
         Guid? exceptId,
         CancellationToken cancellationToken)
     {
-        var query = _db.FinCategories.Where(c => c.SmoduleId == smoduleId && c.Kind == kind && c.IsDefault);
+        IQueryable<FinCategory> query = _db.FinCategories;
         if (exceptId is { } id)
             query = query.Where(c => c.Id != id);
 

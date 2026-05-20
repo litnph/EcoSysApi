@@ -29,31 +29,9 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(request.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to close months for this finance module.");
-
-        var smodule = await _db.SpaceModules
-            .Include(m => m.Space)
-            .FirstOrDefaultAsync(m => m.Id == request.SmoduleId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (smodule is null)
-            throw new NotFoundException("Space module was not found.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this space module.");
-
-        var blockingCycles = await _db.FinBillingCycles
+var blockingCycles = await _db.FinBillingCycles
             .AsNoTracking()
             .Include(bc => bc.Source)
-            .Where(bc => bc.SmoduleId == request.SmoduleId
-                         && bc.PeriodEnd.Year == request.Year
-                         && bc.PeriodEnd.Month == request.Month
-                         && bc.Status != BillingCycleStatus.Closed
-                         && bc.Status != BillingCycleStatus.Paid)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -65,7 +43,7 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
         }
 
         var (income, expense, net, categories, sources) = await MonthlyPeriodSummaryCalculator
-            .ComputeBreakdownsAsync(_db, request.SmoduleId, request.Year, request.Month, cancellationToken)
+            .ComputeBreakdownsAsync(_db, request.Year, request.Month, cancellationToken)
             .ConfigureAwait(false);
 
         var categoryJson = MonthlyPeriodSummaryCalculator.SerialiseCategoryBreakdown(categories);
@@ -89,16 +67,14 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
 
             var period = await _db.FinMonthlyPeriods
                 .FirstOrDefaultAsync(
-                    p => p.SmoduleId == request.SmoduleId && p.Year == request.Year && p.Month == request.Month,
+                    p => p.Year == request.Year && p.Month == request.Month,
                     cancellationToken)
                 .ConfigureAwait(false);
 
             if (period is null)
             {
                 period = new FinMonthlyPeriod
-                {
-                    SmoduleId = request.SmoduleId,
-                    Year = request.Year,
+                {                    Year = request.Year,
                     Month = request.Month,
                 };
                 _db.FinMonthlyPeriods.Add(period);
@@ -117,9 +93,7 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
             period.ClosedBy = userId;
 
             var closeAuditPayload = JsonSerializer.Serialize(new
-            {
-                smoduleId = request.SmoduleId,
-                request.Year,
+            {                request.Year,
                 request.Month,
                 totalIncome = income,
                 totalExpense = expense,
@@ -150,7 +124,6 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
 
         var dto = new MonthlyPeriodSummaryDto(
             periodId,
-            request.SmoduleId,
             request.Year,
             request.Month,
             PeriodStatus.Closed,

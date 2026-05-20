@@ -63,7 +63,7 @@ public sealed class SettleSplitCommandValidator : AbstractValidator<SettleSplitC
                     .ConfigureAwait(false);
                 return src is not null
                        && !src.IsDeleted
-                       && src.SmoduleId == split.Transaction.SmoduleId
+                       && true
                        && string.Equals(src.Currency, split.Transaction.Currency, StringComparison.Ordinal);
             })
             .WithMessage("Payment source was not found, is inactive, or does not match the split module/currency.");

@@ -26,27 +26,16 @@ public sealed class RecordInvestmentTxnCommandHandler : IRequestHandler<RecordIn
             throw new UnauthorizedAppException("Authentication is required.");
 
         var investment = await _db.FinInvestments
-            .Include(i => i.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(i => i.Id == request.InvestmentId, cancellationToken)
             .ConfigureAwait(false);
 
         if (investment is null)
             throw new NotFoundException("Investment was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(investment.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage investments for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && investment.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this investment.");
-
-        if (request.LinkedTxnId is { } linkedId)
+if (request.LinkedTxnId is { } linkedId)
         {
             var linked = await _db.FinTransactions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == linkedId && t.SmoduleId == investment.SmoduleId, cancellationToken)
+                .FirstOrDefaultAsync(t => t.Id == linkedId)
                 .ConfigureAwait(false);
 
             if (linked is null)

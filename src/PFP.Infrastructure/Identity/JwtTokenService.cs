@@ -8,14 +8,10 @@ using PFP.Application.Common.Constants;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Models;
-using PFP.Domain.Entities;
 
 namespace PFP.Infrastructure.Identity;
 
-/// <summary>
-/// HS256 access tokens, refresh-token material generation, JWT validation, and refresh exchange with
-/// EF execution-strategy retries.
-/// </summary>
+/// <summary>HS256 access tokens and refresh-token rotation.</summary>
 public sealed class JwtTokenService : IJwtTokenService
 {
     private readonly JwtOptions _options;
@@ -23,7 +19,6 @@ public sealed class JwtTokenService : IJwtTokenService
     private readonly ITokenHasher _tokenHasher;
     private readonly JwtSecurityTokenHandler _handler = new();
 
-    /// <summary>Creates the service.</summary>
     public JwtTokenService(IOptions<JwtOptions> options, IApplicationDbContext db, ITokenHasher tokenHasher)
     {
         _options = options.Value;
@@ -31,8 +26,7 @@ public sealed class JwtTokenService : IJwtTokenService
         _tokenHasher = tokenHasher;
     }
 
-    /// <inheritdoc/>
-    public (string Token, DateTime ExpiresAtUtc) CreateAccessToken(Guid userId, Guid sessionId, Guid orgId)
+    public (string Token, DateTime ExpiresAtUtc) CreateAccessToken(Guid userId, Guid sessionId)
     {
         EnsureSecret();
 
@@ -43,7 +37,6 @@ public sealed class JwtTokenService : IJwtTokenService
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtClaimNames.SessionId, sessionId.ToString()),
-            new Claim(JwtClaimNames.OrgId, orgId.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 
@@ -60,7 +53,6 @@ public sealed class JwtTokenService : IJwtTokenService
         return (_handler.WriteToken(token), expires);
     }
 
-    /// <inheritdoc/>
     public RefreshTokenCredentials CreateRefreshTokenCredentials()
     {
         var plain = CryptoToken.CreateUrlSafe();
@@ -69,7 +61,6 @@ public sealed class JwtTokenService : IJwtTokenService
         return new RefreshTokenCredentials(plain, hash, expires);
     }
 
-    /// <inheritdoc/>
     public JwtTokenValidationResult ValidateAccessToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -91,7 +82,6 @@ public sealed class JwtTokenService : IJwtTokenService
         }
     }
 
-    /// <inheritdoc/>
     public async Task<RefreshTokenExchangeResult> ExchangeRefreshTokenAsync(
         string plainRefreshToken,
         CancellationToken cancellationToken = default)
@@ -121,8 +111,6 @@ public sealed class JwtTokenService : IJwtTokenService
                 if (session.User is null || !session.User.IsActive)
                     throw new UnauthorizedAppException("Refresh token is invalid or expired.");
 
-                var orgId = await ResolveSessionOrgIdAsync(session, cancellationToken).ConfigureAwait(false);
-
                 var creds = CreateRefreshTokenCredentials();
                 var now = DateTime.UtcNow;
                 session.TokenHash = creds.RefreshTokenSha256Hex;
@@ -132,96 +120,16 @@ public sealed class JwtTokenService : IJwtTokenService
                 await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-                var (accessToken, accessExpires) = CreateAccessToken(session.UserId, session.Id, orgId);
+                var (accessToken, accessExpires) = CreateAccessToken(session.UserId, session.Id);
 
                 return new RefreshTokenExchangeResult(
                     session.UserId,
-                    orgId,
                     session.Id,
                     accessToken,
                     creds.PlainRefreshToken,
                     accessExpires,
                     session.ExpiresAt);
             }).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public async Task<RefreshTokenExchangeResult> SwitchOrganizationAsync(
-        Guid sessionId,
-        Guid userId,
-        Guid organizationId,
-        CancellationToken cancellationToken = default)
-    {
-        var strategy = _db.Database.CreateExecutionStrategy();
-
-        return await strategy.ExecuteAsync(
-            async () =>
-            {
-                await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-                var session = await _db.UserSessions
-                    .Include(s => s.User)
-                    .FirstOrDefaultAsync(
-                        s => s.Id == sessionId
-                             && s.UserId == userId
-                             && s.RevokedAt == null
-                             && s.ExpiresAt > DateTime.UtcNow,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (session is null || session.User is null || !session.User.IsActive)
-                    throw new UnauthorizedAppException("Session is invalid or expired.");
-
-                session.ActiveOrgId = organizationId;
-
-                var creds = CreateRefreshTokenCredentials();
-                var now = DateTime.UtcNow;
-                session.TokenHash = creds.RefreshTokenSha256Hex;
-                session.ExpiresAt = creds.ExpiresAtUtc;
-                session.LastUsedAt = now;
-
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-                var (accessToken, accessExpires) =
-                    CreateAccessToken(session.UserId, session.Id, organizationId);
-
-                return new RefreshTokenExchangeResult(
-                    session.UserId,
-                    organizationId,
-                    session.Id,
-                    accessToken,
-                    creds.PlainRefreshToken,
-                    accessExpires,
-                    session.ExpiresAt);
-            }).ConfigureAwait(false);
-    }
-
-    private async Task<Guid> ResolveSessionOrgIdAsync(
-        UserSession session,
-        CancellationToken cancellationToken)
-    {
-        if (session.ActiveOrgId is { } activeOrgId)
-        {
-            var stillMember = await _db.OrgMembers
-                .AsNoTracking()
-                .AnyAsync(
-                    m => m.OrgId == activeOrgId && m.UserId == session.UserId && m.IsActive,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            if (stillMember)
-                return activeOrgId;
-
-            session.ActiveOrgId = null;
-        }
-
-        return await _db.Organizations
-            .AsNoTracking()
-            .Where(o => o.OwnerId == session.UserId && o.IsPersonal)
-            .Select(o => o.Id)
-            .FirstAsync(cancellationToken)
-            .ConfigureAwait(false);
     }
 
     private void EnsureSecret()

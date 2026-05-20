@@ -7,8 +7,7 @@ public sealed class CreateAutomationRuleCommandValidator : AbstractValidator<Cre
 {
     public CreateAutomationRuleCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.TriggerType).IsInEnum();
         RuleFor(x => x.TriggerValue).NotEmpty().MaximumLength(2048);
 

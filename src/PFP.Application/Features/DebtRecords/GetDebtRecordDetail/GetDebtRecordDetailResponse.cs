@@ -13,7 +13,6 @@ public sealed record DebtTransactionItemDto(
 
 public sealed record DebtRecordDetailDto(
     Guid Id,
-    Guid SmoduleId,
     DebtDirection Direction,
     string PersonName,
     string? PersonContact,

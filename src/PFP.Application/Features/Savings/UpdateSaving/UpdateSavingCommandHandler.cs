@@ -25,25 +25,14 @@ public sealed class UpdateSavingCommandHandler : IRequestHandler<UpdateSavingCom
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.FinSavings
-            .Include(s => s.Smodule)
-            .ThenInclude(m => m.Space)
             .Include(s => s.Source)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Savings record was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage savings for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this savings record.");
-
-        var source = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId && s.SmoduleId == entity.SmoduleId, cancellationToken)
+var source = await _db.FinSources
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
 
         if (source is null || source.IsDeleted)

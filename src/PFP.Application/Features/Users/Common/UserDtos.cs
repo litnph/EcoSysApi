@@ -7,20 +7,19 @@ public sealed record UserMeDto(
     Guid UserId,
     string Email,
     string FullName,
-    bool IsEmailVerified,
+    UserRole Role,
     DateTime? LastLoginAt,
     string LanguageCode,
     string Timezone,
     string Theme,
-    string? AvatarUrl,
-    Guid PersonalOrgId);
+    string? AvatarUrl);
 
 /// <summary>Profile + preferences row.</summary>
 public sealed record UserProfileDto(
     Guid UserId,
     string FullName,
     string Email,
-    bool IsEmailVerified,
+    UserRole Role,
     string LanguageCode,
     string Timezone,
     string DateFormat,

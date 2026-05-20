@@ -5,7 +5,6 @@ namespace PFP.Application.Features.BillingCycles.Common;
 /// <summary>List row for a billing cycle including the parent source display name.</summary>
 public sealed record FinBillingCycleDto(
     Guid Id,
-    Guid SmoduleId,
     Guid SourceId,
     string SourceName,
     DateOnly PeriodStart,

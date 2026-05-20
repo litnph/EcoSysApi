@@ -23,23 +23,12 @@ public sealed class ToggleAutomationRuleCommandHandler : IRequestHandler<ToggleA
             throw new UnauthorizedAppException("Authentication is required.");
 
         var entity = await _db.AutomationRules
-            .Include(r => r.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Automation rule was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Editor, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to manage automation for this module.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this automation rule.");
-
-        entity.IsActive = !entity.IsActive;
+entity.IsActive = !entity.IsActive;
 
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

@@ -1,7 +1,7 @@
 namespace PFP.Application.Features.Tags.Common;
 
 /// <summary>Finance tag catalogue row.</summary>
-public sealed record TagListItemDto(Guid Id, Guid SmoduleId, string Name, string Color, int UsageCount);
+public sealed record TagListItemDto(Guid Id, string Name, string Color, int UsageCount);
 
 public sealed record CreateTagResponse(Guid Id);
 

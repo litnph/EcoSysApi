@@ -26,9 +26,6 @@ public sealed class DeleteTagCommandHandler : IRequestHandler<DeleteTagCommand, 
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
-
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, tag.SmoduleId, SpaceRole.Editor, cancellationToken).ConfigureAwait(false);
-
         if (tag.UsageCount != 0)
             throw new BusinessRuleException("Only tags without active assignments can be deleted.");
 

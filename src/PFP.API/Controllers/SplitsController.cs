@@ -21,10 +21,9 @@ public sealed class SplitsController : ControllerBase
     [HttpGet("pending")]
     [ProducesResponseType(typeof(ApiResponse<GetPendingSplitsResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetPendingSplitsResponse>>> ListPending(
-        [FromQuery(Name = "smodule_id")] Guid smoduleId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetPendingSplitsQuery(smoduleId), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new GetPendingSplitsQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetPendingSplitsResponse> { Data = result });
     }
 

@@ -6,8 +6,6 @@ namespace PFP.Domain.Entities.Finance;
 /// <summary>Debt / loan relationship row. Maps to <c>fin_debt_records</c>.</summary>
 public sealed class FinDebtRecord : VersionedEntity
 {
-    public Guid SmoduleId { get; set; }
-
     public DebtDirection Direction { get; set; }
 
     public string PersonName { get; set; } = string.Empty;
@@ -29,9 +27,6 @@ public sealed class FinDebtRecord : VersionedEntity
     public string? Note { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinTransaction? OriginalTransaction { get; set; }
 
     public ICollection<FinDebtTransaction> FinDebtTransactions { get; set; } = new List<FinDebtTransaction>();

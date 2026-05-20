@@ -22,18 +22,14 @@ public sealed class CreateTagCommandHandler : IRequestHandler<CreateTagCommand, 
 
     public async Task<CreateTagResponse> Handle(CreateTagCommand request, CancellationToken cancellationToken)
     {
-        await FinanceModuleAccessHelper.RequireFinanceSmoduleAsync(_db, _currentUser, request.SmoduleId, SpaceRole.Editor, cancellationToken).ConfigureAwait(false);
-
         var name = request.Name.Trim();
         if (await _db.Tags.AnyAsync(
-                t => t.SmoduleId == request.SmoduleId && t.Name == name,
+                t => t.Name == name,
                 cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("A tag with this name already exists in this module.");
 
         var entity = new Tag
-        {
-            SmoduleId = request.SmoduleId,
-            Name = name,
+        {            Name = name,
             Color = request.Color.Trim(),
             UsageCount = 0,
         };

@@ -76,7 +76,6 @@ public sealed class ProcessConversionFeeCommandHandler : IRequestHandler<Process
                     .ConfigureAwait(false);
 
                 var category = await _db.FinCategories
-                    .Where(c => c.SmoduleId == trackedPlan.SmoduleId && c.Kind == CategoryKind.Expense)
                     .OrderByDescending(c => c.IsDefault)
                     .ThenBy(c => c.SortOrder)
                     .FirstOrDefaultAsync(cancellationToken)
@@ -91,9 +90,7 @@ public sealed class ProcessConversionFeeCommandHandler : IRequestHandler<Process
                     description = description[..512];
 
                 var feeTxn = new FinTransaction
-                {
-                    SmoduleId = trackedPlan.SmoduleId,
-                    Type = TransactionType.Deferred,
+                {                    Type = TransactionType.Deferred,
                     Status = TxnStatus.Completed,
                     Amount = feeAmt,
                     Currency = source.Currency,

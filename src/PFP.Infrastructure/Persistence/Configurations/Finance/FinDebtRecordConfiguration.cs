@@ -15,15 +15,6 @@ public sealed class FinDebtRecordConfiguration : IEntityTypeConfiguration<FinDeb
         builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(500);
         builder.Property(x => x.DueDate).HasColumnType("date");
-
-        builder.HasIndex(x => new { x.SmoduleId, x.Direction, x.Status });
-        builder.HasIndex(x => new { x.SmoduleId, x.DueDate });
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany(m => m.FinDebtRecords)
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.OriginalTransaction)
                .WithMany()
                .HasForeignKey(x => x.OriginalTxnId)

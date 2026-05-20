@@ -9,8 +9,7 @@ public sealed class CreateTagCommandValidator : AbstractValidator<CreateTagComma
 
     public CreateTagCommandValidator()
     {
-        RuleFor(x => x.SmoduleId).NotEmpty();
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Color)
             .NotEmpty()
             .Length(7)

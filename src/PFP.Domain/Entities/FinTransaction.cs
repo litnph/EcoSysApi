@@ -14,9 +14,6 @@ namespace PFP.Domain.Entities;
 /// </summary>
 public sealed class FinTransaction : VersionedEntity
 {
-    /// <summary>FK to <see cref="SpaceModule"/>.</summary>
-    public Guid SmoduleId { get; set; }
-
     /// <summary>Functional transaction kind.</summary>
     public TransactionType Type { get; set; }
 
@@ -71,9 +68,6 @@ public sealed class FinTransaction : VersionedEntity
     public string? Tags { get; set; }
 
     // ---- Navigation ----
-
-    public SpaceModule Smodule { get; set; } = null!;
-
     public FinSource Source { get; set; } = null!;
 
     public FinSource? DestSource { get; set; }

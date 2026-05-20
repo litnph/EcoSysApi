@@ -5,7 +5,6 @@ namespace PFP.Application.Features.Sources.CreateSource;
 
 /// <summary>Creates a finance source under an enabled finance <see cref="Domain.Entities.SpaceModule"/>.</summary>
 public sealed record CreateSourceCommand(
-    Guid SmoduleId,
     string Name,
     SourceType Type,
     decimal? CreditLimit,

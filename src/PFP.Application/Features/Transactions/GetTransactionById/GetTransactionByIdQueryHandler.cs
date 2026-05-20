@@ -32,23 +32,12 @@ public sealed class GetTransactionByIdQueryHandler : IRequestHandler<GetTransact
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .Include(t => t.Smodule)
-            .ThenInclude(m => m.Space)
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
             throw new NotFoundException("Transaction was not found.");
-
-        if (!await _currentUser
-                .HasSpaceModuleAccessAsync(entity.SmoduleId, SpaceRole.Viewer, cancellationToken)
-                .ConfigureAwait(false))
-            throw new UnauthorizedAppException("You do not have permission to read this transaction.");
-
-        if (_currentUser.CurrentOrgId is { } orgId && entity.Smodule.Space.OrgId != orgId)
-            throw new UnauthorizedAppException("The current organisation does not own this transaction.");
-
-        return new GetTransactionByIdResponse(MapDetail(entity));
+return new GetTransactionByIdResponse(MapDetail(entity));
     }
 
     private static TransactionDetailDto MapDetail(FinTransaction t)

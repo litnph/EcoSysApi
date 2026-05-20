@@ -13,13 +13,7 @@ public sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Color).HasMaxLength(7).IsRequired();
 
-        builder.HasIndex(x => new { x.SmoduleId, x.Name })
+        builder.HasIndex(x => x.Name)
             .IsUnique()
-            .HasFilter("[is_deleted] = 0");
-
-        builder.HasOne(x => x.Smodule)
-               .WithMany()
-               .HasForeignKey(x => x.SmoduleId)
-               .OnDelete(DeleteBehavior.Restrict);
-    }
+            .HasFilter("[is_deleted] = 0");    }
 }
