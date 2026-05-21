@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Utils;
 using PFP.Domain.Entities;
@@ -30,9 +31,9 @@ public sealed class RecordInstallmentPaymentCommandHandler : IRequestHandler<Rec
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        var plan = await _db.FinInstallmentPlans
+        return await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            var plan = await _db.FinInstallmentPlans
             .FirstOrDefaultAsync(p => p.Id == request.PlanId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -99,9 +100,8 @@ Type = TransactionType.Direct,
 
         FinTransactionHistoryHelper.AddCreated(_db, _currentUser, txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new RecordInstallmentPaymentResponse(txn.Id);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return new RecordInstallmentPaymentResponse(txn.Id);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

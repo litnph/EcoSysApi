@@ -29,9 +29,9 @@ public sealed class SettleSplitCommandHandler : IRequestHandler<SettleSplitComma
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        var split = await _db.FinTxnSplits
+        return await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            var split = await _db.FinTxnSplits
             .Include(s => s.Transaction)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken)
             .ConfigureAwait(false);
@@ -113,25 +113,20 @@ if (split.Status != SplitStatus.Pending)
         };
         _db.FinTransactionHistory.Add(history);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        var refreshed = await _db.FinTxnSplits
-            .AsNoTracking()
-            .FirstAsync(s => s.Id == split.Id, cancellationToken)
-            .ConfigureAwait(false);
+            var dto = new TxnSplitDto(
+                split.Id,
+                split.TransactionId,
+                split.PersonName,
+                split.PersonContact,
+                CurrencyUnits.ToWhole(split.Amount),
+                split.Status,
+                split.SettledAt,
+                split.SettledTxnId);
 
-        var dto = new TxnSplitDto(
-            refreshed.Id,
-            refreshed.TransactionId,
-            refreshed.PersonName,
-            refreshed.PersonContact,
-            CurrencyUnits.ToWhole(refreshed.Amount),
-            refreshed.Status,
-            refreshed.SettledAt,
-            refreshed.SettledTxnId);
-
-        return new SettleSplitResponse(income.Id, dto);
+            return new SettleSplitResponse(income.Id, dto);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private static string BuildDirectIncomeDescription(string categoryName)

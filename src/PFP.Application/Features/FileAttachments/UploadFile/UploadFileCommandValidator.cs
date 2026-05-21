@@ -19,7 +19,6 @@ public sealed class UploadFileCommandValidator : AbstractValidator<UploadFileCom
             .Must(m => FileAttachmentAllowedMimeTypes.All.Contains(m))
             .WithMessage("This file type is not allowed.");
 
-        RuleFor(x => x.ModuleCode).NotEmpty().MaximumLength(50);
         RuleFor(x => x.EntityType).NotEmpty().MaximumLength(100);
         RuleFor(x => x.EntityId).NotEmpty();
         RuleFor(x => x.FileName).NotEmpty().MaximumLength(255);

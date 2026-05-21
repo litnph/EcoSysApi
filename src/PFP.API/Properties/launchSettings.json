@@ -18,9 +18,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Hangfire__DisableServer": "true",
-        "Hangfire__DisableRecurringRegistration": "true",
-        "Database__AutoMigrate": "false",
-        "Database__RunSeedOnStartup": "false"
+        "Hangfire__DisableRecurringRegistration": "true"
       }
     },
     "https": {
@@ -32,9 +30,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Hangfire__DisableServer": "true",
-        "Hangfire__DisableRecurringRegistration": "true",
-        "Database__AutoMigrate": "false",
-        "Database__RunSeedOnStartup": "false"
+        "Hangfire__DisableRecurringRegistration": "true"
       }
     },
     "IIS Express": {
@@ -44,9 +40,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Hangfire__DisableServer": "true",
-        "Hangfire__DisableRecurringRegistration": "true",
-        "Database__AutoMigrate": "false",
-        "Database__RunSeedOnStartup": "false"
+        "Hangfire__DisableRecurringRegistration": "true"
       }
     }
   }

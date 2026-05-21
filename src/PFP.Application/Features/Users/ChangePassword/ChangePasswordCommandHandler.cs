@@ -40,7 +40,7 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
             throw new NotFoundException("User was not found.");
 
         if (string.IsNullOrEmpty(user.PasswordHash))
-            throw new BusinessRuleException("This account has no local password set. Use the password-reset flow instead.");
+            throw new BusinessRuleException("This account has no local password set.");
 
         if (!_passwordHasher.Verify(user.PasswordHash, request.CurrentPassword))
             throw new UnauthorizedAppException("Current password is incorrect.");

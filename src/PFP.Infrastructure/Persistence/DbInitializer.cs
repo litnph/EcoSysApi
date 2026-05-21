@@ -285,7 +285,6 @@ public static class DbInitializer
         ("auth.logout", "Đăng xuất", "Sign out", "Logout menu item."),
         ("auth.email", "Email", "Email", "Email input label."),
         ("auth.password", "Mật khẩu", "Password", "Password input label."),
-        ("auth.forgot_password", "Quên mật khẩu?", "Forgot password?", "Forgot-password link on login screen."),
         ("auth.login_failed", "Email hoặc mật khẩu không đúng.", "Invalid email or password.", "Generic auth-failure error message."),
         ("auth.email_invalid", "Email không hợp lệ.", "Invalid email address.", "Inline validation message."),
         ("nav.dashboard", "Tổng quan", "Dashboard", "Main nav: dashboard."),
@@ -294,11 +293,8 @@ public static class DbInitializer
         ("nav.settings", "Cài đặt", "Settings", "Main nav: settings."),
         ("login_title", "Đăng nhập", "Sign in", "Auth screen title — login."),
         ("register_title", "Đăng ký", "Create account", "Auth screen title — register."),
-        ("forgot_password_title", "Quên mật khẩu", "Forgot password", "Auth screen title — forgot password."),
         ("error_invalid_credentials", "Email hoặc mật khẩu không hợp lệ.", "Invalid email or password.", "Auth error — invalid credentials."),
-        ("error_account_locked", "Tài khoản đã bị khóa. Vui lòng thử lại sau.", "Your account is locked. Please try again later.", "Auth error — account locked."),
         ("success_register", "Đăng ký thành công.", "Registration successful.", "Auth success — register."),
-        ("success_reset_password", "Đặt lại mật khẩu thành công.", "Your password has been reset successfully.", "Auth success — reset password."),
     ];
 
     private static Guid DeterministicGuid(string seed)

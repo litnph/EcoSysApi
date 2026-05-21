@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PFP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PFP.Infrastructure.Persistence;
 namespace PFP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260520085016_SimplifyUserSchema")]
+    partial class SimplifyUserSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -142,6 +145,219 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.ToTable("audit_log_retention");
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.AutomationLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionsExecuted")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("actions_executed");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("rule_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("TriggeredAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("triggered_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_automation_logs");
+
+                    b.HasIndex("RuleId", "TriggeredAt")
+                        .HasDatabaseName("ix_automation_logs_rule_id_triggered_at");
+
+                    b.ToTable("automation_logs");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.AutomationRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Actions")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("actions");
+
+                    b.Property<string>("Conditions")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("conditions");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTime?>("LastRunAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_run_at");
+
+                    b.Property<string>("LastRunStatus")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("last_run_status");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("trigger_type");
+
+                    b.Property<string>("TriggerValue")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnName("trigger_value");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_automation_rules");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("ix_automation_rules_created_by_user_id");
+
+                    b.HasIndex("TriggerType", "IsActive")
+                        .HasDatabaseName("ix_automation_rules_trigger_type_is_active");
+
+                    b.ToTable("automation_rules");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.Comment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_edited");
+
+                    b.Property<string>("ModuleCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("module_code");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("parent_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_comments");
+
+                    b.HasIndex("AuthorId")
+                        .HasDatabaseName("ix_comments_author_id");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_comments_parent_id");
+
+                    b.HasIndex("EntityType", "EntityId", "CreatedAt")
+                        .HasDatabaseName("ix_comments_entity_type_entity_id_created_at");
+
+                    b.ToTable("comments");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.EntityTag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -175,6 +391,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_deleted");
 
+                    b.Property<string>("ModuleCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("module_code");
+
                     b.Property<Guid>("TagId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("tag_id");
@@ -202,6 +424,108 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasFilter("[is_deleted] = 0");
 
                     b.ToTable("entity_tags");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.FeatureFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_archived");
+
+                    b.Property<bool>("IsEnabledGlobal")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_enabled_global");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("RolloutPercentage")
+                        .HasColumnType("int")
+                        .HasColumnName("rollout_percentage");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_feature_flags");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_feature_flags_key");
+
+                    b.ToTable("feature_flags");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.FeatureFlagOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("FlagId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("flag_id");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("target_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_feature_flag_overrides");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_feature_flag_overrides_expires_at");
+
+                    b.HasIndex("FlagId", "TargetType", "TargetId")
+                        .HasDatabaseName("ix_feature_flag_overrides_flag_id_target_type_target_id");
+
+                    b.ToTable("feature_flag_overrides");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FileAttachment", b =>
@@ -262,6 +586,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("mime_type");
+
+                    b.Property<string>("ModuleCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("module_code");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -1748,6 +2078,56 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_user_id_is_read_created_at");
+
+                    b.ToTable("notifications");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.SystemEventLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2572,6 +2952,65 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.ToTable("users");
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.UserLoginAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AttemptedEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)")
+                        .HasColumnName("attempted_email");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_success");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_login_attempts");
+
+                    b.HasIndex("AttemptedEmail", "CreatedAt")
+                        .HasDatabaseName("ix_user_login_attempts_attempted_email_created_at");
+
+                    b.HasIndex("IpAddress", "CreatedAt")
+                        .HasDatabaseName("ix_user_login_attempts_ip_address_created_at");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_user_login_attempts_user_id_created_at");
+
+                    b.ToTable("user_login_attempts");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2654,6 +3093,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("ActiveOrgId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("active_org_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
@@ -2731,6 +3174,50 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.AutomationLog", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.AutomationRule", "Rule")
+                        .WithMany("Logs")
+                        .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_automation_logs_automation_rules_rule_id");
+
+                    b.Navigation("Rule");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.AutomationRule", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.User", "CreatedBy")
+                        .WithMany("AutomationRulesCreated")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_automation_rules_users_created_by_user_id");
+
+                    b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.Comment", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_comments_users_author_id");
+
+                    b.HasOne("PFP.Domain.Entities.Comment", "Parent")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_comments_comments_parent_id");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.EntityTag", b =>
                 {
                     b.HasOne("PFP.Domain.Entities.Tag", "Tag")
@@ -2750,6 +3237,18 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("Tag");
 
                     b.Navigation("Tagger");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.FeatureFlagOverride", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.FeatureFlag", "Flag")
+                        .WithMany("Overrides")
+                        .HasForeignKey("FlagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_feature_flag_overrides_feature_flags_flag_id");
+
+                    b.Navigation("Flag");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FileAttachment", b =>
@@ -3038,6 +3537,18 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("Transaction");
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notifications_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.Translation", b =>
                 {
                     b.HasOne("PFP.Domain.Entities.Locale", "Locale")
@@ -3087,6 +3598,17 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("Locale");
                 });
 
+            modelBuilder.Entity("PFP.Domain.Entities.UserLoginAttempt", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.User", "User")
+                        .WithMany("LoginAttempts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_user_login_attempts_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PFP.Domain.Entities.UserProfile", b =>
                 {
                     b.HasOne("PFP.Domain.Entities.Locale", "Language")
@@ -3119,6 +3641,21 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_sessions_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.AutomationRule", b =>
+                {
+                    b.Navigation("Logs");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.Comment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.FeatureFlag", b =>
+                {
+                    b.Navigation("Overrides");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.FinCategory", b =>
@@ -3188,6 +3725,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.User", b =>
                 {
+                    b.Navigation("AutomationRulesCreated");
+
+                    b.Navigation("LoginAttempts");
+
+                    b.Navigation("Notifications");
+
                     b.Navigation("Profile");
 
                     b.Navigation("Sessions");

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
 using PFP.Domain.Enums;
@@ -26,32 +27,31 @@ public sealed class CloseBillingCycleCommandHandler : IRequestHandler<CloseBilli
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        return await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            var cycle = await _db.FinBillingCycles
+                .Include(bc => bc.Source)
+                .FirstOrDefaultAsync(bc => bc.Id == request.CycleId, ct)
+                .ConfigureAwait(false);
 
-        var cycle = await _db.FinBillingCycles
-            .Include(bc => bc.Source)
-            .FirstOrDefaultAsync(bc => bc.Id == request.CycleId, cancellationToken)
-            .ConfigureAwait(false);
+            if (cycle is null)
+                throw new NotFoundException("Billing cycle was not found.");
 
-        if (cycle is null)
-            throw new NotFoundException("Billing cycle was not found.");
-if (cycle.Status != BillingCycleStatus.Open)
-            throw new BusinessRuleException("Only an open billing cycle can be closed.");
+            if (cycle.Status != BillingCycleStatus.Open)
+                throw new BusinessRuleException("Only an open billing cycle can be closed.");
 
-        // Total charges in the cycle: deferred spends (reversals net out because they carry the same sign as the original row).
-        var total = await _db.FinTransactions
-            .AsNoTracking()
-            .Where(t => t.BillingCycleId == cycle.Id && !t.IsDeleted && t.Type == TransactionType.Deferred)
-            .SumAsync(t => (decimal?)t.Amount, cancellationToken)
-            .ConfigureAwait(false) ?? 0m;
+            var total = await _db.FinTransactions
+                .AsNoTracking()
+                .Where(t => t.BillingCycleId == cycle.Id && !t.IsDeleted && t.Type == TransactionType.Deferred)
+                .SumAsync(t => (decimal?)t.Amount, ct)
+                .ConfigureAwait(false) ?? 0m;
 
-        cycle.TotalAmount = total;
-        cycle.Status = BillingCycleStatus.Closed;
-        cycle.ClosedAt = DateTime.UtcNow;
+            cycle.TotalAmount = total;
+            cycle.Status = BillingCycleStatus.Closed;
+            cycle.ClosedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new CloseBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name));
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return new CloseBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name));
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

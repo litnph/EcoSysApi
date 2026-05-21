@@ -51,14 +51,6 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        var avatarUrl = await _db.Users.AsNoTracking()
-            .Where(u => u.Id == userId)
-            .SelectMany(u => u.AvatarUploads)
-            .Where(a => a.IsActive)
-            .Select(a => a.StorageUrl)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
         var dto = new UserProfileDto(
             user.Id,
             user.FullName,
@@ -71,7 +63,7 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
             profile.DisplayName,
             profile.PhoneNumber,
             profile.DateOfBirth,
-            avatarUrl);
+            profile.AvatarUrl);
 
         return new UpdateProfileResponse(dto);
     }

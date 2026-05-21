@@ -4,13 +4,12 @@ using PFP.Domain.Entities;
 
 namespace PFP.Infrastructure.Persistence.Configurations;
 
-/// <summary><c>ENTITY_TAGS</c> → <c>entity_tags</c>.</summary>
+/// <summary><c>entity_tags</c> mapping.</summary>
 public sealed class EntityTagConfiguration : IEntityTypeConfiguration<EntityTag>
 {
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<EntityTag> builder)
     {
-        builder.Property(x => x.ModuleCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.EntityType).HasMaxLength(100).IsRequired();
 
         builder.HasIndex(x => new { x.TagId, x.EntityType, x.EntityId })

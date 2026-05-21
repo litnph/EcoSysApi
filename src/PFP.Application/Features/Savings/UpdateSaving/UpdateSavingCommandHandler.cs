@@ -48,9 +48,10 @@ var source = await _db.FinSources
         entity.Status = request.Status;
         entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         return new UpdateSavingResponse(SavingDtoMapper.ToDetail(entity, source.Name));
     }

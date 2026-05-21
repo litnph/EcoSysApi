@@ -46,6 +46,14 @@ internal static class FinanceTestHarness
                 SortOrder = 0,
             };
             db.FinCategories.Add(category);
+            db.FinCategories.Add(new FinCategory
+            {
+                Name = "Salary",
+                Code = "inc-" + Guid.NewGuid().ToString("N")[..16],
+                Kind = CategoryKind.Income,
+                Depth = 0,
+                SortOrder = 0,
+            });
 
             var sourceA = new FinSource
             {

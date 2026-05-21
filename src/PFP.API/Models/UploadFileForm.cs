@@ -3,12 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace PFP.API.Models;
 
-/// <summary>Multipart fields for file upload (flat snake_case form keys). Wrapped in one type so OpenAPI can describe the operation.</summary>
+/// <summary>Multipart fields for file upload (flat snake_case form keys).</summary>
 public sealed class UploadFileForm
 {
-    [FromForm(Name = "module_code")]
-    public string ModuleCode { get; set; } = "";
-
     [FromForm(Name = "entity_type")]
     public string EntityType { get; set; } = "";
 

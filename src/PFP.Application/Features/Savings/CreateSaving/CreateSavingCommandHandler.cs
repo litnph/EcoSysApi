@@ -44,10 +44,11 @@ var source = await _db.FinSources
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
         };
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         _db.FinSavings.Add(entity);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         return new CreateSavingResponse(SavingDtoMapper.ToDetail(entity, source.Name));
     }

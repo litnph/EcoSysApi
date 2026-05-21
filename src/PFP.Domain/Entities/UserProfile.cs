@@ -37,6 +37,9 @@ public sealed class UserProfile : BaseEntity
     /// <summary>Optional date of birth (no time component).</summary>
     public DateOnly? DateOfBirth { get; set; }
 
+    /// <summary>Public URL of the user's avatar image (object storage).</summary>
+    public string? AvatarUrl { get; set; }
+
     // ---- Navigation ----
 
     public User User { get; set; } = null!;

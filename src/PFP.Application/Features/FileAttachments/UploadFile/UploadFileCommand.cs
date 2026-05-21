@@ -3,9 +3,7 @@ using PFP.Application.Features.FileAttachments.Common;
 
 namespace PFP.Application.Features.FileAttachments.UploadFile;
 
-/// <summary>Uploaded file packaged for MediatR (controller reads multipart form).</summary>
 public sealed record UploadFileCommand(
-    string ModuleCode,
     string EntityType,
     Guid EntityId,
     string FileName,

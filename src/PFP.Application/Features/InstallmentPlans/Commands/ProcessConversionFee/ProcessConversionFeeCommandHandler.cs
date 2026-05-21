@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Utils;
 using PFP.Domain.Entities;
@@ -54,72 +55,72 @@ public sealed class ProcessConversionFeeCommandHandler : IRequestHandler<Process
 
         foreach (var plan in plans)
         {
-            await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var trackedPlan = await _db.FinInstallmentPlans
-                    .FirstAsync(p => p.Id == plan.Id, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (trackedPlan.ConversionFeeStatus != ConversionFeeStatus.Pending || trackedPlan.ConversionFeeAmount is not { } feeAmt)
+                await DbTransactionRunner.ExecuteAsync(_db, async ct =>
                 {
-                    await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
+                    var trackedPlan = await _db.FinInstallmentPlans
+                        .FirstAsync(p => p.Id == plan.Id, ct)
+                        .ConfigureAwait(false);
 
-                var trackedCycle = await _db.FinBillingCycles
-                    .FirstAsync(c => c.Id == request.BillingCycleId, cancellationToken)
-                    .ConfigureAwait(false);
+                    if (trackedPlan.ConversionFeeStatus != ConversionFeeStatus.Pending
+                        || trackedPlan.ConversionFeeAmount is not { } feeAmt)
+                        return;
 
-                var source = await _db.FinSources
-                    .FirstAsync(s => s.Id == trackedPlan.SourceId, cancellationToken)
-                    .ConfigureAwait(false);
+                    var trackedCycle = await _db.FinBillingCycles
+                        .FirstAsync(c => c.Id == request.BillingCycleId, ct)
+                        .ConfigureAwait(false);
 
-                var category = await _db.FinCategories
-                    .OrderByDescending(c => c.IsDefault)
-                    .ThenBy(c => c.SortOrder)
-                    .FirstOrDefaultAsync(cancellationToken)
-                    .ConfigureAwait(false);
+                    var source = await _db.FinSources
+                        .FirstAsync(s => s.Id == trackedPlan.SourceId, ct)
+                        .ConfigureAwait(false);
 
-                if (category is null)
-                    throw new InvalidOperationException("No expense category exists for this finance module.");
+                    var category = await _db.FinCategories
+                        .OrderByDescending(c => c.IsDefault)
+                        .ThenBy(c => c.SortOrder)
+                        .FirstOrDefaultAsync(ct)
+                        .ConfigureAwait(false);
 
-                var note = "Phí chuyển đổi trả góp";
-                var description = $"Expense: {category.Name}";
-                if (description.Length > 512)
-                    description = description[..512];
+                    if (category is null)
+                        throw new InvalidOperationException("No expense category exists for this finance module.");
 
-                var feeTxn = new FinTransaction
-                {                    Type = TransactionType.Deferred,
-                    Status = TxnStatus.Completed,
-                    Amount = feeAmt,
-                    Currency = source.Currency,
-                    TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                    SourceId = trackedPlan.SourceId,
-                    CategoryId = category.Id,
-                    BillingCycleId = trackedCycle.Id,
-                    Description = description,
-                    Note = note.Length <= 500 ? note : note[..500],
-                    InstallmentPlanId = trackedPlan.Id,
-                };
+                    var note = "Phí chuyển đổi trả góp";
+                    var description = $"Expense: {category.Name}";
+                    if (description.Length > 512)
+                        description = description[..512];
 
-                _db.FinTransactions.Add(feeTxn);
+                    var feeTxn = new FinTransaction
+                    {
+                        Type = TransactionType.Deferred,
+                        Status = TxnStatus.Completed,
+                        Amount = feeAmt,
+                        Currency = source.Currency,
+                        TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                        SourceId = trackedPlan.SourceId,
+                        CategoryId = category.Id,
+                        BillingCycleId = trackedCycle.Id,
+                        Description = description,
+                        Note = note.Length <= 500 ? note : note[..500],
+                        InstallmentPlanId = trackedPlan.Id,
+                    };
 
-                source.Balance += feeAmt;
-                trackedCycle.TotalAmount += feeAmt;
+                    _db.FinTransactions.Add(feeTxn);
 
-                trackedPlan.ConversionFeeStatus = ConversionFeeStatus.Billed;
-                trackedPlan.ConversionFeeTxnId = feeTxn.Id;
+                    source.Balance += feeAmt;
+                    trackedCycle.TotalAmount += feeAmt;
 
-                FinTransactionHistoryHelper.AddCreated(_db, _currentUser, feeTxn);
+                    trackedPlan.ConversionFeeStatus = ConversionFeeStatus.Billed;
+                    trackedPlan.ConversionFeeTxnId = feeTxn.Id;
 
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    FinTransactionHistoryHelper.AddCreated(_db, _currentUser, feeTxn);
+
+                    await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+                }, cancellationToken).ConfigureAwait(false);
+
                 processed++;
             }
             catch (Exception ex)
             {
-                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
                 errors++;
                 _logger.LogError(ex, "ProcessConversionFee failed for plan {PlanId}", plan.Id);
             }

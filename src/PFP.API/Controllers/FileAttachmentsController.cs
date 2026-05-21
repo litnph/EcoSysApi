@@ -47,7 +47,6 @@ public sealed class FileAttachmentsController : ControllerBase
             ? form.File.ContentType ?? ""
             : form.MimeType!;
         var command = new UploadFileCommand(
-            form.ModuleCode.Trim(),
             form.EntityType.Trim(),
             form.EntityId,
             form.File.FileName,

@@ -26,7 +26,7 @@ builder.Services.AddControllers()
                 allowIntegerValues: true));
     });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddPfpSwagger();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -87,6 +87,12 @@ if (app.Configuration.GetValue("Database:AutoMigrate", false)
             app.Configuration,
             scope.ServiceProvider.GetRequiredService<PFP.Application.Common.Interfaces.IPasswordHasher>(),
             CancellationToken.None).ConfigureAwait(false);
+        if (app.Configuration.GetValue("Seed:DemoFinance:Reset", false))
+        {
+            startupLogger.LogInformation("Resetting demo finance data...");
+        }
+
+        await DemoFinanceSeeder.EnsureAsync(db, app.Configuration, CancellationToken.None).ConfigureAwait(false);
         startupLogger.LogInformation("Database seed completed.");
     }
 }

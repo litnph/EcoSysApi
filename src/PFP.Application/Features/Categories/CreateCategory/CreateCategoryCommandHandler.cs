@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Categories.Common;
 using PFP.Domain.Entities;
@@ -56,14 +57,14 @@ FinCategory? parent = null;
             IsSystem = false,
         };
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         if (request.IsDefault)
             await ClearOtherDefaultsAsync(request.Kind, exceptId: null, cancellationToken).ConfigureAwait(false);
 
         _db.FinCategories.Add(entity);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         return new CreateCategoryResponse(CategoryDtoMapper.ToSingleNode(entity));
     }

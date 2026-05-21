@@ -1,7 +1,7 @@
 namespace PFP.Infrastructure.Identity;
 
 /// <summary>
-/// Truncates HTTP-derived metadata to match EF <c>user_sessions</c>, <c>user_login_attempts</c>, and <c>audit_logs</c> column max lengths.
+/// Truncates HTTP-derived metadata to match EF <c>user_sessions</c> and <c>audit_logs</c> column max lengths.
 /// </summary>
 internal static class HttpRequestMetadataTruncation
 {

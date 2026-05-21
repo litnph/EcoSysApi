@@ -29,9 +29,9 @@ public sealed class PayBillingCycleCommandHandler : IRequestHandler<PayBillingCy
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        var cycle = await _db.FinBillingCycles
+        return await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            var cycle = await _db.FinBillingCycles
             .Include(bc => bc.Source)
             .FirstOrDefaultAsync(bc => bc.Id == request.CycleId, cancellationToken)
             .ConfigureAwait(false);
@@ -111,9 +111,8 @@ Type = TransactionType.Direct,
             UpdatedAt = utcNow,
         });
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new PayBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cardSource.Name), payTxn.Id);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return new PayBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, cardSource.Name), payTxn.Id);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

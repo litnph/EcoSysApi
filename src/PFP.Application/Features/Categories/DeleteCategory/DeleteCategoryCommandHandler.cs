@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
 
@@ -41,10 +42,11 @@ if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == request.Id, cancella
         if (await _db.FinCategories.AnyAsync(c => c.ParentId == request.Id, cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("Xóa danh mục con trước");
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         _db.FinCategories.Remove(entity);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         return new DeleteCategoryResponse(request.Id);
     }

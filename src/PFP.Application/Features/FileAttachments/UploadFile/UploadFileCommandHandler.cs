@@ -5,7 +5,6 @@ using PFP.Application.Common.Interfaces;
 using PFP.Application.Common.Options;
 using PFP.Application.Features.FileAttachments.Common;
 using PFP.Domain.Entities;
-using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.FileAttachments.UploadFile;
 
@@ -33,8 +32,6 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
         if (_currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        var moduleNorm = NormalizeModuleCode(request.ModuleCode);
-
         await FileAttachmentEntityAccess.RequireAttachmentTargetAsync(
                 _db,
                 _currentUser,
@@ -51,7 +48,7 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
 
         var ext = FileAttachmentAllowedMimeTypes.ToFileExtension(request.MimeType);
         var blobId = Guid.NewGuid().ToString("D");
-        var key = $"{moduleNorm}/{request.EntityType}/{request.EntityId}/{blobId}.{ext}";
+        var key = $"attachments/{request.EntityType}/{request.EntityId}/{blobId}.{ext}";
 
         var safeName = FileAttachmentAllowedMimeTypes.SanitizeOriginalFileName(request.FileName);
 
@@ -61,7 +58,6 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
         {
             var entity = new FileAttachment
             {
-                ModuleCode = moduleNorm,
                 EntityType = request.EntityType,
                 EntityId = request.EntityId,
                 FileName = safeName,
@@ -80,7 +76,6 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
 
             return new FileAttachmentDto(
                 entity.Id,
-                entity.ModuleCode,
                 entity.EntityType,
                 entity.EntityId,
                 entity.FileName,
@@ -103,15 +98,5 @@ public sealed class UploadFileCommandHandler : IRequestHandler<UploadFileCommand
 
             throw;
         }
-    }
-
-    private static string NormalizeModuleCode(string raw)
-    {
-        var trimmed = raw.Trim().ToLowerInvariant();
-        return trimmed switch
-        {
-            "finance" => trimmed,
-            _ => throw new BusinessRuleException($"Module '{raw}' does not accept file uploads."),
-        };
     }
 }

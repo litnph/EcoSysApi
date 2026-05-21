@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Tags.Common;
-using PFP.Application.Features.TagsComments.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Tags.GetEntitiesByTag;
@@ -32,7 +31,7 @@ public sealed class GetEntitiesByTagQueryHandler : IRequestHandler<GetEntitiesBy
             .Where(e => e.TagId == tag.Id)
             .OrderBy(e => e.EntityType)
             .ThenBy(e => e.EntityId)
-            .Select(e => new TaggedEntityRefDto(e.ModuleCode, e.EntityType, e.EntityId))
+            .Select(e => new TaggedEntityRefDto(e.EntityType, e.EntityId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

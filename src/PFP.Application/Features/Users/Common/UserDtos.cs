@@ -28,11 +28,3 @@ public sealed record UserProfileDto(
     string? PhoneNumber,
     DateOnly? DateOfBirth,
     string? AvatarUrl);
-
-/// <summary>Granular notification-preference row.</summary>
-public sealed record NotificationPrefDto(
-    Guid Id,
-    ModuleCode ModuleCode,
-    NotificationChannel Channel,
-    string EventType,
-    bool IsEnabled);

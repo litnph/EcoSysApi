@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
@@ -26,8 +27,8 @@ public sealed class CancelInstallmentPlanCommandHandler : IRequestHandler<Cancel
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var plan = await _db.FinInstallmentPlans
             .Include(p => p.Pays)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId, cancellationToken)
@@ -47,8 +48,8 @@ plan.Status = InstallmentStatus.Cancelled;
                 pay.Status = InstallmentPayStatus.Upcoming;
         }
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         return Unit.Value;
     }

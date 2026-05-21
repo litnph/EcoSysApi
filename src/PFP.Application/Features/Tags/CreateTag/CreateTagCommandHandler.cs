@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Tags.Common;
-using PFP.Application.Features.TagsComments.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 

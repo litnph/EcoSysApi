@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Tags.Common;
-using PFP.Application.Features.TagsComments.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Tags.GetTags;

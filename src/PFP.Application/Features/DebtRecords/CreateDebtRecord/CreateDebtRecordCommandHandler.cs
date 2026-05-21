@@ -50,10 +50,11 @@ public sealed class CreateDebtRecordCommandHandler : IRequestHandler<CreateDebtR
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
         };
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         _db.FinDebtRecords.Add(debt);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         var detail = await _mediator.Send(new GetDebtRecordDetailQuery(debt.Id), cancellationToken).ConfigureAwait(false);
 

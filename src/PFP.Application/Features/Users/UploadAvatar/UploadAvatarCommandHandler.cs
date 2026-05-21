@@ -7,13 +7,12 @@ using PFP.Domain.Entities;
 namespace PFP.Application.Features.Users.UploadAvatar;
 
 /// <summary>
-/// Streams the avatar to object storage, marks previous active rows inactive, then inserts a
-/// fresh <see cref="UserAvatarUpload"/> row pointing at the new key.
+/// Streams the avatar to object storage and persists the public URL on <see cref="UserProfile"/>.
 /// </summary>
 public sealed class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCommand, UploadAvatarResponse>
 {
     private const string StoragePrefix = "avatars";
-    private const int SignedUrlMinutes = 60 * 24 * 7; // 7-day download URL.
+    private const int SignedUrlMinutes = 60 * 24 * 7;
 
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
@@ -57,29 +56,19 @@ public sealed class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCom
             .GetSignedUrlAsync(storedKey, TimeSpan.FromMinutes(SignedUrlMinutes), cancellationToken)
             .ConfigureAwait(false);
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-        var prior = await _db.UserAvatarUploads
-            .Where(a => a.UserId == userId && a.IsActive)
-            .ToListAsync(cancellationToken)
+        var profile = await _db.UserProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
-        foreach (var p in prior)
-            p.IsActive = false;
 
-        var avatar = new UserAvatarUpload
+        if (profile is null)
         {
-            UserId = userId,
-            StorageKey = storedKey,
-            StorageUrl = publicUrl,
-            ContentType = request.ContentType,
-            SizeBytes = request.SizeBytes,
-            IsActive = true,
-        };
-        _db.UserAvatarUploads.Add(avatar);
+            profile = new UserProfile { UserId = userId };
+            _db.UserProfiles.Add(profile);
+        }
 
+        profile.AvatarUrl = publicUrl;
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        return new UploadAvatarResponse(avatar.Id, avatar.StorageKey, publicUrl);
+        return new UploadAvatarResponse(publicUrl);
     }
 }

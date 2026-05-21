@@ -60,10 +60,11 @@ if (request.LinkedTxnId is { } linkedId)
             LinkedTxnId = request.LinkedTxnId,
         };
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         _db.FinInvestmentTxns.Add(row);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         var txns = await _db.FinInvestmentTxns
             .AsNoTracking()

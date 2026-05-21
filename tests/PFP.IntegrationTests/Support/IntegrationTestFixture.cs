@@ -85,5 +85,8 @@ public sealed class IntegrationTestFixture : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Secret", new string('x', 48));
         builder.UseSetting("Hangfire:DisableServer", "true");
         builder.UseSetting("Hangfire:DisableRecurringRegistration", "true");
+        builder.UseSetting("Database:AutoMigrate", "false");
+        builder.UseSetting("Database:RunSeedOnStartup", "false");
+        builder.UseSetting("Seed:DemoFinance", "false");
     }
 }

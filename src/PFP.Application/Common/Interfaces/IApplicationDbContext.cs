@@ -10,21 +10,10 @@ public interface IApplicationDbContext
     DbSet<User> Users { get; }
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<UserSession> UserSessions { get; }
-    DbSet<UserLoginAttempt> UserLoginAttempts { get; }
-    DbSet<UserAvatarUpload> UserAvatarUploads { get; }
-    DbSet<UserNotificationPref> UserNotificationPrefs { get; }
-    DbSet<UserDataExport> UserDataExports { get; }
-    DbSet<UserDeletionRequest> UserDeletionRequests { get; }
-    DbSet<Notification> Notifications { get; }
 
-    DbSet<AutomationRule> AutomationRules { get; }
-    DbSet<AutomationLog> AutomationLogs { get; }
-    DbSet<FeatureFlag> FeatureFlags { get; }
-    DbSet<FeatureFlagOverride> FeatureFlagOverrides { get; }
     DbSet<FileAttachment> FileAttachments { get; }
     DbSet<Tag> Tags { get; }
     DbSet<EntityTag> EntityTags { get; }
-    DbSet<Comment> Comments { get; }
 
     DbSet<FinSource> FinSources { get; }
     DbSet<FinCategory> FinCategories { get; }

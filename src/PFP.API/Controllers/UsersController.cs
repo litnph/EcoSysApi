@@ -5,14 +5,12 @@ using PFP.API.Models;
 using PFP.Application.Features.Users.ChangePassword;
 using PFP.Application.Features.Users.GetMe;
 using PFP.Application.Features.Users.GetProfile;
-using PFP.Application.Features.Users.NotificationPrefs.GetNotificationPrefs;
-using PFP.Application.Features.Users.NotificationPrefs.UpdateNotificationPrefs;
 using PFP.Application.Features.Users.UpdateProfile;
 using PFP.Application.Features.Users.UploadAvatar;
 
 namespace PFP.API.Controllers;
 
-/// <summary>User profile, password, avatar, and notification-preference endpoints.</summary>
+/// <summary>User profile, password, and avatar endpoints.</summary>
 [ApiController]
 [Authorize]
 [Route("api/v1/user")]
@@ -74,26 +72,6 @@ public sealed class UsersController : ControllerBase
             .Send(new ChangePasswordCommand(body.CurrentPassword, body.NewPassword), cancellationToken)
             .ConfigureAwait(false);
         return Ok(new ApiResponse<ChangePasswordResponse> { Data = result });
-    }
-
-    /// <summary>Returns the granular notification matrix.</summary>
-    [HttpGet("notification-prefs")]
-    [ProducesResponseType(typeof(ApiResponse<GetNotificationPrefsResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<GetNotificationPrefsResponse>>> GetNotificationPrefs(CancellationToken cancellationToken)
-    {
-        var result = await _mediator.Send(new GetNotificationPrefsQuery(), cancellationToken).ConfigureAwait(false);
-        return Ok(new ApiResponse<GetNotificationPrefsResponse> { Data = result });
-    }
-
-    /// <summary>Bulk-upserts notification-preference rows for the caller.</summary>
-    [HttpPut("notification-prefs")]
-    [ProducesResponseType(typeof(ApiResponse<UpdateNotificationPrefsResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<UpdateNotificationPrefsResponse>>> UpdateNotificationPrefs(
-        [FromBody] UpdateNotificationPrefsCommand command,
-        CancellationToken cancellationToken)
-    {
-        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return Ok(new ApiResponse<UpdateNotificationPrefsResponse> { Data = result });
     }
 
     /// <summary>Uploads a new avatar (JPEG / PNG / WebP, max 5 MB).</summary>

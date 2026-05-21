@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
-using PFP.Application.Features.TagsComments.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
@@ -33,27 +32,23 @@ public sealed class AddTagToEntityCommandHandler : IRequestHandler<AddTagToEntit
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
+
         var txn = await FinanceAccessHelper
             .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, cancellationToken)
             .ConfigureAwait(false);
-
-        if (false)
-            throw new BusinessRuleException("The transaction does not belong to the same finance module as this tag.");
 
         if (await _db.EntityTags.AnyAsync(
                 e => e.TagId == tag.Id && e.EntityType == type && e.EntityId == txn.Id,
                 cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("This entity already carries the requested tag.");
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-        try
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
-            tag = await _db.Tags.FirstAsync(t => t.Id == tag.Id, cancellationToken).ConfigureAwait(false);
+            tag = await _db.Tags.FirstAsync(t => t.Id == tag.Id, ct).ConfigureAwait(false);
 
             var link = new EntityTag
             {
                 TagId = tag.Id,
-                ModuleCode = TagCommentConsts.FinanceModuleCode,
                 EntityType = type,
                 EntityId = txn.Id,
                 TaggedBy = _currentUser.UserId!.Value,
@@ -61,14 +56,9 @@ public sealed class AddTagToEntityCommandHandler : IRequestHandler<AddTagToEntit
 
             _db.EntityTags.Add(link);
             tag.UsageCount++;
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return Unit.Value;
-        }
-        catch
-        {
-            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
-        }
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+
+        return Unit.Value;
     }
 }

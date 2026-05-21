@@ -54,7 +54,8 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
                 null),
             FinanceApiWireJson.Web);
 
-        Assert.Equal(HttpStatusCode.OK, createResp.StatusCode);
+        var createBody = await createResp.Content.ReadAsStringAsync();
+        Assert.True(createResp.StatusCode == HttpStatusCode.OK, $"Status {(int)createResp.StatusCode}: {createBody}");
 
         await using var scope = _fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

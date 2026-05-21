@@ -13,13 +13,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
-    public DbSet<UserLoginAttempt> UserLoginAttempts => Set<UserLoginAttempt>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
-    public DbSet<UserAvatarUpload> UserAvatarUploads => Set<UserAvatarUpload>();
-    public DbSet<UserNotificationPref> UserNotificationPrefs => Set<UserNotificationPref>();
-    public DbSet<UserDataExport> UserDataExports => Set<UserDataExport>();
-    public DbSet<UserDeletionRequest> UserDeletionRequests => Set<UserDeletionRequest>();
-    public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<Locale> Locales => Set<Locale>();
     public DbSet<Translation> Translations => Set<Translation>();
@@ -29,14 +23,9 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SystemEventLog> SystemEventLogs => Set<SystemEventLog>();
 
-    public DbSet<AutomationRule> AutomationRules => Set<AutomationRule>();
-    public DbSet<AutomationLog> AutomationLogs => Set<AutomationLog>();
-    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
-    public DbSet<FeatureFlagOverride> FeatureFlagOverrides => Set<FeatureFlagOverride>();
     public DbSet<FileAttachment> FileAttachments => Set<FileAttachment>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<EntityTag> EntityTags => Set<EntityTag>();
-    public DbSet<Comment> Comments => Set<Comment>();
 
     public DbSet<FinSource> FinSources => Set<FinSource>();
     public DbSet<FinCategory> FinCategories => Set<FinCategory>();

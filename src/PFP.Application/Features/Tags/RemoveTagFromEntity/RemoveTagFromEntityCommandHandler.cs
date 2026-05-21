@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
-using PFP.Application.Features.TagsComments.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
@@ -30,6 +29,7 @@ public sealed class RemoveTagFromEntityCommandHandler : IRequestHandler<RemoveTa
 
         if (tag is null)
             throw new NotFoundException("Tag was not found.");
+
         _ = await FinanceAccessHelper
             .RequireFinTransactionAnchorAsync(_db, _currentUser, request.EntityId, cancellationToken)
             .ConfigureAwait(false);
@@ -42,20 +42,14 @@ public sealed class RemoveTagFromEntityCommandHandler : IRequestHandler<RemoveTa
         if (link is null)
             throw new NotFoundException("The tag assignment was not found.");
 
-        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-        try
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
             _db.EntityTags.Remove(link);
-            tag = await _db.Tags.FirstAsync(t => t.Id == tag.Id, cancellationToken).ConfigureAwait(false);
+            tag = await _db.Tags.FirstAsync(t => t.Id == tag.Id, ct).ConfigureAwait(false);
             tag.UsageCount = Math.Max(0, tag.UsageCount - 1);
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return Unit.Value;
-        }
-        catch
-        {
-            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
-        }
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+
+        return Unit.Value;
     }
 }

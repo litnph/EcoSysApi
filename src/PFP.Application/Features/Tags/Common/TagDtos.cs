@@ -7,6 +7,6 @@ public sealed record CreateTagResponse(Guid Id);
 
 public sealed record UpdateTagResponse(Guid Id);
 
-public sealed record TaggedEntityRefDto(string ModuleCode, string EntityType, Guid EntityId);
+public sealed record TaggedEntityRefDto(string EntityType, Guid EntityId);
 
 public sealed record GetEntitiesByTagResponse(IReadOnlyList<TaggedEntityRefDto> Entities);

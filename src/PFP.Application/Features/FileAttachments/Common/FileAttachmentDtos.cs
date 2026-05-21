@@ -3,7 +3,6 @@ namespace PFP.Application.Features.FileAttachments.Common;
 /// <summary>Persisted attachment row plus fresh presigned download link.</summary>
 public sealed record FileAttachmentDto(
     Guid Id,
-    string ModuleCode,
     string EntityType,
     Guid EntityId,
     string FileName,

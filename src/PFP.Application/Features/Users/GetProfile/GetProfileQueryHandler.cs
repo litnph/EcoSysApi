@@ -6,7 +6,7 @@ using PFP.Application.Features.Users.Common;
 
 namespace PFP.Application.Features.Users.GetProfile;
 
-/// <summary>Loads <c>USERS</c>, <c>USER_PROFILES</c>, and the active avatar in a single query.</summary>
+/// <summary>Loads <c>users</c> and <c>user_profiles</c> in a single query.</summary>
 public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, GetProfileResponse>
 {
     private readonly IApplicationDbContext _db;
@@ -40,14 +40,6 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
             .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
 
-        var avatarUrl = await _db.Users.AsNoTracking()
-            .Where(u => u.Id == userId)
-            .SelectMany(u => u.AvatarUploads)
-            .Where(a => a.IsActive)
-            .Select(a => a.StorageUrl)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
         var dto = new UserProfileDto(
             user.Id,
             user.FullName,
@@ -60,7 +52,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
             profile?.DisplayName,
             profile?.PhoneNumber,
             profile?.DateOfBirth,
-            avatarUrl);
+            profile?.AvatarUrl);
 
         return new GetProfileResponse(dto);
     }

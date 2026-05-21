@@ -16,6 +16,7 @@ public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProf
         builder.Property(x => x.Theme).HasMaxLength(16).IsRequired();
         builder.Property(x => x.DisplayName).HasMaxLength(255);
         builder.Property(x => x.PhoneNumber).HasMaxLength(32);
+        builder.Property(x => x.AvatarUrl).HasMaxLength(2048);
 
         builder.HasIndex(x => x.UserId).IsUnique();
 

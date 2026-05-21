@@ -11,7 +11,7 @@ public sealed class User : SoftDeletableEntity
     /// <summary>Bcrypt hash of the password (cost factor 12).</summary>
     public string? PasswordHash { get; set; }
 
-    /// <summary>Display name shown on the profile and inside notifications.</summary>
+    /// <summary>Display name shown on the profile.</summary>
     public string FullName { get; set; } = string.Empty;
 
     /// <summary>Admin can manage members; members use finance features only.</summary>
@@ -26,24 +26,4 @@ public sealed class User : SoftDeletableEntity
     public UserProfile? Profile { get; set; }
 
     public ICollection<UserSession> Sessions { get; set; } = new List<UserSession>();
-
-    public ICollection<UserLoginAttempt> LoginAttempts { get; set; } = new List<UserLoginAttempt>();
-
-    public ICollection<UserAvatarUpload> AvatarUploads { get; set; } = new List<UserAvatarUpload>();
-
-    public ICollection<UserNotificationPref> NotificationPreferences { get; set; } = new List<UserNotificationPref>();
-
-    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
-
-    public ICollection<AutomationRule> AutomationRulesCreated { get; set; } = new List<AutomationRule>();
-
-    public ICollection<UserPasswordReset> PasswordResets { get; set; } = new List<UserPasswordReset>();
-
-    public ICollection<UserEmailVerification> EmailVerifications { get; set; } = new List<UserEmailVerification>();
-
-    public ICollection<UserDeletionRequest> DeletionRequests { get; set; } = new List<UserDeletionRequest>();
-
-    public ICollection<UserDataExport> DataExports { get; set; } = new List<UserDataExport>();
-
-    public ICollection<UserAuthProvider> AuthProviders { get; set; } = new List<UserAuthProvider>();
 }

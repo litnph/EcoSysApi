@@ -78,8 +78,9 @@ if (request.Type is TransactionType.DebtBorrow
         CreateTransactionCommand request,
         CancellationToken cancellationToken)
     {
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -126,14 +127,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -143,8 +145,9 @@ if (request.Type is TransactionType.DebtBorrow
         CreateTransactionCommand request,
         CancellationToken cancellationToken)
     {
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -191,14 +194,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -208,8 +212,9 @@ if (request.Type is TransactionType.DebtBorrow
         CreateTransactionCommand request,
         CancellationToken cancellationToken)
     {
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var debt = await _db.FinDebtRecords
             .FirstOrDefaultAsync(
                 d => d.Id == request.DebtRecordId!.Value,
@@ -268,14 +273,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -285,8 +291,9 @@ if (request.Type is TransactionType.DebtBorrow
         CreateTransactionCommand request,
         CancellationToken cancellationToken)
     {
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var debt = await _db.FinDebtRecords
             .FirstOrDefaultAsync(
                 d => d.Id == request.DebtRecordId!.Value,
@@ -345,14 +352,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -372,8 +380,9 @@ if (request.Type is TransactionType.DebtBorrow
         if (category is null)
             throw new NotFoundException("Category was not found.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -435,14 +444,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -465,8 +475,9 @@ if (request.Type is TransactionType.DebtBorrow
         var splits = request.Splits
             ?? throw new BusinessRuleException("Splits are required for a split transaction.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -515,14 +526,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -542,8 +554,9 @@ if (request.Type is TransactionType.DebtBorrow
         if (category is null)
             throw new NotFoundException("Category was not found.");
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
+        Guid txnId = default;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -583,14 +596,15 @@ if (request.Type is TransactionType.DebtBorrow
 
         AddCreatedHistory(txn);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            txnId = txn.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persisted = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == txn.Id, cancellationToken)
+            .FirstAsync(t => t.Id == txnId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persisted));
@@ -605,89 +619,91 @@ if (request.Type is TransactionType.DebtBorrow
 
         await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        var outboundId = await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            var fromSource = await _db.FinSources
+                .FirstOrDefaultAsync(s => s.Id == request.SourceId, ct)
+                .ConfigureAwait(false);
 
-        var fromSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
-            .ConfigureAwait(false);
+            var toSource = await _db.FinSources
+                .FirstOrDefaultAsync(s => s.Id == toSourceId, ct)
+                .ConfigureAwait(false);
 
-        var toSource = await _db.FinSources
-            .FirstOrDefaultAsync(s => s.Id == toSourceId, cancellationToken)
-            .ConfigureAwait(false);
+            if (fromSource is null || fromSource.IsDeleted)
+                throw new BusinessRuleException("The financial source is not available.");
 
-        if (fromSource is null || fromSource.IsDeleted)
-            throw new BusinessRuleException("The financial source is not available.");
+            if (toSource is null || toSource.IsDeleted)
+                throw new BusinessRuleException("The destination financial source is not available.");
 
-        if (toSource is null || toSource.IsDeleted)
-            throw new BusinessRuleException("The destination financial source is not available.");
+            if (fromSource.IsArchived)
+                throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
-        if (fromSource.IsArchived)
-            throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
+            if (toSource.IsArchived)
+                throw new BusinessRuleException("The destination financial source is archived and cannot receive new transactions.");
 
-        if (toSource.IsArchived)
-            throw new BusinessRuleException("The destination financial source is archived and cannot receive new transactions.");
+            if (fromSource.Balance < CurrencyUnits.FromWhole(request.Amount))
+                throw new BusinessRuleException("Insufficient balance on the selected source.");
 
-        if (fromSource.Balance < CurrencyUnits.FromWhole(request.Amount))
-            throw new BusinessRuleException("Insufficient balance on the selected source.");
+            if (!string.Equals(fromSource.Currency, toSource.Currency, StringComparison.Ordinal))
+                throw new BusinessRuleException("Both sources must use the same currency for a transfer.");
 
-        if (!string.Equals(fromSource.Currency, toSource.Currency, StringComparison.Ordinal))
-            throw new BusinessRuleException("Both sources must use the same currency for a transfer.");
+            var description = BuildTransferDescription(fromSource.Name, toSource.Name);
 
-        var description = BuildTransferDescription(fromSource.Name, toSource.Name);
+            var outbound = new FinTransaction
+            {
+                Type = TransactionType.Transfer,
+                Status = TxnStatus.Completed,
+                Amount = -CurrencyUnits.FromWhole(request.Amount),
+                Currency = fromSource.Currency,
+                TxnDate = request.TxnDate,
+                SourceId = request.SourceId,
+                DestSourceId = toSourceId,
+                CategoryId = null,
+                MonthlyPeriodId = request.MonthlyPeriodId,
+                Description = description,
+                Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                RefTxnId = null,
+            };
 
-        var outbound = new FinTransaction
-        {            Type = TransactionType.Transfer,
-            Status = TxnStatus.Completed,
-            Amount = -CurrencyUnits.FromWhole(request.Amount),
-            Currency = fromSource.Currency,
-            TxnDate = request.TxnDate,
-            SourceId = request.SourceId,
-            DestSourceId = toSourceId,
-            CategoryId = null,
-            MonthlyPeriodId = request.MonthlyPeriodId,
-            Description = description,
-            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            RefTxnId = null,
-        };
+            var inbound = new FinTransaction
+            {
+                Type = TransactionType.Transfer,
+                Status = TxnStatus.Completed,
+                Amount = CurrencyUnits.FromWhole(request.Amount),
+                Currency = toSource.Currency,
+                TxnDate = request.TxnDate,
+                SourceId = toSourceId,
+                DestSourceId = request.SourceId,
+                CategoryId = null,
+                MonthlyPeriodId = request.MonthlyPeriodId,
+                Description = description,
+                Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+                RefTxnId = null,
+            };
 
-        var inbound = new FinTransaction
-        {            Type = TransactionType.Transfer,
-            Status = TxnStatus.Completed,
-            Amount = CurrencyUnits.FromWhole(request.Amount),
-            Currency = toSource.Currency,
-            TxnDate = request.TxnDate,
-            SourceId = toSourceId,
-            DestSourceId = request.SourceId,
-            CategoryId = null,
-            MonthlyPeriodId = request.MonthlyPeriodId,
-            Description = description,
-            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            RefTxnId = null,
-        };
+            _db.FinTransactions.Add(outbound);
+            _db.FinTransactions.Add(inbound);
 
-        _db.FinTransactions.Add(outbound);
-        _db.FinTransactions.Add(inbound);
+            fromSource.Balance -= CurrencyUnits.FromWhole(request.Amount);
+            toSource.Balance += CurrencyUnits.FromWhole(request.Amount);
 
-        fromSource.Balance -= CurrencyUnits.FromWhole(request.Amount);
-        toSource.Balance += CurrencyUnits.FromWhole(request.Amount);
+            AddCreatedHistory(outbound);
+            AddCreatedHistory(inbound);
 
-        AddCreatedHistory(outbound);
-        AddCreatedHistory(inbound);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            outbound.RefTxnId = inbound.Id;
+            inbound.RefTxnId = outbound.Id;
 
-        outbound.RefTxnId = inbound.Id;
-        inbound.RefTxnId = outbound.Id;
-
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return outbound.Id;
+        }, cancellationToken).ConfigureAwait(false);
 
         var persistedOutbound = await _db.FinTransactions
             .AsNoTracking()
             .Include(t => t.Source)
             .Include(t => t.Category)
-            .FirstAsync(t => t.Id == outbound.Id, cancellationToken)
+            .FirstAsync(t => t.Id == outboundId, cancellationToken)
             .ConfigureAwait(false);
 
         return new CreateTransactionResponse(MapDetail(persistedOutbound));
