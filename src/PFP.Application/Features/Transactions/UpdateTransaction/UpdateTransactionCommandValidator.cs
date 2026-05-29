@@ -9,7 +9,11 @@ public sealed class UpdateTransactionCommandValidator : AbstractValidator<Update
     public UpdateTransactionCommandValidator()
     {
         RuleFor(x => x.TransactionId).NotEmpty();
-        RuleFor(x => x.Description).NotEmpty().MaximumLength(512);
+    RuleFor(x => x.Description).MaximumLength(512);
         RuleFor(x => x.Note).MaximumLength(500).When(x => x.Note is not null);
+
+        RuleFor(x => x.Amount)
+            .NotEqual(0)
+            .When(x => x.Amount is not null);
     }
 }

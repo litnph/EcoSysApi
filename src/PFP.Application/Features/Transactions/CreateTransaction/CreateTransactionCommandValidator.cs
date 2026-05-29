@@ -38,6 +38,7 @@ RuleFor(x => x.Amount).GreaterThan(0);
             .WithMessage("TxnDate cannot be more than one day in the future.");
 
         RuleFor(x => x.Note).MaximumLength(500).When(x => x.Note is not null);
+        RuleFor(x => x.Description).MaximumLength(512).When(x => x.Description is not null);
         RuleFor(x => x.PersonName).MaximumLength(200).When(x => x.PersonName is not null);
         RuleFor(x => x.PersonContact).MaximumLength(200).When(x => x.PersonContact is not null);
 
@@ -52,11 +53,6 @@ RuleFor(x => x.Amount).GreaterThan(0);
             .When(x => x.Type is TransactionType.Transfer or TransactionType.DebtBorrow or TransactionType.LoanGive
                        or TransactionType.DebtRepay or TransactionType.LoanCollect)
             .WithMessage("Category must not be set for this transaction type.");
-
-        RuleFor(x => x.BillingCycleId)
-            .Must(c => !c.HasValue)
-            .When(x => x.Type is not TransactionType.Deferred)
-            .WithMessage("BillingCycleId is only used for deferred transactions.");
 
         RuleFor(x => x.ToSourceId)
             .Must(c => !c.HasValue)
@@ -198,17 +194,6 @@ RuleFor(x => x.Amount).GreaterThan(0);
         RuleFor(x => x)
             .MustAsync(async (cmd, ct) =>
             {
-                if (cmd.Type != TransactionType.Deferred || cmd.BillingCycleId is not { } bcId)
-                    return true;
-                var bc = await db.FinBillingCycles.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bcId, ct).ConfigureAwait(false);
-                if (bc is null) return false;
-                return bc.SourceId == cmd.SourceId && bc.Status == BillingCycleStatus.Open;
-            })
-            .WithMessage("BillingCycleId must reference an open billing cycle for the same credit card.");
-
-        RuleFor(x => x)
-            .MustAsync(async (cmd, ct) =>
-            {
                 if (cmd.Type != TransactionType.DebtRepay || cmd.DebtRecordId is not { } id)
                     return true;
                 var debt = await db.FinDebtRecords.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id, ct).ConfigureAwait(false);
@@ -246,7 +231,12 @@ RuleFor(x => x.Amount).GreaterThan(0);
                 if (cmd.Type is not (TransactionType.Direct or TransactionType.Split))
                     return true;
                 var src = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SourceId, ct).ConfigureAwait(false);
-                return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
+                if (src is null)
+                    return false;
+                // Chi tiêu trên thẻ → handler chuyển sang deferred (hạn mức / kỳ sao kê), không trừ số dư như tiền mặt.
+                if (cmd.Type == TransactionType.Direct && src.Type == SourceType.CreditCard)
+                    return true;
+                return src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
 

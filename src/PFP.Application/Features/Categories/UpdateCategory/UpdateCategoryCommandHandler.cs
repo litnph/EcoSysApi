@@ -80,6 +80,7 @@ if (request.Kind != entity.Kind)
         entity.SortOrder = request.SortOrder ?? entity.SortOrder;
         entity.IsDefault = request.IsDefault;
         entity.Depth = parent?.Depth + 1 ?? 0;
+        entity.NecessityLevel = request.ParentId is null ? null : request.NecessityLevel;
 
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);

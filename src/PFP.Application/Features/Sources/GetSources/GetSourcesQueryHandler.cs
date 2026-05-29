@@ -26,14 +26,22 @@ public sealed class GetSourcesQueryHandler : IRequestHandler<GetSourcesQuery, Ge
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var rows = await _db.FinSources
+        var rows = await _db.FinSources
             .AsNoTracking()
             .OrderBy(s => s.SortOrder)
             .ThenBy(s => s.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var dtos = rows.Select(FinSourceDtoMapper.ToDto).ToList();
+        var installmentBySource = await SourceInstallmentMetrics
+            .GetRemainingBySourceIdAsync(_db, cancellationToken)
+            .ConfigureAwait(false);
+
+        var dtos = rows
+            .Select(s => FinSourceDtoMapper.ToDto(
+                s,
+                installmentBySource.GetValueOrDefault(s.Id, 0)))
+            .ToList();
         return new GetSourcesResponse(dtos);
     }
 }

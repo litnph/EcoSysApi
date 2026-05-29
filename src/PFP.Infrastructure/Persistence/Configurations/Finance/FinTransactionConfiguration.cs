@@ -17,7 +17,7 @@ public sealed class FinTransactionConfiguration : IEntityTypeConfiguration<FinTr
         builder.Property(x => x.CounterpartyName).HasMaxLength(255);
         builder.Property(x => x.ExternalRef).HasMaxLength(255);
         builder.Property(x => x.Tags).HasMaxLength(1024);
-        builder.Property(x => x.ExchangeRate).HasPrecision(18, 6);        builder.HasIndex(x => x.BillingCycleId);
+        builder.Property(x => x.ExchangeRate).HasPrecision(18, 6);
         builder.HasIndex(x => x.RefTxnId);
         builder.HasIndex(x => x.SourceId);
         builder.HasIndex(x => new { x.SourceId, x.TxnDate });        builder.HasIndex(x => x.CategoryId);
@@ -35,12 +35,6 @@ public sealed class FinTransactionConfiguration : IEntityTypeConfiguration<FinTr
         builder.HasOne(x => x.Category)
                .WithMany(c => c.Transactions)
                .HasForeignKey(x => x.CategoryId)
-               .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(x => x.BillingCycle)
-               .WithMany(bc => bc.Transactions)
-               .HasForeignKey(x => x.BillingCycleId)
-               .IsRequired(false)
                .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.MonthlyPeriod)

@@ -35,7 +35,6 @@ internal static class TransactionHistoryJson
             t.SourceId,
             t.DestSourceId,
             t.CategoryId,
-            t.BillingCycleId,
             t.MonthlyPeriodId,
             t.RefTxnId,
             t.Description,

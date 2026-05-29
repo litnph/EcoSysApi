@@ -10,7 +10,10 @@ public static class TransactionDtoMapper
     public static TransactionListItemDto ToListItem(
         FinTransaction t,
         string sourceName,
-        string? categoryName) =>
+        string? categoryName,
+        bool hasInstallmentPlan = false,
+        bool isInstallmentPayment = false,
+        IReadOnlyList<TransactionTagDto>? tags = null) =>
         new(
             t.Id,
             t.Type,
@@ -24,14 +27,23 @@ public static class TransactionDtoMapper
             categoryName,
             t.Description,
             t.Note,
-            t.CreatedAt);
+            t.CreatedAt,
+            hasInstallmentPlan,
+            isInstallmentPayment,
+            tags ?? Array.Empty<TransactionTagDto>());
 
     /// <summary>Builds an embedded source summary.</summary>
     public static TransactionSourceSummaryDto ToSourceSummary(FinSource source) =>
         new(source.Id, source.Name, source.Currency, CurrencyUnits.ToWhole(source.Balance));
 
     /// <summary>Builds full transaction detail.</summary>
-    public static TransactionDetailDto ToDetail(FinTransaction t)
+    public static TransactionDetailDto ToDetail(
+        FinTransaction t,
+        bool canEditAmount = true,
+        bool canDelete = true,
+        bool hasInstallmentPlan = false,
+        bool isInstallmentPayment = false,
+        IReadOnlyList<TransactionTagDto>? tags = null)
     {
         TransactionSourceSummaryDto? src = t.Source is null ? null : ToSourceSummary(t.Source);
         TransactionCategorySummaryDto? cat = t.Category is null
@@ -49,13 +61,17 @@ public static class TransactionDtoMapper
             t.CategoryId,
             t.Description,
             t.Note,
-            t.BillingCycleId,
             t.MonthlyPeriodId,
             t.RefTxnId,
             t.CreatedAt,
             t.UpdatedAt,
             t.Version,
+            canEditAmount,
+            canDelete,
+            hasInstallmentPlan,
+            isInstallmentPayment,
             src,
-            cat);
+            cat,
+            tags ?? Array.Empty<TransactionTagDto>());
     }
 }

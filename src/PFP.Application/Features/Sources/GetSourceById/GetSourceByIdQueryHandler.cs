@@ -34,6 +34,12 @@ public sealed class GetSourceByIdQueryHandler : IRequestHandler<GetSourceByIdQue
 
         if (entity is null)
             throw new NotFoundException("Finance source was not found.");
-return new GetSourceByIdResponse(FinSourceDtoMapper.ToDto(entity));
+
+        var installmentRemaining = await SourceInstallmentMetrics
+            .GetRemainingForSourceAsync(_db, entity.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new GetSourceByIdResponse(
+            FinSourceDtoMapper.ToDto(entity, installmentRemaining));
     }
 }

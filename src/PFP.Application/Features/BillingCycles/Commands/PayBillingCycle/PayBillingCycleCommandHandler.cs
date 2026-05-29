@@ -73,13 +73,12 @@ if (request.PaymentSourceId == cycle.SourceId)
         var payTxn = new FinTransaction
         {
 Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = paymentAmount,
             Currency = paymentSource.Currency,
             TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
             SourceId = paymentSource.Id,
             CategoryId = null,
-            BillingCycleId = cycle.Id,
             Description = description,
             Note = note,
         };

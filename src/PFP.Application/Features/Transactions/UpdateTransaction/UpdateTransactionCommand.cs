@@ -7,9 +7,8 @@ namespace PFP.Application.Features.Transactions.UpdateTransaction;
 /// Updates editable metadata on an existing <c>FIN_TRANSACTION</c> — description, note, category,
 /// transaction date, and monthly-period reassignment.
 /// <para>
-/// To preserve the balance / audit invariant (spec §4.6), this command intentionally does NOT
-/// expose <c>Amount</c>, <c>SourceId</c>, <c>Type</c>, or <c>DestSourceId</c>. To change any of those,
-/// soft-delete the transaction (which emits a reversal row and reverts balances) and re-create.
+/// <c>Amount</c> may be updated; balances and linked debt/split/billing records are adjusted in the handler.
+/// <c>SourceId</c>, <c>Type</c>, and <c>DestSourceId</c> remain immutable — delete and re-create to change those.
 /// </para>
 /// </summary>
 public sealed record UpdateTransactionCommand(
@@ -18,7 +17,8 @@ public sealed record UpdateTransactionCommand(
     DateOnly TxnDate,
     string Description,
     string? Note,
-    Guid? MonthlyPeriodId) : IRequest<UpdateTransactionResponse>;
+    Guid? MonthlyPeriodId,
+    long? Amount) : IRequest<UpdateTransactionResponse>;
 
 /// <summary>Wrapper around the refreshed transaction detail.</summary>
 public sealed record UpdateTransactionResponse(TransactionDetailDto Transaction);

@@ -12,6 +12,8 @@ public sealed record CategoryTreeNodeDto(
     string? Color,
     int SortOrder,
     bool IsDefault,
+    bool IsSystem,
+    CategoryNecessityLevel? NecessityLevel,
     IReadOnlyList<CategoryTreeNodeDto> Children);
 
 /// <summary>Flat category row for dropdowns.</summary>
@@ -24,4 +26,6 @@ public sealed record CategoryFlatDto(
     string? Color,
     int SortOrder,
     bool IsDefault,
+    bool IsSystem,
+    CategoryNecessityLevel? NecessityLevel,
     int Depth);

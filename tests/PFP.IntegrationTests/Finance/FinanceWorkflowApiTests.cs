@@ -121,9 +121,16 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
         var deferredResp = await client.PostAsJsonAsync(
             "api/v1/finance/transactions",
             new CreateTransactionWire(
-                "deferred", 500, ccId, h.ExpenseCategoryId, today, null, null, null, null, cycleId),
+                "deferred", 500, ccId, h.ExpenseCategoryId, today, null, null, null),
             FinanceApiWireJson.Web);
         Assert.Equal(HttpStatusCode.OK, deferredResp.StatusCode);
+
+        var deferredTxnId = await FinanceApiWireJson.ReadTransactionIdFromCreateResponseAsync(deferredResp);
+        var addItemResp = await client.PostAsJsonAsync(
+            $"api/v1/finance/billing-cycles/{cycleId}/items",
+            new { transactionId = deferredTxnId },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, addItemResp.StatusCode);
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("api/v1/finance/billing-cycles")).StatusCode);
 
@@ -135,7 +142,7 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
             "api/v1/finance/transactions",
             new CreateTransactionWire(
                 "debtBorrow", 1000, h.SourceAId, null, today, null, null, null,
-                null, null, "Test Person", null, null, today.AddMonths(1)),
+                null, "Test Person", null, null, today.AddMonths(1)),
             FinanceApiWireJson.Web);
         Assert.Equal(HttpStatusCode.OK, borrowResp.StatusCode);
 

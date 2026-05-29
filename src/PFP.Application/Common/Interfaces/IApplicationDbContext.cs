@@ -24,6 +24,7 @@ public interface IApplicationDbContext
     DbSet<FinDebtTransaction> FinDebtTransactions { get; }
     DbSet<FinDebtRecordHistory> FinDebtRecordHistory { get; }
     DbSet<FinBillingCycle> FinBillingCycles { get; }
+    DbSet<FinBillingCycleItem> FinBillingCycleItems { get; }
     DbSet<FinInstallmentPlan> FinInstallmentPlans { get; }
     DbSet<FinInstallmentPay> FinInstallmentPays { get; }
     DbSet<FinTransactionHistory> FinTransactionHistory { get; }

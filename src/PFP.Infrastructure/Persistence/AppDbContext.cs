@@ -32,6 +32,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<FinTransaction> FinTransactions => Set<FinTransaction>();
     public DbSet<FinTxnSplit> FinTxnSplits => Set<FinTxnSplit>();
     public DbSet<FinBillingCycle> FinBillingCycles => Set<FinBillingCycle>();
+    public DbSet<FinBillingCycleItem> FinBillingCycleItems => Set<FinBillingCycleItem>();
     public DbSet<FinMonthlyPeriod> FinMonthlyPeriods => Set<FinMonthlyPeriod>();
     public DbSet<FinInstallmentPlan> FinInstallmentPlans => Set<FinInstallmentPlan>();
     public DbSet<FinInstallmentPay> FinInstallmentPays => Set<FinInstallmentPay>();

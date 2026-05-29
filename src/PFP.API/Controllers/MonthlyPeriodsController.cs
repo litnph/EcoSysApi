@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PFP.API.Models;
 using PFP.Application.Features.MonthlyPeriods.CloseMonth;
+using PFP.Application.Features.MonthlyPeriods.CreateMonthlyReport;
+using PFP.Application.Features.MonthlyPeriods.DeleteMonthlyReport;
 using PFP.Application.Features.MonthlyPeriods.GetCurrentMonthSummary;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriod;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriodsList;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyReport;
+using PFP.Application.Features.MonthlyPeriods.RefreshMonthlyReport;
 
 namespace PFP.API.Controllers;
 
@@ -21,7 +24,7 @@ public sealed class MonthlyPeriodsController : ControllerBase
     /// <summary>Creates the controller.</summary>
     public MonthlyPeriodsController(IMediator mediator) => _mediator = mediator;
 
-    /// <summary>Last 12 calendar months for the module (newest first).</summary>
+    /// <summary>User-created monthly reports (newest first).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetMonthlyPeriodsListResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetMonthlyPeriodsListResponse>>> List(
@@ -29,6 +32,45 @@ public sealed class MonthlyPeriodsController : ControllerBase
     {
         var result = await _mediator.Send(new GetMonthlyPeriodsListQuery(), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<GetMonthlyPeriodsListResponse> { Data = result });
+    }
+
+    /// <summary>Creates an open monthly report for a calendar month.</summary>
+    [HttpPost("reports")]
+    [ProducesResponseType(typeof(ApiResponse<CreateMonthlyReportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<CreateMonthlyReportResponse>>> CreateReport(
+        [FromBody] MonthlyReportMonthRequest body,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new CreateMonthlyReportCommand(body.Year, body.Month), cancellationToken)
+            .ConfigureAwait(false);
+        return Ok(new ApiResponse<CreateMonthlyReportResponse> { Data = result });
+    }
+
+    /// <summary>Refreshes an open monthly report from live data.</summary>
+    [HttpPost("{year:int}/{month:int}/refresh")]
+    [ProducesResponseType(typeof(ApiResponse<RefreshMonthlyReportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<RefreshMonthlyReportResponse>>> RefreshReport(
+        int year,
+        int month,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new RefreshMonthlyReportCommand(year, month), cancellationToken)
+            .ConfigureAwait(false);
+        return Ok(new ApiResponse<RefreshMonthlyReportResponse> { Data = result });
+    }
+
+    /// <summary>Deletes a user-created monthly report.</summary>
+    [HttpDelete("{year:int}/{month:int}")]
+    [ProducesResponseType(typeof(ApiResponse<DeleteMonthlyReportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<DeleteMonthlyReportResponse>>> DeleteReport(
+        int year,
+        int month,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator
+            .Send(new DeleteMonthlyReportCommand(year, month), cancellationToken)
+            .ConfigureAwait(false);
+        return Ok(new ApiResponse<DeleteMonthlyReportResponse> { Data = result });
     }
 
     /// <summary>UTC current calendar month summary for a finance module.</summary>

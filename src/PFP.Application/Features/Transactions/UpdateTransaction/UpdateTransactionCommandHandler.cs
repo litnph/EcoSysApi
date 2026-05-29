@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
@@ -60,13 +61,33 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
                 throw new NotFoundException("Monthly period was not found in this module.");
         }
 
-        txn.CategoryId = request.CategoryId;
-        txn.TxnDate = request.TxnDate;
-        txn.Description = request.Description.Trim();
-        txn.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-        txn.MonthlyPeriodId = request.MonthlyPeriodId;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            if (request.Amount is { } whole)
+            {
+                await TransactionAmountEditPolicy
+                    .EnsureCanEditAmountAsync(_db, txn.Id, ct)
+                    .ConfigureAwait(false);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                var newAmount = txn.Type == TransactionType.BalanceAdjustment
+                    ? CurrencyUnits.FromWhole(whole)
+                    : CurrencyUnits.FromWhole(Math.Abs(whole));
+
+                await TransactionAmountUpdater
+                    .ApplyAsync(_db, txn, newAmount, ct)
+                    .ConfigureAwait(false);
+            }
+
+            txn.CategoryId = request.CategoryId;
+            txn.TxnDate = request.TxnDate;
+            txn.Description = string.IsNullOrWhiteSpace(request.Description)
+                ? string.Empty
+                : request.Description.Trim();
+            txn.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            txn.MonthlyPeriodId = request.MonthlyPeriodId;
+
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         var refreshed = await _db.FinTransactions
             .AsNoTracking()
@@ -75,6 +96,25 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
             .FirstAsync(t => t.Id == txn.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        return new UpdateTransactionResponse(TransactionDtoMapper.ToDetail(refreshed));
+        var canEditAmount = await TransactionAmountEditPolicy
+            .CanEditAmountAsync(_db, refreshed.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var canDelete = await TransactionDeletePolicy
+            .CanDeleteAsync(_db, refreshed, cancellationToken)
+            .ConfigureAwait(false);
+
+        var hasInstallmentPlan = await _db.FinInstallmentPlans
+            .AsNoTracking()
+            .AnyAsync(p => p.OriginalTxnId == refreshed.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new UpdateTransactionResponse(
+            TransactionDtoMapper.ToDetail(
+                refreshed,
+                canEditAmount,
+                canDelete,
+                hasInstallmentPlan,
+                refreshed.InstallmentPlanId is not null));
     }
 }

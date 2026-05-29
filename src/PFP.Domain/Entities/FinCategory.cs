@@ -54,6 +54,11 @@ public sealed class FinCategory : SoftDeletableEntity
     /// <summary>Optional description.</summary>
     public string? Description { get; set; }
 
+    /// <summary>
+    /// Mức độ cần thiết — chỉ có ý nghĩa trên danh mục con (<see cref="ParentId"/> không null).
+    /// </summary>
+    public CategoryNecessityLevel? NecessityLevel { get; set; }
+
     // ---- Navigation ----
     public FinCategory? Parent { get; set; }
 

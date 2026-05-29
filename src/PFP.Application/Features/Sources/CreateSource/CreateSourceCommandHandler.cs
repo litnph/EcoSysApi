@@ -32,10 +32,15 @@ var nowUser = _currentUser.UserId.Value;
         var sessionId = _currentUser.SessionId!.Value;
         var currency = string.IsNullOrWhiteSpace(request.Currency) ? "VND" : request.Currency.Trim().ToUpperInvariant();
 
+        var opening = request.Type != SourceType.CreditCard && request.InitialBalance is { } ib
+            ? PFP.Application.Common.CurrencyUnits.FromWhole(ib)
+            : 0m;
+
         var entity = new FinSource
         {            Name = request.Name.Trim(),
             Type = request.Type,
-            Balance = 0,
+            Balance = opening,
+            InitialBalance = request.Type != SourceType.CreditCard ? opening : null,
             Currency = currency,
             CreditLimit = request.CreditLimit,
             StatementDay = request.StatementDay,

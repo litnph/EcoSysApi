@@ -13,5 +13,6 @@ public sealed record GetTransactionsQuery(
     DateOnly? DateTo,
     long? AmountMin,
     long? AmountMax,
+    TxnStatus? Status,
     int Page = 1,
     int PageSize = 20) : IRequest<GetTransactionsResponse>;

@@ -11,4 +11,5 @@ public sealed record CreateCategoryCommand(
     string? Icon,
     string? Color,
     int? SortOrder,
-    bool IsDefault = false) : IRequest<CreateCategoryResponse>;
+    bool IsDefault = false,
+    CategoryNecessityLevel? NecessityLevel = null) : IRequest<CreateCategoryResponse>;

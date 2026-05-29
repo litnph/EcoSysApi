@@ -12,7 +12,7 @@ namespace PFP.Infrastructure.Persistence;
 /// </summary>
 public static class DemoFinanceSeeder
 {
-    private const string DemoMarker = "demo-ecosys";
+    private const string DemoSourceMarker = "VCB — Lương";
 
     public static async Task EnsureAsync(AppDbContext db, IConfiguration configuration, CancellationToken cancellationToken = default)
     {
@@ -24,10 +24,19 @@ public static class DemoFinanceSeeder
         {
             await DemoFinanceDataReset.ClearAllFinanceDataAsync(db, cancellationToken).ConfigureAwait(false);
         }
-        else if (await db.FinCategories.AnyAsync(c => c.Code == DemoMarker, cancellationToken).ConfigureAwait(false))
+        else if (await db.FinSources.AnyAsync(s => s.Name == DemoSourceMarker, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
+
+        await ExpenseCategorySeeder.ReplaceAsync(db, cancellationToken).ConfigureAwait(false);
+
+        var catTaxi = await RequireCategoryAsync(db, "sys-exp-di-chuyen-taxi", cancellationToken).ConfigureAwait(false);
+        var catElectric = await RequireCategoryAsync(db, "sys-exp-nha-o-tien-dien", cancellationToken).ConfigureAwait(false);
+        var catStreaming = await RequireCategoryAsync(db, "sys-exp-digital-streaming", cancellationToken).ConfigureAwait(false);
+        var catTech = await RequireCategoryAsync(db, "sys-exp-mua-sam-cong-nghe", cancellationToken).ConfigureAwait(false);
+        var catEatOut = await RequireCategoryAsync(db, "sys-exp-an-uong-an-ngoai", cancellationToken).ConfigureAwait(false);
+        var catCoffee = await RequireCategoryAsync(db, "sys-exp-an-uong-cafe", cancellationToken).ConfigureAwait(false);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var utcNow = DateTime.UtcNow;
@@ -46,15 +55,10 @@ public static class DemoFinanceSeeder
                 profile.LanguageCode = "vi";
         }
 
-        // ---- Danh mục ----
-        var catFood = new FinCategory { Name = "Ăn uống", Code = DemoMarker, Kind = CategoryKind.Expense, Depth = 0, SortOrder = 1, IsDefault = true };
-        var catTransport = new FinCategory { Name = "Di chuyển", Code = "demo-transport", Kind = CategoryKind.Expense, Depth = 0, SortOrder = 2 };
-        var catBills = new FinCategory { Name = "Hóa đơn", Code = "demo-bills", Kind = CategoryKind.Expense, Depth = 0, SortOrder = 3 };
-        var catFun = new FinCategory { Name = "Giải trí", Code = "demo-fun", Kind = CategoryKind.Expense, Depth = 0, SortOrder = 4 };
-        var catShop = new FinCategory { Name = "Mua sắm", Code = "demo-shop", Kind = CategoryKind.Expense, Depth = 0, SortOrder = 5 };
+        // ---- Danh mục thu nhập (chi tiêu dùng cây chuẩn từ ExpenseCategorySeeder) ----
         var catSalary = new FinCategory { Name = "Lương", Code = "demo-salary", Kind = CategoryKind.Income, Depth = 0, SortOrder = 1, IsDefault = true };
         var catFreelance = new FinCategory { Name = "Freelance", Code = "demo-freelance", Kind = CategoryKind.Income, Depth = 0, SortOrder = 2 };
-        db.FinCategories.AddRange(catFood, catTransport, catBills, catFun, catShop, catSalary, catFreelance);
+        db.FinCategories.AddRange(catSalary, catFreelance);
 
         // ---- Nguồn tiền (số dư khớp kịch bản tháng 5) ----
         var bank = new FinSource
@@ -103,6 +107,8 @@ public static class DemoFinanceSeeder
             TotalExpense = 12_175_000,
             Net = 25_325_000,
             Status = PeriodStatus.Open,
+            ReportCreatedAt = utcNow.AddDays(-3),
+            LastRefreshedAt = utcNow.AddHours(-2),
         };
         var closedPeriod = new FinMonthlyPeriod
         {
@@ -113,17 +119,21 @@ public static class DemoFinanceSeeder
             Net = 6_600_000,
             Status = PeriodStatus.Closed,
             ClosedAt = utcNow.AddDays(-12),
+            ReportCreatedAt = utcNow.AddDays(-40),
+            LastRefreshedAt = utcNow.AddDays(-12),
         };
         db.FinMonthlyPeriods.AddRange(currentPeriod, closedPeriod);
 
         // Kỳ sao kê thẻ: đang mở / đã đóng chờ trả / đã trả hết
+        var openStatementDate = DayInMonth(today.Year, today.Month, 15);
         var openCycle = new FinBillingCycle
         {
             SourceId = creditCard.Id,
+            Name = $"Kỳ sao kê tháng {openStatementDate.Month}",
             PeriodStart = monthStart,
             PeriodEnd = today,
-            StatementDate = DayInMonth(today.Year, today.Month, 15),
-            PaymentDueDate = DayInMonth(today.Year, today.Month, 15).AddDays(25),
+            StatementDate = openStatementDate,
+            PaymentDueDate = openStatementDate.AddDays(25),
             TotalAmount = 8_200_000,
             PaidAmount = 0,
             Status = BillingCycleStatus.Open,
@@ -131,6 +141,7 @@ public static class DemoFinanceSeeder
         var closedCycle = new FinBillingCycle
         {
             SourceId = creditCard.Id,
+            Name = $"Kỳ sao kê tháng {monthStart.Month}",
             PeriodStart = prevMonthStart,
             PeriodEnd = monthStart.AddDays(-1),
             StatementDate = monthStart.AddDays(14),
@@ -143,6 +154,7 @@ public static class DemoFinanceSeeder
         var paidCycle = new FinBillingCycle
         {
             SourceId = creditCard.Id,
+            Name = $"Kỳ sao kê tháng {prevMonthStart.Month}",
             PeriodStart = twoMonthsAgoStart,
             PeriodEnd = prevMonthStart.AddDays(-1),
             StatementDate = prevMonthStart.AddDays(14),
@@ -161,7 +173,7 @@ public static class DemoFinanceSeeder
         var txnSalary = new FinTransaction
         {
             Type = TransactionType.Income,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 35_000_000,
             Currency = "VND",
             TxnDate = monthStart.AddDays(4),
@@ -175,7 +187,7 @@ public static class DemoFinanceSeeder
         var txnFreelance = new FinTransaction
         {
             Type = TransactionType.Income,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 2_500_000,
             Currency = "VND",
             TxnDate = today.AddDays(-8),
@@ -189,12 +201,12 @@ public static class DemoFinanceSeeder
         var txnGrab = new FinTransaction
         {
             Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 45_000,
             Currency = "VND",
             TxnDate = today.AddDays(-6),
             SourceId = eWallet.Id,
-            CategoryId = catTransport.Id,
+            CategoryId = catTaxi.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Di chuyển",
             Note = "Grab đi làm",
@@ -203,12 +215,12 @@ public static class DemoFinanceSeeder
         var txnElectric = new FinTransaction
         {
             Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 680_000,
             Currency = "VND",
             TxnDate = today.AddDays(-5),
             SourceId = bank.Id,
-            CategoryId = catBills.Id,
+            CategoryId = catElectric.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Hóa đơn",
             Note = "Tiền điện EVN tháng 4",
@@ -217,12 +229,12 @@ public static class DemoFinanceSeeder
         var txnNetflix = new FinTransaction
         {
             Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 260_000,
             Currency = "VND",
             TxnDate = today.AddDays(-4),
             SourceId = creditCard.Id,
-            CategoryId = catFun.Id,
+            CategoryId = catStreaming.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Giải trí",
             Note = "Netflix + Spotify",
@@ -231,13 +243,12 @@ public static class DemoFinanceSeeder
         var txnHeadphone = new FinTransaction
         {
             Type = TransactionType.Deferred,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 2_400_000,
             Currency = "VND",
             TxnDate = today.AddDays(-2),
             SourceId = creditCard.Id,
-            CategoryId = catShop.Id,
-            BillingCycleId = openCycle.Id,
+            CategoryId = catTech.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Mua sắm",
             Note = "Tai nghe Sony WH-1000XM5 — Shopee, trả góp 0%",
@@ -246,13 +257,12 @@ public static class DemoFinanceSeeder
         var txnShopeeSmall = new FinTransaction
         {
             Type = TransactionType.Deferred,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 890_000,
             Currency = "VND",
             TxnDate = today.AddDays(-10),
             SourceId = creditCard.Id,
-            CategoryId = catShop.Id,
-            BillingCycleId = openCycle.Id,
+            CategoryId = catTech.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Mua sắm",
             Note = "Phụ kiện laptop",
@@ -261,12 +271,12 @@ public static class DemoFinanceSeeder
         var txnTeamLunch = new FinTransaction
         {
             Type = TransactionType.Split,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 720_000,
             Currency = "VND",
             TxnDate = today.AddDays(-7),
             SourceId = bank.Id,
-            CategoryId = catFood.Id,
+            CategoryId = catEatOut.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Ăn uống",
             Note = "Tiệc team cuối tuần — Minh trả trước",
@@ -275,7 +285,7 @@ public static class DemoFinanceSeeder
         var txnBorrow = new FinTransaction
         {
             Type = TransactionType.DebtBorrow,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 2_000_000,
             Currency = "VND",
             TxnDate = today.AddDays(-14),
@@ -288,7 +298,7 @@ public static class DemoFinanceSeeder
         var txnLoanGive = new FinTransaction
         {
             Type = TransactionType.LoanGive,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 1_500_000,
             Currency = "VND",
             TxnDate = today.AddDays(-12),
@@ -301,12 +311,12 @@ public static class DemoFinanceSeeder
         var txnCoffee = new FinTransaction
         {
             Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 55_000,
             Currency = "VND",
             TxnDate = today,
             SourceId = cash.Id,
-            CategoryId = catFood.Id,
+            CategoryId = catCoffee.Id,
             MonthlyPeriodId = currentPeriod.Id,
             Description = "Expense: Ăn uống",
             Note = "Cà phê sáng",
@@ -318,10 +328,26 @@ public static class DemoFinanceSeeder
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
+        db.FinBillingCycleItems.AddRange(
+            new FinBillingCycleItem
+            {
+                BillingCycleId = openCycle.Id,
+                TransactionId = txnHeadphone.Id,
+                InclusionSource = BillingCycleItemInclusionSource.Refresh,
+            },
+            new FinBillingCycleItem
+            {
+                BillingCycleId = openCycle.Id,
+                TransactionId = txnShopeeSmall.Id,
+                InclusionSource = BillingCycleItemInclusionSource.Refresh,
+            });
+        openCycle.TotalAmount = txnHeadphone.Amount + txnShopeeSmall.Amount;
+        openCycle.LastRefreshedAt = utcNow;
+
         var txnTransferOut = new FinTransaction
         {
             Type = TransactionType.Transfer,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = -2_000_000,
             Currency = "VND",
             TxnDate = today.AddDays(-3),
@@ -334,7 +360,7 @@ public static class DemoFinanceSeeder
         var txnTransferIn = new FinTransaction
         {
             Type = TransactionType.Transfer,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 2_000_000,
             Currency = "VND",
             TxnDate = today.AddDays(-3),
@@ -352,7 +378,7 @@ public static class DemoFinanceSeeder
         var txnSplitRefund = new FinTransaction
         {
             Type = TransactionType.Income,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = 240_000,
             Currency = "VND",
             TxnDate = today.AddDays(-5),
@@ -443,6 +469,7 @@ public static class DemoFinanceSeeder
             Status = InstallmentStatus.Active,
         };
         db.FinInstallmentPlans.Add(installmentPlan);
+        txnHeadphone.Status = TxnStatus.TransferredToInstallment;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         db.FinInstallmentPays.AddRange(
@@ -585,6 +612,14 @@ public static class DemoFinanceSeeder
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private static async Task<FinCategory> RequireCategoryAsync(
+        AppDbContext db,
+        string code,
+        CancellationToken cancellationToken) =>
+        await db.FinCategories
+            .SingleAsync(c => c.Code == code, cancellationToken)
+            .ConfigureAwait(false);
 
     private static DateOnly DayInMonth(int year, int month, int dayOfMonth)
     {

@@ -32,14 +32,17 @@ public sealed class GenerateBillingCycleCommandValidator : AbstractValidator<Gen
             .WithMessage("Credit card must have StatementDay and PaymentDueDay configured.");
 
         RuleFor(x => x)
-            .MustAsync(async (cmd, ct) =>
-            {
-                var open = await db.FinBillingCycles
-                    .AsNoTracking()
-                    .AnyAsync(bc => bc.SourceId == cmd.SourceId && bc.Status == BillingCycleStatus.Open, ct)
-                    .ConfigureAwait(false);
-                return !open;
-            })
-            .WithMessage("An open billing cycle already exists for this source.");
+            .Must(cmd =>
+                (cmd.StatementYear is null && cmd.StatementMonth is null)
+                || (cmd.StatementYear is not null && cmd.StatementMonth is not null))
+            .WithMessage("Statement year and month must both be provided or both omitted.");
+
+        RuleFor(x => x.StatementMonth)
+            .InclusiveBetween(1, 12)
+            .When(x => x.StatementMonth is not null);
+
+        RuleFor(x => x.StatementYear)
+            .InclusiveBetween(2000, 2100)
+            .When(x => x.StatementYear is not null);
     }
 }

@@ -350,6 +350,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("name");
 
+                    b.Property<string>("NecessityLevel")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("necessity_level");
+
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("parent_id");
@@ -403,6 +407,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("LastRefreshedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_refreshed_at");
+
                     b.Property<int>("Month")
                         .HasColumnType("int")
                         .HasColumnName("month");
@@ -411,6 +419,14 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("net");
+
+                    b.Property<DateTime?>("ReportCreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("report_created_at");
+
+                    b.Property<string>("ReportSnapshot")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("report_snapshot");
 
                     b.Property<string>("SourceBreakdown")
                         .HasColumnType("nvarchar(max)")
@@ -639,10 +655,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("amount");
 
-                    b.Property<Guid?>("BillingCycleId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("billing_cycle_id");
-
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("category_id");
@@ -753,9 +765,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_fin_transactions");
 
-                    b.HasIndex("BillingCycleId")
-                        .HasDatabaseName("ix_fin_transactions_billing_cycle_id");
-
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_fin_transactions_category_id");
 
@@ -852,6 +861,21 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
 
+                    b.Property<decimal?>("IssuerStatementAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("issuer_statement_amount");
+
+                    b.Property<DateTime?>("LastRefreshedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_refreshed_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
                     b.Property<decimal>("PaidAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
@@ -872,6 +896,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date")
                         .HasColumnName("period_start");
+
+                    b.Property<string>("ReconciliationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("reconciliation_note");
 
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier")
@@ -909,6 +938,52 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_fin_billing_cycles_source_id_period_start_period_end");
 
                     b.ToTable("fin_billing_cycles");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.Finance.FinBillingCycleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BillingCycleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("billing_cycle_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("InclusionSource")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("inclusion_source");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_fin_billing_cycle_items");
+
+                    b.HasIndex("BillingCycleId")
+                        .HasDatabaseName("ix_fin_billing_cycle_items_billing_cycle_id");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_fin_billing_cycle_items_transaction_id_active")
+                        .HasFilter("[removed_at] IS NULL");
+
+                    b.ToTable("fin_billing_cycle_items");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecord", b =>
@@ -2800,12 +2875,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.FinTransaction", b =>
                 {
-                    b.HasOne("PFP.Domain.Entities.Finance.FinBillingCycle", "BillingCycle")
-                        .WithMany("Transactions")
-                        .HasForeignKey("BillingCycleId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_fin_transactions_fin_billing_cycles_billing_cycle_id");
-
                     b.HasOne("PFP.Domain.Entities.FinCategory", "Category")
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId")
@@ -2843,8 +2912,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_fin_transactions_fin_sources_source_id");
 
-                    b.Navigation("BillingCycle");
-
                     b.Navigation("Category");
 
                     b.Navigation("DestSource");
@@ -2880,6 +2947,27 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_fin_billing_cycles_fin_sources_source_id");
 
                     b.Navigation("Source");
+                });
+
+            modelBuilder.Entity("PFP.Domain.Entities.Finance.FinBillingCycleItem", b =>
+                {
+                    b.HasOne("PFP.Domain.Entities.Finance.FinBillingCycle", "BillingCycle")
+                        .WithMany("Items")
+                        .HasForeignKey("BillingCycleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_fin_billing_cycle_items_fin_billing_cycles_billing_cycle_id");
+
+                    b.HasOne("PFP.Domain.Entities.FinTransaction", "Transaction")
+                        .WithMany("BillingCycleItems")
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_fin_billing_cycle_items_fin_transactions_transaction_id");
+
+                    b.Navigation("BillingCycle");
+
+                    b.Navigation("Transaction");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecord", b =>
@@ -3141,6 +3229,8 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.FinTransaction", b =>
                 {
+                    b.Navigation("BillingCycleItems");
+
                     b.Navigation("History");
 
                     b.Navigation("RelatedTransactions");
@@ -3150,7 +3240,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinBillingCycle", b =>
                 {
-                    b.Navigation("Transactions");
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.Finance.FinDebtRecord", b =>

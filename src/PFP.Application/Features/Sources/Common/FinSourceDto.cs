@@ -16,4 +16,5 @@ public sealed record FinSourceDto(
     string? Icon,
     string? Color,
     int SortOrder,
-    int Version);
+    int Version,
+    long InstallmentRemainingAmount);

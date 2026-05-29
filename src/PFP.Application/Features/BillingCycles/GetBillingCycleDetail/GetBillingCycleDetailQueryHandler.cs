@@ -7,7 +7,7 @@ using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.BillingCycles.GetBillingCycleDetail;
 
-/// <summary>Loads a billing cycle and every FIN_TRANSACTIONS row linked via <c>billing_cycle_id</c>.</summary>
+/// <summary>Loads a billing cycle and active statement lines from <c>fin_billing_cycle_items</c>.</summary>
 public sealed class GetBillingCycleDetailQueryHandler : IRequestHandler<GetBillingCycleDetailQuery, GetBillingCycleDetailResponse>
 {
     private readonly IApplicationDbContext _db;
@@ -35,22 +35,43 @@ public sealed class GetBillingCycleDetailQueryHandler : IRequestHandler<GetBilli
 
         if (cycle is null)
             throw new NotFoundException("Billing cycle was not found.");
-var cycleDto = FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name);
 
-        var txnRows = await _db.FinTransactions
+        var cycleDto = FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name);
+
+        var items = await _db.FinBillingCycleItems
             .AsNoTracking()
-            .Include(t => t.Source)
-            .Include(t => t.Category)
-            .Where(t => t.BillingCycleId == request.CycleId)
-            .OrderByDescending(t => t.TxnDate)
-            .ThenByDescending(t => t.CreatedAt)
+            .Where(i => i.BillingCycleId == request.CycleId && i.RemovedAt == null)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var txnIds = items.Select(i => i.TransactionId).ToList();
+        var inclusionByTxn = items.ToDictionary(i => i.TransactionId, i => i.InclusionSource);
+
+        var txnRows = txnIds.Count == 0
+            ? []
+            : await _db.FinTransactions
+                .AsNoTracking()
+                .Include(t => t.Source)
+                .Include(t => t.Category)
+                .Where(t => txnIds.Contains(t.Id) && !t.IsDeleted)
+                .OrderByDescending(t => t.TxnDate)
+                .ThenByDescending(t => t.CreatedAt)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
         var txns = txnRows
-            .Select(t => FinBillingCycleDtoMapper.ToTransactionDto(t, t.Source.Name, t.Category?.Name))
+            .Select(t => FinBillingCycleDtoMapper.ToTransactionDto(
+                t,
+                t.Source.Name,
+                t.Category?.Name,
+                inclusionByTxn[t.Id]))
             .ToList();
 
-        return new GetBillingCycleDetailResponse(new FinBillingCycleDetailDto(cycleDto, txns));
+        var installmentDues = await BillingCycleInstallmentRules
+            .LoadDueDtosAsync(_db, cycle, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new GetBillingCycleDetailResponse(
+            new FinBillingCycleDetailDto(cycleDto, txns, installmentDues));
     }
 }

@@ -14,7 +14,6 @@ internal sealed record CreateTransactionWire(
     Guid? MonthlyPeriodId,
     Guid? ToSourceId,
     IReadOnlyList<SplitItemWire>? Splits = null,
-    Guid? BillingCycleId = null,
     string? PersonName = null,
     string? PersonContact = null,
     Guid? DebtRecordId = null,

@@ -17,8 +17,8 @@ public sealed class FinTransaction : VersionedEntity
     /// <summary>Functional transaction kind.</summary>
     public TransactionType Type { get; set; }
 
-    /// <summary>Lifecycle status (MVP: pending / completed / cancelled).</summary>
-    public TxnStatus Status { get; set; } = TxnStatus.Completed;
+    /// <summary>Workflow status (new → installment / month close).</summary>
+    public TxnStatus Status { get; set; } = TxnStatus.New;
 
     /// <summary>
     /// Monetary amount in <see cref="Currency"/>; sign rules depend on <see cref="Type"/>
@@ -40,9 +40,6 @@ public sealed class FinTransaction : VersionedEntity
 
     /// <summary>FK to <see cref="FinCategory"/>; optional for some types.</summary>
     public Guid? CategoryId { get; set; }
-
-    /// <summary>FK to <see cref="Finance.FinBillingCycle"/> when applicable.</summary>
-    public Guid? BillingCycleId { get; set; }
 
     /// <summary>FK to <see cref="FinMonthlyPeriod"/> when the transaction is attributed to a closed/open period.</summary>
     public Guid? MonthlyPeriodId { get; set; }
@@ -74,9 +71,9 @@ public sealed class FinTransaction : VersionedEntity
 
     public FinCategory? Category { get; set; }
 
-    public FinBillingCycle? BillingCycle { get; set; }
-
     public FinMonthlyPeriod? MonthlyPeriod { get; set; }
+
+    public ICollection<FinBillingCycleItem> BillingCycleItems { get; set; } = new List<FinBillingCycleItem>();
 
     public FinTransaction? RefTransaction { get; set; }
 

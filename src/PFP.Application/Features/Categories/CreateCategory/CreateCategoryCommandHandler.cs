@@ -55,6 +55,7 @@ FinCategory? parent = null;
             Depth = depth,
             Path = null,
             IsSystem = false,
+            NecessityLevel = request.ParentId is null ? null : request.NecessityLevel,
         };
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>

@@ -31,6 +31,7 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
             .AsNoTracking()
             .Include(p => p.Source)
             .Include(p => p.OriginalTransaction)
+                .ThenInclude(t => t.Category)
             .Include(p => p.Pays);
 
         if (request.Status is { } st)
@@ -49,15 +50,22 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
     {
         var paid = p.Pays.Count(x => x.Status == InstallmentPayStatus.Paid);
         var remaining = p.Pays.Where(x => x.Status != InstallmentPayStatus.Paid).Sum(x => x.Amount);
+        var canDelete = InstallmentPlanRules.CanDelete(p);
+
         return new InstallmentPlanListItemDto(
             p.Id,
             p.SourceId,
             p.Source.Name,
+            p.Source.Icon,
+            p.Source.Color,
             p.OriginalTransaction.Description,
+            p.OriginalTransaction.Category?.Name,
             p.Status,
             paid,
             p.TotalMonths,
             CurrencyUnits.ToWhole(remaining),
+            CurrencyUnits.ToWhole(p.TotalAmount),
+            canDelete,
             p.CreatedAt);
     }
 }

@@ -42,9 +42,15 @@ var blockingCycles = await _db.FinBillingCycles
                 string.Format(CultureInfo.InvariantCulture, "Còn {0} kỳ sao kê chưa đóng: {1}", blockingCycles.Count, cardNames));
         }
 
-        var (income, expense, net, categories, sources) = await MonthlyPeriodSummaryCalculator
-            .ComputeBreakdownsAsync(_db, request.Year, request.Month, cancellationToken)
+        var report = await MonthlyPeriodSummaryCalculator
+            .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
             .ConfigureAwait(false);
+
+        var income = CurrencyUnits.FromWhole(report.Summary.TotalIncome);
+        var expense = CurrencyUnits.FromWhole(report.Summary.TotalExpense);
+        var net = CurrencyUnits.FromWhole(report.Summary.Net);
+        var categories = report.CategoryBreakdown;
+        var sources = report.SourceBreakdown;
 
         var categoryJson = MonthlyPeriodSummaryCalculator.SerialiseCategoryBreakdown(categories);
         var sourceJson = MonthlyPeriodSummaryCalculator.SerialiseSourceBreakdown(sources);
@@ -83,14 +89,35 @@ var blockingCycles = await _db.FinBillingCycles
             if (period.Status == PeriodStatus.Closed)
                 throw new BusinessRuleException("This month is already closed.");
 
+            if (period.ReportCreatedAt is null)
+                throw new BusinessRuleException("Create a monthly report before closing it.");
+
             period.TotalIncome = income;
             period.TotalExpense = expense;
             period.Net = net;
             period.CategoryBreakdown = categoryJson;
             period.SourceBreakdown = sourceJson;
+            period.ReportSnapshot = MonthlyReportSnapshotStore.Serialize(report);
+            period.LastRefreshedAt = utcNow;
             period.Status = PeriodStatus.Closed;
             period.ClosedAt = utcNow;
             period.ClosedBy = userId;
+
+            var monthStart = new DateOnly(request.Year, request.Month, 1);
+            var monthEnd = new DateOnly(request.Year, request.Month, DateTime.DaysInMonth(request.Year, request.Month));
+            var monthTxns = await _db.FinTransactions
+                .Where(t => t.TxnDate >= monthStart
+                    && t.TxnDate <= monthEnd
+                    && t.Status != TxnStatus.Cancelled
+                    && t.Status != TxnStatus.Completed)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var txn in monthTxns)
+            {
+                txn.Status = TxnStatus.Completed;
+                txn.MonthlyPeriodId = period.Id;
+            }
 
             var closeAuditPayload = JsonSerializer.Serialize(new
             {                request.Year,

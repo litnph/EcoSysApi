@@ -38,6 +38,15 @@ public sealed class FinMonthlyPeriod : BaseEntity
     /// <summary>JSON array: per-source expense totals at close (<c>jsonb</c>).</summary>
     public string? SourceBreakdown { get; set; }
 
+    /// <summary>UTC when the user explicitly created the monthly report.</summary>
+    public DateTime? ReportCreatedAt { get; set; }
+
+    /// <summary>UTC when report data was last refreshed while still open.</summary>
+    public DateTime? LastRefreshedAt { get; set; }
+
+    /// <summary>Full monthly report JSON snapshot (refreshed while open, frozen on close).</summary>
+    public string? ReportSnapshot { get; set; }
+
     // ---- Navigation ----
     public User? ClosedByUser { get; set; }
 }

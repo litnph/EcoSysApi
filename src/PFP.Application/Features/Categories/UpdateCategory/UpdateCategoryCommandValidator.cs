@@ -17,5 +17,14 @@ public sealed class UpdateCategoryCommandValidator : AbstractValidator<UpdateCat
             .WithMessage("ParentId must be null or a non-empty GUID.");
         RuleFor(x => x.Icon).MaximumLength(64).When(x => x.Icon is not null);
         RuleFor(x => x.Color).MaximumLength(16).When(x => x.Color is not null);
+        RuleFor(x => x.NecessityLevel)
+            .Null()
+            .When(x => x.ParentId is null)
+            .WithMessage("Mức độ cần thiết chỉ áp dụng cho danh mục con.");
+        RuleFor(x => x.NecessityLevel)
+            .NotNull()
+            .IsInEnum()
+            .When(x => x.ParentId is not null)
+            .WithMessage("Danh mục con phải chọn mức độ cần thiết.");
     }
 }

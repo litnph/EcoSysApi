@@ -40,13 +40,7 @@ public sealed class CloseBillingCycleCommandHandler : IRequestHandler<CloseBilli
             if (cycle.Status != BillingCycleStatus.Open)
                 throw new BusinessRuleException("Only an open billing cycle can be closed.");
 
-            var total = await _db.FinTransactions
-                .AsNoTracking()
-                .Where(t => t.BillingCycleId == cycle.Id && !t.IsDeleted && t.Type == TransactionType.Deferred)
-                .SumAsync(t => (decimal?)t.Amount, ct)
-                .ConfigureAwait(false) ?? 0m;
-
-            cycle.TotalAmount = total;
+            await BillingCycleTotals.RecalculateAsync(cycle, _db, ct).ConfigureAwait(false);
             cycle.Status = BillingCycleStatus.Closed;
             cycle.ClosedAt = DateTime.UtcNow;
 

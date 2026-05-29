@@ -16,6 +16,8 @@ public static class CategoryDtoMapper
             c.Color,
             c.SortOrder,
             c.IsDefault,
+            c.IsSystem,
+            c.NecessityLevel,
             Array.Empty<CategoryTreeNodeDto>());
 
     /// <summary>Maps a single entity to a flat DTO.</summary>
@@ -29,6 +31,8 @@ public static class CategoryDtoMapper
             c.Color,
             c.SortOrder,
             c.IsDefault,
+            c.IsSystem,
+            c.NecessityLevel,
             c.Depth);
 
     /// <summary>Builds a tree from a flat materialised list (all same module + kind).</summary>
@@ -54,6 +58,8 @@ public static class CategoryDtoMapper
                 c.Color,
                 c.SortOrder,
                 c.IsDefault,
+                c.IsSystem,
+                c.NecessityLevel,
                 childList);
         }
 

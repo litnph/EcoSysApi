@@ -7,7 +7,7 @@ using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.MonthlyPeriods.GetMonthlyReport;
 
-/// <summary>Builds <see cref="MonthlyReportDto"/> from ledger rows.</summary>
+/// <summary>Builds or loads <see cref="MonthlyReportDto"/> for a created monthly report.</summary>
 public sealed class GetMonthlyReportQueryHandler : IRequestHandler<GetMonthlyReportQuery, GetMonthlyReportResponse>
 {
     private readonly IApplicationDbContext _db;
@@ -24,9 +24,28 @@ public sealed class GetMonthlyReportQueryHandler : IRequestHandler<GetMonthlyRep
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
+
+        var period = await _db.FinMonthlyPeriods
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.Year == request.Year && p.Month == request.Month,
+                cancellationToken)
             .ConfigureAwait(false);
+
+        if (period is null || period.ReportCreatedAt is null)
+            throw new NotFoundException("Monthly report was not found.");
+
+        MonthlyReportDto report;
+        if (period.Status == PeriodStatus.Closed && !string.IsNullOrWhiteSpace(period.ReportSnapshot))
+        {
+            report = MonthlyReportSnapshotStore.Deserialize(period.ReportSnapshot);
+        }
+        else
+        {
+            report = await MonthlyPeriodSummaryCalculator
+                .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         return new GetMonthlyReportResponse(report);
     }

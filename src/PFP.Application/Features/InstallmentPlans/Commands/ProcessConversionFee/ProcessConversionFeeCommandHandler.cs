@@ -3,10 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
-using PFP.Application.Common.Utils;
-using PFP.Domain.Entities;
+using PFP.Application.Features.BillingCycles.Common;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
+using PFP.Application.Common.Utils;
+using PFP.Domain.Entities;
 
 namespace PFP.Application.Features.InstallmentPlans.Commands.ProcessConversionFee;
 
@@ -92,13 +93,12 @@ public sealed class ProcessConversionFeeCommandHandler : IRequestHandler<Process
                     var feeTxn = new FinTransaction
                     {
                         Type = TransactionType.Deferred,
-                        Status = TxnStatus.Completed,
+                        Status = TxnStatus.New,
                         Amount = feeAmt,
                         Currency = source.Currency,
                         TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
                         SourceId = trackedPlan.SourceId,
                         CategoryId = category.Id,
-                        BillingCycleId = trackedCycle.Id,
                         Description = description,
                         Note = note.Length <= 500 ? note : note[..500],
                         InstallmentPlanId = trackedPlan.Id,
@@ -107,7 +107,18 @@ public sealed class ProcessConversionFeeCommandHandler : IRequestHandler<Process
                     _db.FinTransactions.Add(feeTxn);
 
                     source.Balance += feeAmt;
-                    trackedCycle.TotalAmount += feeAmt;
+
+                    if (trackedCycle.Status == BillingCycleStatus.Open)
+                    {
+                        _db.FinBillingCycleItems.Add(new FinBillingCycleItem
+                        {
+                            BillingCycleId = trackedCycle.Id,
+                            TransactionId = feeTxn.Id,
+                            InclusionSource = BillingCycleItemInclusionSource.Refresh,
+                        });
+                        await BillingCycleTotals.RecalculateAsync(trackedCycle, _db, ct)
+                            .ConfigureAwait(false);
+                    }
 
                     trackedPlan.ConversionFeeStatus = ConversionFeeStatus.Billed;
                     trackedPlan.ConversionFeeTxnId = feeTxn.Id;

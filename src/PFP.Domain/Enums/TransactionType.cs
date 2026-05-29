@@ -70,4 +70,11 @@ public enum TransactionType
     /// reversal rows directly — they are emitted only by the delete pipeline.
     /// </summary>
     Reversal = 10,
+
+    /// <summary>
+    /// <c>balance_adjustment</c> — manual reconciliation delta on an asset source.
+    /// <c>amount</c> is signed (positive increases balance, negative decreases).
+    /// Excluded from monthly income/expense reports.
+    /// </summary>
+    BalanceAdjustment = 11,
 }

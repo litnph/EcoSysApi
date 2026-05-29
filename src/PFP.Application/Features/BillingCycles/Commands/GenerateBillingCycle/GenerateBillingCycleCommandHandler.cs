@@ -52,15 +52,27 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
             throw new BusinessRuleException("StatementDay and PaymentDueDay are required on the credit card.");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var prev = today.AddMonths(-1);
-        var periodStart = BillingCycleCalendar.DayInMonth(prev.Year, prev.Month, statementDay);
-        var statementDate = BillingCycleCalendar.DayInMonth(today.Year, today.Month, statementDay);
-        var periodEnd = statementDate.AddDays(-1);
-        var paymentDueDate = statementDate.AddDays(paymentDueDay);
+        BillingCyclePeriodDates dates;
+
+        if (request.StatementYear is { } year && request.StatementMonth is { } month)
+        {
+            dates = BillingCycleCalendar.ResolveForStatementMonth(
+                year, month, statementDay, paymentDueDay);
+        }
+        else if (request.StatementYear is null && request.StatementMonth is null)
+        {
+            dates = BillingCycleCalendar.ResolveCurrentPeriod(today, statementDay, paymentDueDay);
+        }
+        else
+        {
+            throw new BusinessRuleException("Statement year and month must both be provided or both omitted.");
+        }
 
         var duplicate = await _db.FinBillingCycles
             .AsNoTracking()
-            .AnyAsync(bc => bc.SourceId == source.Id && bc.PeriodStart == periodStart, cancellationToken)
+            .AnyAsync(
+                bc => bc.SourceId == source.Id && bc.PeriodStart == dates.PeriodStart,
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (duplicate)
@@ -69,10 +81,11 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
         var cycle = new FinBillingCycle
         {
             SourceId = source.Id,
-            PeriodStart = periodStart,
-            PeriodEnd = periodEnd,
-            StatementDate = statementDate,
-            PaymentDueDate = paymentDueDate,
+            Name = BillingCycleNaming.BuildDefaultName(dates.StatementDate),
+            PeriodStart = dates.PeriodStart,
+            PeriodEnd = dates.PeriodEnd,
+            StatementDate = dates.StatementDate,
+            PaymentDueDate = dates.PaymentDueDate,
             TotalAmount = 0,
             PaidAmount = 0,
             Status = BillingCycleStatus.Open,
@@ -92,6 +105,13 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
             _logger.LogError(ex, "ProcessConversionFee failed after creating billing cycle {CycleId}", cycle.Id);
         }
 
-        return new GenerateBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(cycle, source.Name));
+        var trackedCycle = await _db.FinBillingCycles
+            .FirstAsync(c => c.Id == cycle.Id, cancellationToken)
+            .ConfigureAwait(false);
+        await BillingCycleTotals.RecalculateAsync(trackedCycle, _db, cancellationToken)
+            .ConfigureAwait(false);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return new GenerateBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(trackedCycle, source.Name));
     }
 }

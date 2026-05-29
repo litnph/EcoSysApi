@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.BillingCycles.Common;
 using PFP.Application.Features.Transactions.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
@@ -128,13 +129,24 @@ FinTransaction? partner = null;
                 UpdatedAt = auditNow,
             });
 
-            if (orig.Type == TransactionType.Deferred && orig.BillingCycleId is { } billCycleId)
+            var activeItem = await _db.FinBillingCycleItems
+                .FirstOrDefaultAsync(
+                    i => i.TransactionId == orig.Id && i.RemovedAt == null,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (activeItem is not null)
             {
                 var bc = await _db.FinBillingCycles
-                    .FirstOrDefaultAsync(c => c.Id == billCycleId, cancellationToken)
+                    .FirstOrDefaultAsync(c => c.Id == activeItem.BillingCycleId, cancellationToken)
                     .ConfigureAwait(false);
                 if (bc is not null && bc.Status == BillingCycleStatus.Open)
-                    bc.TotalAmount -= orig.Amount;
+                {
+                    activeItem.RemovedAt = DateTime.UtcNow;
+                    activeItem.UpdatedAt = DateTime.UtcNow;
+                    await BillingCycleTotals.RecalculateAsync(bc, _db, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
 
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -154,7 +166,7 @@ FinTransaction? partner = null;
         return new FinTransaction
         {
 Type = TransactionType.Reversal,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = sourceTxn.Amount,
             Currency = sourceTxn.Currency,
             TxnDate = txnDate,
@@ -162,7 +174,6 @@ Type = TransactionType.Reversal,
             DestSourceId = sourceTxn.DestSourceId,
             CategoryId = sourceTxn.CategoryId,
             RefTxnId = sourceTxn.Id,
-            BillingCycleId = null,
             MonthlyPeriodId = null,
             Description = description,
             Note = note,
@@ -194,6 +205,21 @@ Type = TransactionType.Reversal,
                 source.Balance -= txn.Amount;
                 break;
             case TransactionType.Transfer:
+                source.Balance -= txn.Amount;
+                break;
+            case TransactionType.BalanceAdjustment:
+                source.Balance -= txn.Amount;
+                break;
+            case TransactionType.DebtBorrow:
+                source.Balance -= txn.Amount;
+                break;
+            case TransactionType.DebtRepay:
+                source.Balance += txn.Amount;
+                break;
+            case TransactionType.LoanGive:
+                source.Balance += txn.Amount;
+                break;
+            case TransactionType.LoanCollect:
                 source.Balance -= txn.Amount;
                 break;
             default:

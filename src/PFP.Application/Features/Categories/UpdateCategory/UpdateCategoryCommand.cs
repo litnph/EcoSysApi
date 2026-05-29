@@ -12,4 +12,5 @@ public sealed record UpdateCategoryCommand(
     string? Icon,
     string? Color,
     int? SortOrder,
-    bool IsDefault) : IRequest<UpdateCategoryResponse>;
+    bool IsDefault,
+    CategoryNecessityLevel? NecessityLevel = null) : IRequest<UpdateCategoryResponse>;

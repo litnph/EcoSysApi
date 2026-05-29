@@ -71,7 +71,7 @@ public sealed class BalanceCalculator : IBalanceCalculator
 
         var legs = await _db.FinTransactions.AsNoTracking()
             .Where(t => t.SourceId == sourceId
-                        && t.Status == TxnStatus.Completed
+                        && t.Status != TxnStatus.Cancelled
                         && t.Type != TransactionType.Reversal
                         && !t.IsDeleted)
             .Select(t => new { t.Type, t.Amount })
@@ -98,6 +98,7 @@ public sealed class BalanceCalculator : IBalanceCalculator
             TransactionType.LoanGive => running - amount,
             // Transfers store outbound amount as negative, inbound as positive — a plain += rebuilds correctly.
             TransactionType.Transfer => running + amount,
+            TransactionType.BalanceAdjustment => running + amount,
             // Reversal rows are excluded above; treat any stray row as neutral.
             _ => running,
         };

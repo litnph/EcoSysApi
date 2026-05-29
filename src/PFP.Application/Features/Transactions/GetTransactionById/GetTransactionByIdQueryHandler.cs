@@ -37,11 +37,31 @@ public sealed class GetTransactionByIdQueryHandler : IRequestHandler<GetTransact
 
         if (entity is null)
             throw new NotFoundException("Transaction was not found.");
-return new GetTransactionByIdResponse(MapDetail(entity));
-    }
 
-    private static TransactionDetailDto MapDetail(FinTransaction t)
-    {
-        return TransactionDtoMapper.ToDetail(t);
+        var canEditAmount = await TransactionAmountEditPolicy
+            .CanEditAmountAsync(_db, entity.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var canDelete = await TransactionDeletePolicy
+            .CanDeleteAsync(_db, entity, cancellationToken)
+            .ConfigureAwait(false);
+
+        var hasInstallmentPlan = await _db.FinInstallmentPlans
+            .AsNoTracking()
+            .AnyAsync(p => p.OriginalTxnId == entity.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var tags = await TransactionTagQueries
+            .ForTransactionAsync(_db, entity.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new GetTransactionByIdResponse(
+            TransactionDtoMapper.ToDetail(
+                entity,
+                canEditAmount,
+                canDelete,
+                hasInstallmentPlan,
+                entity.InstallmentPlanId is not null,
+                tags));
     }
 }

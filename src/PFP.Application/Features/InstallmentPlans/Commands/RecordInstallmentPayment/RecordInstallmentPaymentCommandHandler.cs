@@ -70,7 +70,7 @@ var pay = await _db.FinInstallmentPays
         var txn = new FinTransaction
         {
 Type = TransactionType.Direct,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = pay.Amount,
             Currency = paymentSource.Currency,
             TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),

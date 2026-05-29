@@ -26,8 +26,9 @@ public sealed class GetFlatCategoriesQueryHandler : IRequestHandler<GetFlatCateg
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var rows = await _db.FinCategories
+        var rows = await _db.FinCategories
             .AsNoTracking()
+            .Where(c => c.Kind == request.Kind)
             .OrderBy(c => c.Depth)
             .ThenBy(c => c.SortOrder)
             .ThenBy(c => c.Name)

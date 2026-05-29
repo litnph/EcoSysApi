@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PFP.API.Models;
 using PFP.Application.Features.InstallmentPlans.Commands.CancelInstallmentPlan;
+using PFP.Application.Features.InstallmentPlans.Commands.DeleteInstallmentPlan;
 using PFP.Application.Features.InstallmentPlans.Commands.CreateInstallmentPlan;
 using PFP.Application.Features.InstallmentPlans.Commands.RecordInstallmentPayment;
 using PFP.Application.Features.InstallmentPlans.GetInstallmentPlanDetail;
+using PFP.Application.Features.InstallmentPlans.GetInstallmentDashboard;
 using PFP.Application.Features.InstallmentPlans.GetInstallmentPlans;
 using PFP.Domain.Enums;
 
@@ -21,6 +23,18 @@ public sealed class InstallmentPlansController : ControllerBase
 
     /// <summary>Creates the controller.</summary>
     public InstallmentPlansController(IMediator mediator) => _mediator = mediator;
+
+    /// <summary>Summary metrics for active installment plans.</summary>
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(ApiResponse<GetInstallmentDashboardResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<GetInstallmentDashboardResponse>>> Dashboard(
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator
+            .Send(new GetInstallmentDashboardQuery(), cancellationToken)
+            .ConfigureAwait(false);
+        return Ok(new ApiResponse<GetInstallmentDashboardResponse> { Data = result });
+    }
 
     /// <summary>Lists installment plans for a finance module.</summary>
     [HttpGet]
@@ -55,6 +69,18 @@ public sealed class InstallmentPlansController : ControllerBase
     {
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<CreateInstallmentPlanResponse> { Data = result });
+    }
+
+    /// <summary>Deletes an active plan and restores card balance for backfilled periods.</summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new DeleteInstallmentPlanCommand(id), cancellationToken)
+            .ConfigureAwait(false);
+        return Ok(new ApiResponse<object> { Data = new { } });
     }
 
     /// <summary>Cancels an active installment plan.</summary>

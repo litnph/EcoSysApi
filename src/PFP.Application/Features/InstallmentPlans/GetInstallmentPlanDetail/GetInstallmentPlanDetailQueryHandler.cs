@@ -34,6 +34,7 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
             .AsNoTracking()
             .Include(p => p.Source)
             .Include(p => p.OriginalTransaction)
+                .ThenInclude(t => t.Category)
             .Include(p => p.Pays)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId, cancellationToken)
             .ConfigureAwait(false);
@@ -56,8 +57,11 @@ var pays = plan.Pays
             plan.Id,
             plan.SourceId,
             plan.Source.Name,
+            plan.Source.Icon,
+            plan.Source.Color,
             plan.OriginalTxnId,
             plan.OriginalTransaction.Description,
+            plan.OriginalTransaction.Category?.Name,
             CurrencyUnits.ToWhole(plan.TotalAmount),
             plan.TotalMonths,
             CurrencyUnits.ToWhole(plan.MonthlyAmount),
@@ -69,6 +73,7 @@ var pays = plan.Pays
             plan.StartDate,
             plan.Status,
             plan.CancellationReason,
+            InstallmentPlanRules.CanDelete(plan),
             pays);
 
         return new GetInstallmentPlanDetailResponse(dto);

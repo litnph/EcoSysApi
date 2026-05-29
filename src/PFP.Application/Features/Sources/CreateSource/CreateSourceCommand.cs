@@ -14,4 +14,5 @@ public sealed record CreateSourceCommand(
     string? Currency,
     string? Icon,
     string? Color,
-    int? SortOrder) : IRequest<CreateSourceResponse>;
+    int? SortOrder,
+    long? InitialBalance) : IRequest<CreateSourceResponse>;

@@ -10,4 +10,5 @@ public sealed record UpdateCategoryBody(
     string? Icon,
     string? Color,
     int? SortOrder,
-    bool IsDefault);
+    bool IsDefault,
+    CategoryNecessityLevel? NecessityLevel = null);

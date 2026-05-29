@@ -26,8 +26,9 @@ public sealed class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQue
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var flat = await _db.FinCategories
+        var flat = await _db.FinCategories
             .AsNoTracking()
+            .Where(c => c.Kind == request.Kind)
             .OrderBy(c => c.SortOrder)
             .ThenBy(c => c.Name)
             .ToListAsync(cancellationToken)

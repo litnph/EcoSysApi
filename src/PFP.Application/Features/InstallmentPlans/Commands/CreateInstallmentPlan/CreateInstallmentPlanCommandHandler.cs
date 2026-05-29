@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.InstallmentPlans.Common;
+using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
@@ -29,7 +31,6 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
             throw new UnauthorizedAppException("Authentication is required.");
 
         var txn = await _db.FinTransactions
-            .AsNoTracking()
             .Include(t => t.Source)
             .FirstOrDefaultAsync(t => t.Id == request.OriginalTxnId, cancellationToken)
             .ConfigureAwait(false);
@@ -49,12 +50,9 @@ if (txn.Source.Type != SourceType.CreditCard)
         }
 
         var totalMonths = request.TotalMonths;
-        var monthlyShare = decimal.Truncate(totalAmount / totalMonths);
-        var lastShare = totalAmount - monthlyShare * (totalMonths - 1);
-        if (lastShare < 0)
-            throw new BusinessRuleException("Invalid installment amount split.");
+        var (monthlyShare, lastShare) = InstallmentScheduleSplit.Split(totalAmount, totalMonths);
 
-        var startDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var startDate = txn.TxnDate;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         // Wrap explicit transaction with the retrying execution strategy so EnableRetryOnFailure
@@ -80,22 +78,37 @@ if (txn.Source.Type != SourceType.CreditCard)
 
             _db.FinInstallmentPlans.Add(plan);
 
+            if (txn.Status == TxnStatus.New)
+                txn.Status = TxnStatus.TransferredToInstallment;
+
+            var cardSource = await _db.FinSources
+                .FirstAsync(s => s.Id == txn.SourceId, cancellationToken)
+                .ConfigureAwait(false);
+
+            var pays = new List<FinInstallmentPay>(totalMonths);
             for (var i = 1; i <= totalMonths; i++)
             {
                 var amount = i == totalMonths ? lastShare : monthlyShare;
-                var dueDate = startDate.AddMonths(i - 1);
-                var status = i == 1 && dueDate <= today ? InstallmentPayStatus.Due : InstallmentPayStatus.Upcoming;
-                _db.FinInstallmentPays.Add(
-                    new FinInstallmentPay
-                    {
-                        PlanId = plan.Id,
-                        InstallmentNumber = i,
-                        DueDate = dueDate,
-                        Amount = amount,
-                        PaidAmount = 0,
-                        Status = status,
-                    });
+                var dueDate = InstallmentPaySchedule.DueDateForInstallment(startDate, i);
+                var pay = new FinInstallmentPay
+                {
+                    PlanId = plan.Id,
+                    InstallmentNumber = i,
+                };
+                InstallmentPaySchedule.ApplyInitialPayLine(pay, amount, dueDate, today);
+                pays.Add(pay);
+                _db.FinInstallmentPays.Add(pay);
             }
+
+            if (InstallmentPaySchedule.IsFullyPaid(pays))
+                plan.Status = InstallmentStatus.Completed;
+
+            var backfillPaidTotal = pays
+                .Where(p => p.Status == InstallmentPayStatus.Paid)
+                .Sum(p => p.Amount);
+
+            if (backfillPaidTotal > 0m)
+                cardSource.Balance = Math.Max(0m, cardSource.Balance - backfillPaidTotal);
 
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);

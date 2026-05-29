@@ -1,4 +1,5 @@
 using FluentValidation;
+using PFP.Application.Features.Sources.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Sources.CreateSource;
@@ -31,6 +32,12 @@ RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
             RuleFor(x => x.StatementDay).Null();
             RuleFor(x => x.PaymentDueDay).Null();
             RuleFor(x => x.MinInstallmentAmt).Null();
+            RuleFor(x => x.InitialBalance).GreaterThanOrEqualTo(0).When(x => x.InitialBalance is not null);
+        });
+
+        When(x => x.Type == SourceType.CreditCard, () =>
+        {
+            RuleFor(x => x.InitialBalance).Null();
         });
     }
 }

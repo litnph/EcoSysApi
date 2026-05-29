@@ -7,11 +7,16 @@ public sealed record InstallmentPlanListItemDto(
     Guid Id,
     Guid SourceId,
     string SourceName,
+    string? SourceIcon,
+    string? SourceColor,
     string OriginalTxnDescription,
+    string? OriginalTxnCategoryName,
     InstallmentStatus Status,
     int PaidInstallments,
     int TotalInstallments,
     long RemainingAmount,
+    long TotalAmount,
+    bool CanDelete,
     DateTime CreatedAt);
 
 /// <summary>Detail DTO for a single pay line.</summary>
@@ -29,8 +34,11 @@ public sealed record InstallmentPlanDetailDto(
     Guid Id,
     Guid SourceId,
     string SourceName,
+    string? SourceIcon,
+    string? SourceColor,
     Guid OriginalTxnId,
     string OriginalTxnDescription,
+    string? OriginalTxnCategoryName,
     long TotalAmount,
     int TotalMonths,
     long MonthlyAmount,
@@ -42,4 +50,5 @@ public sealed record InstallmentPlanDetailDto(
     DateOnly StartDate,
     InstallmentStatus Status,
     string? CancellationReason,
+    bool CanDelete,
     IReadOnlyList<InstallmentPayItemDto> Pays);

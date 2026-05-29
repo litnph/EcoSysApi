@@ -29,7 +29,10 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-if (request.Type is TransactionType.DebtBorrow
+
+        request = await NormalizeExpenseCommandAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (request.Type is TransactionType.DebtBorrow
             or TransactionType.LoanGive
             or TransactionType.DebtRepay
             or TransactionType.LoanCollect)
@@ -92,11 +95,13 @@ if (request.Type is TransactionType.DebtBorrow
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
         var personName = request.PersonName!.Trim();
-        var description = TruncateDescription($"Borrowed: {personName}");
+        var description = ResolveDescription(
+            request.Description,
+            $"Borrowed: {personName}");
 
         var txn = new FinTransaction
         {            Type = TransactionType.DebtBorrow,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -159,11 +164,13 @@ if (request.Type is TransactionType.DebtBorrow
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
         var personName = request.PersonName!.Trim();
-        var description = TruncateDescription($"Loan given: {personName}");
+        var description = ResolveDescription(
+            request.Description,
+            $"Loan given: {personName}");
 
         var txn = new FinTransaction
         {            Type = TransactionType.LoanGive,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -234,11 +241,13 @@ if (request.Type is TransactionType.DebtBorrow
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
-        var description = TruncateDescription($"Debt repayment: {debt.PersonName}");
+        var description = ResolveDescription(
+            request.Description,
+            $"Debt repayment: {debt.PersonName}");
 
         var txn = new FinTransaction
         {            Type = TransactionType.DebtRepay,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -313,11 +322,13 @@ if (request.Type is TransactionType.DebtBorrow
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
-        var description = TruncateDescription($"Loan collected: {debt.PersonName}");
+        var description = ResolveDescription(
+            request.Description,
+            $"Loan collected: {debt.PersonName}");
 
         var txn = new FinTransaction
         {            Type = TransactionType.LoanCollect,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -398,40 +409,18 @@ if (request.Type is TransactionType.DebtBorrow
 
         await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
-        FinBillingCycle cycle;
-        if (request.BillingCycleId is { } explicitId)
-        {
-            var loaded = await _db.FinBillingCycles
-                .FirstOrDefaultAsync(
-                    bc => bc.Id == explicitId && bc.SourceId == source.Id,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (loaded is null || loaded.Status != BillingCycleStatus.Open)
-                throw new BusinessRuleException("Billing cycle is not open for this credit card.");
-            cycle = loaded;
-        }
-        else
-        {
-            var loaded = await _db.FinBillingCycles
-                .OrderByDescending(bc => bc.PeriodStart)
-                .FirstOrDefaultAsync(cancellationToken)
-                .ConfigureAwait(false);
-            if (loaded is null)
-                throw new BusinessRuleException("Không có kỳ sao kê đang mở cho thẻ này");
-            cycle = loaded;
-        }
-
-        var description = BuildDirectIncomeDescription(TransactionType.Direct, category.Name);
+        var description = ResolveDescription(
+            request.Description,
+            BuildDirectIncomeDescription(TransactionType.Direct, category.Name));
 
         var txn = new FinTransaction
         {            Type = TransactionType.Deferred,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
             SourceId = request.SourceId,
             CategoryId = categoryId,
-            BillingCycleId = cycle.Id,
             MonthlyPeriodId = request.MonthlyPeriodId,
             Description = description,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
@@ -440,7 +429,6 @@ if (request.Type is TransactionType.DebtBorrow
         _db.FinTransactions.Add(txn);
 
         source.Balance += CurrencyUnits.FromWhole(request.Amount);
-        cycle.TotalAmount += CurrencyUnits.FromWhole(request.Amount);
 
         AddCreatedHistory(txn);
 
@@ -493,11 +481,13 @@ if (request.Type is TransactionType.DebtBorrow
         if (source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
-        var description = BuildDirectIncomeDescription(TransactionType.Split, category.Name);
+        var description = ResolveDescription(
+            request.Description,
+            BuildDirectIncomeDescription(TransactionType.Split, category.Name));
 
         var txn = new FinTransaction
         {            Type = TransactionType.Split,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -572,11 +562,13 @@ if (request.Type is TransactionType.DebtBorrow
         if (request.Type == TransactionType.Direct && source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
-        var description = BuildDirectIncomeDescription(request.Type, category.Name);
+        var description = ResolveDescription(
+            request.Description,
+            BuildDirectIncomeDescription(request.Type, category.Name));
 
         var txn = new FinTransaction
         {            Type = request.Type,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,
@@ -647,12 +639,14 @@ if (request.Type is TransactionType.DebtBorrow
             if (!string.Equals(fromSource.Currency, toSource.Currency, StringComparison.Ordinal))
                 throw new BusinessRuleException("Both sources must use the same currency for a transfer.");
 
-            var description = BuildTransferDescription(fromSource.Name, toSource.Name);
+            var description = ResolveDescription(
+                request.Description,
+                BuildTransferDescription(fromSource.Name, toSource.Name));
 
             var outbound = new FinTransaction
             {
                 Type = TransactionType.Transfer,
-                Status = TxnStatus.Completed,
+                Status = TxnStatus.New,
                 Amount = -CurrencyUnits.FromWhole(request.Amount),
                 Currency = fromSource.Currency,
                 TxnDate = request.TxnDate,
@@ -668,7 +662,7 @@ if (request.Type is TransactionType.DebtBorrow
             var inbound = new FinTransaction
             {
                 Type = TransactionType.Transfer,
-                Status = TxnStatus.Completed,
+                Status = TxnStatus.New,
                 Amount = CurrencyUnits.FromWhole(request.Amount),
                 Currency = toSource.Currency,
                 TxnDate = request.TxnDate,
@@ -731,6 +725,14 @@ if (request.Type is TransactionType.DebtBorrow
     private static string TruncateDescription(string text) =>
         text.Length <= 512 ? text : text[..512];
 
+    private static string ResolveDescription(string? custom, string fallback)
+    {
+        if (custom is null)
+            return TruncateDescription(fallback);
+        var trimmed = custom.Trim();
+        return trimmed.Length > 0 ? TruncateDescription(trimmed) : string.Empty;
+    }
+
     private static string BuildDirectIncomeDescription(TransactionType type, string categoryName)
     {
         var prefix = type == TransactionType.Income ? "Income" : "Expense";
@@ -742,6 +744,25 @@ if (request.Type is TransactionType.DebtBorrow
     {
         var text = $"Transfer: {fromName} → {toName}";
         return text.Length <= 512 ? text : text[..512];
+    }
+
+    /// <summary>Chi tiêu (<c>direct</c>) trên thẻ tín dụng → <c>deferred</c> (ghi nợ thẻ; gắn kỳ sao kê qua Refresh).</summary>
+    private async Task<CreateTransactionCommand> NormalizeExpenseCommandAsync(
+        CreateTransactionCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Type != TransactionType.Direct)
+            return request;
+
+        var src = await _db.FinSources
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (src is null || src.Type != SourceType.CreditCard)
+            return request;
+
+        return request with { Type = TransactionType.Deferred };
     }
 
     private static TransactionDetailDto MapDetail(FinTransaction t) => TransactionDtoMapper.ToDetail(t);

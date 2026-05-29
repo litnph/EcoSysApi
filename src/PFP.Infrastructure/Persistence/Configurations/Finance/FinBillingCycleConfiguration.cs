@@ -10,6 +10,8 @@ public sealed class FinBillingCycleConfiguration : IEntityTypeConfiguration<FinB
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<FinBillingCycle> builder)
     {
+        builder.Property(x => x.Name).HasMaxLength(128).IsRequired();
+
         builder.Property(x => x.PeriodStart).HasColumnType("date");
         builder.Property(x => x.PeriodEnd).HasColumnType("date");
         builder.Property(x => x.StatementDate).HasColumnType("date");
@@ -17,6 +19,8 @@ public sealed class FinBillingCycleConfiguration : IEntityTypeConfiguration<FinB
 
         builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
         builder.Property(x => x.PaidAmount).HasPrecision(18, 2);
+        builder.Property(x => x.IssuerStatementAmount).HasPrecision(18, 2);
+        builder.Property(x => x.ReconciliationNote).HasMaxLength(500);
 
         builder.HasIndex(x => new { x.SourceId, x.Status });
         builder.HasIndex(x => new { x.SourceId, x.PeriodStart, x.PeriodEnd });
@@ -25,5 +29,9 @@ public sealed class FinBillingCycleConfiguration : IEntityTypeConfiguration<FinB
                .WithMany(s => s.BillingCycles)
                .HasForeignKey(x => x.SourceId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Items)
+               .WithOne(i => i.BillingCycle)
+               .HasForeignKey(i => i.BillingCycleId);
     }
 }

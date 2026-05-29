@@ -80,7 +80,7 @@ if (split.Status != SplitStatus.Pending)
 
         var income = new FinTransaction
         {            Type = TransactionType.Income,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = payAmount,
             Currency = paymentSource.Currency,
             TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),

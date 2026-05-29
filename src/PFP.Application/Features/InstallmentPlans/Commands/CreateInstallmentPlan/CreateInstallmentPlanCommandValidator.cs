@@ -17,12 +17,11 @@ public sealed class CreateInstallmentPlanCommandValidator : AbstractValidator<Cr
         RuleFor(x => x.InterestRate).GreaterThanOrEqualTo(0);
 
         RuleFor(x => x.ConversionFeeRate)
-            .NotNull()
-            .GreaterThan(0m)
-            .When(x => x.InterestRate == 0m);
+            .GreaterThanOrEqualTo(0m)
+            .When(x => x.ConversionFeeRate is not null);
 
         RuleFor(x => x.ConversionFeeRate)
-            .Must(r => r == null || r > 0m)
+            .Must(r => r is null)
             .When(x => x.InterestRate > 0m);
 
         RuleFor(x => x.OriginalTxnId).MustAsync(

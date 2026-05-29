@@ -3,11 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriodsList;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriodsList;
 
-/// <summary>Rolls back 12 months from UTC "today" and joins stored <c>fin_monthly_periods</c> rows.</summary>
+/// <summary>Returns monthly reports explicitly created by the user.</summary>
 public sealed class GetMonthlyPeriodsListQueryHandler : IRequestHandler<GetMonthlyPeriodsListQuery, GetMonthlyPeriodsListResponse>
 {
     private readonly IApplicationDbContext _db;
@@ -24,49 +25,25 @@ public sealed class GetMonthlyPeriodsListQueryHandler : IRequestHandler<GetMonth
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var anchorYear = today.Year;
-        var anchorMonth = today.Month;
 
-        var keys = new List<(int Y, int M)>(12);
-        var y = anchorYear;
-        var m = anchorMonth;
-        for (var i = 0; i < 12; i++)
-        {
-            keys.Add((y, m));
-            if (m == 1)
-            {
-                y--;
-                m = 12;
-            }
-            else
-            {
-                m--;
-            }
-        }
-
-        var periods = await _db.FinMonthlyPeriods
+        var rows = await _db.FinMonthlyPeriods
             .AsNoTracking()
+            .Where(p => p.ReportCreatedAt != null)
+            .OrderByDescending(p => p.Year)
+            .ThenByDescending(p => p.Month)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var dict = periods.ToDictionary(p => (p.Year, p.Month));
-
-        var list = keys.Select(key =>
-        {
-            if (dict.TryGetValue(key, out var row))
-            {
-                return new MonthlyPeriodListItemDto(
-                    row.Year,
-                    row.Month,
-                    row.Status,
-                    CurrencyUnits.ToWhole(row.TotalIncome),
-                    CurrencyUnits.ToWhole(row.TotalExpense),
-                    CurrencyUnits.ToWhole(row.Net));
-            }
-
-            return new MonthlyPeriodListItemDto(key.Y, key.M, PeriodStatus.Open, 0, 0, 0);
-        }).ToList();
+        var list = rows.Select(row => new MonthlyPeriodListItemDto(
+            row.Year,
+            row.Month,
+            row.Status,
+            CurrencyUnits.ToWhole(row.TotalIncome),
+            CurrencyUnits.ToWhole(row.TotalExpense),
+            CurrencyUnits.ToWhole(row.Net),
+            row.ReportCreatedAt!.Value,
+            row.LastRefreshedAt,
+            row.ClosedAt)).ToList();
 
         return new GetMonthlyPeriodsListResponse(list);
     }

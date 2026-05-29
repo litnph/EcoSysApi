@@ -71,7 +71,8 @@ public sealed class CategoriesController : ControllerBase
             body.Icon,
             body.Color,
             body.SortOrder,
-            body.IsDefault);
+            body.IsDefault,
+            body.NecessityLevel);
 
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateCategoryResponse> { Data = result });

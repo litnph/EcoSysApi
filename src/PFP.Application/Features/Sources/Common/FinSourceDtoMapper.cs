@@ -7,7 +7,7 @@ namespace PFP.Application.Features.Sources.Common;
 public static class FinSourceDtoMapper
 {
     /// <summary>Builds a DTO from the entity; <see cref="FinSourceDto.Balance"/> is rounded to a whole currency unit.</summary>
-    public static FinSourceDto ToDto(FinSource entity) =>
+    public static FinSourceDto ToDto(FinSource entity, long installmentRemainingAmount = 0) =>
         new(
             entity.Id,
             entity.Name,
@@ -21,5 +21,8 @@ public static class FinSourceDtoMapper
             entity.Icon,
             entity.Color,
             entity.SortOrder,
-            entity.Version);
+            entity.Version,
+            entity.Type == Domain.Enums.SourceType.CreditCard
+                ? installmentRemainingAmount
+                : 0);
 }

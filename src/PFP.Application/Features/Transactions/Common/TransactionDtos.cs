@@ -2,6 +2,9 @@ using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Transactions.Common;
 
+/// <summary>Tag linked to a transaction via <c>entity_tags</c>.</summary>
+public sealed record TransactionTagDto(Guid Id, string Name, string Color);
+
 /// <summary>Single row in a paginated transaction list.</summary>
 public sealed record TransactionListItemDto(
     Guid Id,
@@ -16,7 +19,10 @@ public sealed record TransactionListItemDto(
     string? CategoryName,
     string Description,
     string? Note,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool HasInstallmentPlan,
+    bool IsInstallmentPayment,
+    IReadOnlyList<TransactionTagDto> Tags);
 
 /// <summary>Paginated list envelope.</summary>
 public sealed record GetTransactionsResponse(
@@ -44,11 +50,15 @@ public sealed record TransactionDetailDto(
     Guid? CategoryId,
     string Description,
     string? Note,
-    Guid? BillingCycleId,
     Guid? MonthlyPeriodId,
     Guid? RefTxnId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     int Version,
+    bool CanEditAmount,
+    bool CanDelete,
+    bool HasInstallmentPlan,
+    bool IsInstallmentPayment,
     TransactionSourceSummaryDto? Source,
-    TransactionCategorySummaryDto? Category);
+    TransactionCategorySummaryDto? Category,
+    IReadOnlyList<TransactionTagDto> Tags);

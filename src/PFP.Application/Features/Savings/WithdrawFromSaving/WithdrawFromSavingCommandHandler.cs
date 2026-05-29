@@ -61,7 +61,7 @@ if (saving.Status is SavingStatus.Withdrawn)
         var txn = new FinTransaction
         {
 Type = TransactionType.Transfer,
-            Status = TxnStatus.Completed,
+            Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
             TxnDate = request.TxnDate,

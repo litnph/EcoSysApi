@@ -40,6 +40,7 @@ public sealed class TransactionsController : ControllerBase
         [FromQuery(Name = "date_to")] DateOnly? dateTo,
         [FromQuery(Name = "amount_min")] long? amountMin,
         [FromQuery(Name = "amount_max")] long? amountMax,
+        [FromQuery(Name = "status")] TxnStatus? status,
         [FromQuery(Name = "page")] int page = 1,
         [FromQuery(Name = "page_size")] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -51,6 +52,7 @@ public sealed class TransactionsController : ControllerBase
             dateTo,
             amountMin,
             amountMax,
+            status,
             page,
             pageSize);
 
@@ -132,11 +134,7 @@ public sealed class TransactionsController : ControllerBase
         return Ok(new ApiResponse<GetTransactionHistoryResponse> { Data = result });
     }
 
-    /// <summary>Updates transaction metadata (description, note, category, txn date, monthly period).</summary>
-    /// <remarks>
-    /// Balance-affecting fields (amount, type, source) are intentionally not exposed — to change
-    /// those, delete the transaction (which posts a reversal) and re-create it.
-    /// </remarks>
+    /// <summary>Updates transaction fields including amount (reconciles source balances).</summary>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<UpdateTransactionResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<UpdateTransactionResponse>>> Update(
@@ -150,7 +148,8 @@ public sealed class TransactionsController : ControllerBase
             body.TxnDate,
             body.Description,
             body.Note,
-            body.MonthlyPeriodId);
+            body.MonthlyPeriodId,
+            body.Amount);
 
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateTransactionResponse> { Data = result });
@@ -186,4 +185,7 @@ public sealed class UpdateTransactionBody
 
     /// <summary>Optional monthly-period reassignment.</summary>
     public Guid? MonthlyPeriodId { get; init; }
+
+    /// <summary>Optional new amount (whole currency units). Signed only for balance adjustments.</summary>
+    public long? Amount { get; init; }
 }

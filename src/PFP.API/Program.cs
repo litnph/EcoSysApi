@@ -92,6 +92,9 @@ if (app.Configuration.GetValue("Database:AutoMigrate", false)
             startupLogger.LogInformation("Resetting demo finance data...");
         }
 
+        await ExpenseCategorySeeder.EnsureAsync(db, app.Configuration, CancellationToken.None).ConfigureAwait(false);
+        await IncomeCategorySeeder.EnsureAsync(db, app.Configuration, CancellationToken.None).ConfigureAwait(false);
+        await TransferCategorySeeder.EnsureAsync(db, app.Configuration, CancellationToken.None).ConfigureAwait(false);
         await DemoFinanceSeeder.EnsureAsync(db, app.Configuration, CancellationToken.None).ConfigureAwait(false);
         startupLogger.LogInformation("Database seed completed.");
     }

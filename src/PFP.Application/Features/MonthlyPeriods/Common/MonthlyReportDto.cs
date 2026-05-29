@@ -7,7 +7,9 @@ public sealed record MonthlyReportDto(
     IReadOnlyList<MonthSourceBreakdownItemDto> SourceBreakdown,
     IReadOnlyList<MonthlyReportTopTransactionDto> TopTransactions,
     IReadOnlyList<DailyCashflowDto> DailyBreakdown,
-    MonthOverMonthComparisonDto ComparisonWithPreviousMonth);
+    MonthOverMonthComparisonDto ComparisonWithPreviousMonth,
+    MonthlyReportDirectExpenseSectionDto DirectExpenses,
+    MonthlyReportBillingCyclesSectionDto BillingCycles);
 
 /// <summary>Totals and savings rate for the report header.</summary>
 public sealed record MonthlyReportSummaryDto(
