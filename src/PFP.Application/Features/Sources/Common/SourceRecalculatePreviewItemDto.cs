@@ -12,5 +12,6 @@ public sealed record SourceRecalculatePreviewItemDto(
     long ComputedBalance,
     long Drift,
     long? CreditLimit,
+    long InstallmentRemainingAmount,
     decimal? StoredUtilizationPercent,
     decimal? ComputedUtilizationPercent);

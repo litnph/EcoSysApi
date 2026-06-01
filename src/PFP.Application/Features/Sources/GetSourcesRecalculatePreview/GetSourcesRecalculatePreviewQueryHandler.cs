@@ -38,6 +38,10 @@ public sealed class GetSourcesRecalculatePreviewQueryHandler
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var installmentBySource = await SourceInstallmentMetrics
+            .GetRemainingBySourceIdAsync(_db, cancellationToken)
+            .ConfigureAwait(false);
+
         var items = new List<SourceRecalculatePreviewItemDto>(sources.Count);
         foreach (var source in sources)
         {
@@ -50,6 +54,7 @@ public sealed class GetSourcesRecalculatePreviewQueryHandler
             var limitWhole = source.CreditLimit is { } limit
                 ? CurrencyUnits.ToWhole(limit)
                 : (long?)null;
+            var installmentRemaining = installmentBySource.GetValueOrDefault(source.Id, 0);
 
             items.Add(new SourceRecalculatePreviewItemDto(
                 source.Id,
@@ -60,18 +65,11 @@ public sealed class GetSourcesRecalculatePreviewQueryHandler
                 computedWhole,
                 computedWhole - storedWhole,
                 limitWhole,
-                UtilizationPercent(storedWhole, limitWhole),
-                UtilizationPercent(computedWhole, limitWhole)));
+                installmentRemaining,
+                CreditCardBalanceRules.UtilizationPercent(storedWhole, limitWhole),
+                CreditCardBalanceRules.UtilizationPercent(computedWhole, limitWhole)));
         }
 
         return new GetSourcesRecalculatePreviewResponse(items);
-    }
-
-    private static decimal? UtilizationPercent(long balance, long? creditLimit)
-    {
-        if (creditLimit is not > 0)
-            return null;
-
-        return Math.Round(balance * 100m / creditLimit.Value, 1, MidpointRounding.AwayFromZero);
     }
 }

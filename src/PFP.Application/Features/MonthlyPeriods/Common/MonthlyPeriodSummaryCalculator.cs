@@ -33,12 +33,25 @@ internal static class MonthlyPeriodSummaryCalculator
             .Where(t => t.TxnDate >= start && t.TxnDate <= end);
     }
 
-    private static bool IsExpenseAggregate(TransactionType t) =>
-        t is TransactionType.Direct
-            or TransactionType.Deferred
-            or TransactionType.Split
-            or TransactionType.DebtBorrow
-            or TransactionType.LoanGive;
+    /// <summary>
+    /// Direct payment toward a billing cycle — expense is captured in the billing-cycle section, not direct spend.
+    /// </summary>
+    public static IQueryable<FinTransaction> ExcludeBillingCyclePaymentTxns(IQueryable<FinTransaction> q) =>
+        q.Where(t =>
+            t.Note != BillingCyclePaymentNotes.StatementPayment
+            && t.Description != BillingCyclePaymentNotes.StatementPayment);
+
+    private static IQueryable<FinTransaction> ReportExpenseTransactions(
+        IApplicationDbContext db,
+        int year,
+        int month) =>
+        ExcludeBillingCyclePaymentTxns(MonthTransactions(db, year, month))
+            .Where(t =>
+                t.Type == TransactionType.Deferred
+                || t.Type == TransactionType.Split
+                || t.Type == TransactionType.DebtBorrow
+                || t.Type == TransactionType.LoanGive
+                || t.Type == TransactionType.Direct);
 
     /// <summary>Income, expense, net, category &amp; source expense breakdowns, percentages vs total expense.</summary>
     public static async Task<(decimal TotalIncome, decimal TotalExpense, decimal Net, IReadOnlyList<MonthCategoryBreakdownItemDto> Categories, IReadOnlyList<MonthSourceBreakdownItemDto> Sources)>
@@ -48,32 +61,20 @@ internal static class MonthlyPeriodSummaryCalculator
             int month,
             CancellationToken cancellationToken)
     {
-        var q = MonthTransactions(db, year, month);
+        var q = ReportExpenseTransactions(db, year, month);
 
-        var income = await q
+        var income = await MonthTransactions(db, year, month)
             .Where(t => t.Type == TransactionType.Income)
             .SumAsync(t => (decimal?)t.Amount, cancellationToken)
             .ConfigureAwait(false) ?? 0m;
 
         var expense = await q
-            .Where(t =>
-                t.Type == TransactionType.Direct
-                || t.Type == TransactionType.Deferred
-                || t.Type == TransactionType.Split
-                || t.Type == TransactionType.DebtBorrow
-                || t.Type == TransactionType.LoanGive)
             .SumAsync(t => (decimal?)t.Amount, cancellationToken)
             .ConfigureAwait(false) ?? 0m;
 
         var net = income - expense;
 
         var catAgg = await q
-            .Where(t =>
-                t.Type == TransactionType.Direct
-                || t.Type == TransactionType.Deferred
-                || t.Type == TransactionType.Split
-                || t.Type == TransactionType.DebtBorrow
-                || t.Type == TransactionType.LoanGive)
             .GroupBy(t => t.CategoryId)
             .Select(g => new { CategoryId = g.Key, Amount = g.Sum(x => x.Amount), Cnt = g.Count() })
             .ToListAsync(cancellationToken)
@@ -99,12 +100,6 @@ internal static class MonthlyPeriodSummaryCalculator
             .ToList();
 
         var srcAgg = await q
-            .Where(t =>
-                t.Type == TransactionType.Direct
-                || t.Type == TransactionType.Deferred
-                || t.Type == TransactionType.Split
-                || t.Type == TransactionType.DebtBorrow
-                || t.Type == TransactionType.LoanGive)
             .GroupBy(t => t.SourceId)
             .Select(g => new { SourceId = g.Key, Amount = g.Sum(x => x.Amount) })
             .ToListAsync(cancellationToken)
@@ -383,7 +378,7 @@ internal static class MonthlyPeriodSummaryCalculator
         CancellationToken cancellationToken)
     {
         var items = await (
-                from t in MonthTransactions(db, year, month)
+                from t in ExcludeBillingCyclePaymentTxns(MonthTransactions(db, year, month))
                 join s in db.FinSources.AsNoTracking() on t.SourceId equals s.Id
                 join c in db.FinCategories.AsNoTracking() on t.CategoryId equals c.Id into cj
                 from c in cj.DefaultIfEmpty()

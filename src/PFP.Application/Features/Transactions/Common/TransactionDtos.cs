@@ -22,6 +22,8 @@ public sealed record TransactionListItemDto(
     DateTime CreatedAt,
     bool HasInstallmentPlan,
     bool IsInstallmentPayment,
+    /// <summary>YYYY-MM of the billing cycle statement month when on an active cycle line; otherwise null.</summary>
+    string? BillingCycleStatementMonth,
     IReadOnlyList<TransactionTagDto> Tags);
 
 /// <summary>Paginated list envelope.</summary>

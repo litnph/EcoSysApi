@@ -80,6 +80,10 @@ public sealed class GetTransactionsQueryHandler : IRequestHandler<GetTransaction
             .ForTransactionsMapAsync(_db, rows.Select(r => r.Id), cancellationToken)
             .ConfigureAwait(false);
 
+        var statementMonthMap = await BillingCycleStatementMonthQueries
+            .ForTransactionsMapAsync(_db, rows.Select(r => r.Id), cancellationToken)
+            .ConfigureAwait(false);
+
         var items = rows.Select(r => new TransactionListItemDto(
             r.Id,
             r.Type,
@@ -96,6 +100,7 @@ public sealed class GetTransactionsQueryHandler : IRequestHandler<GetTransaction
             r.CreatedAt,
             r.HasInstallmentPlan,
             r.IsInstallmentPayment,
+            statementMonthMap.TryGetValue(r.Id, out var stmtMonth) ? stmtMonth : null,
             tagMap.TryGetValue(r.Id, out var tags) ? tags : Array.Empty<TransactionTagDto>())).ToList();
 
         return new GetTransactionsResponse(items, request.Page, request.PageSize, total, totalPages);

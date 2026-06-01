@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.Sources.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
@@ -62,12 +63,19 @@ public sealed class BalanceCalculator : IBalanceCalculator
     {
         var sourceMeta = await _db.FinSources.AsNoTracking()
             .Where(s => s.Id == sourceId)
-            .Select(s => new { s.InitialBalance })
+            .Select(s => new { s.Type, s.InitialBalance })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
         if (sourceMeta is null)
             throw new NotFoundException("Source was not found.");
+
+        if (sourceMeta.Type == SourceType.CreditCard)
+        {
+            return await CreditCardBalanceRules
+                .ComputeOutstandingAsync(_db, sourceId, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         var legs = await _db.FinTransactions.AsNoTracking()
             .Where(t => t.SourceId == sourceId

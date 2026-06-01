@@ -23,24 +23,39 @@ public sealed class GetDebtSummaryQueryHandler : IRequestHandler<GetDebtSummaryQ
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var activeBorrowed = await _db.FinDebtRecords.AsNoTracking()
-            .ToListAsync(cancellationToken)
+        var totalBorrowedRemaining = await _db.FinDebtRecords
+            .AsNoTracking()
+            .Where(r => r.Direction == DebtDirection.Borrowed && r.Status == DebtStatus.Active)
+            .SumAsync(r => (decimal?)r.RemainingAmount, cancellationToken)
+            .ConfigureAwait(false) ?? 0m;
+
+        var totalLentRemaining = await _db.FinDebtRecords
+            .AsNoTracking()
+            .Where(r => r.Direction == DebtDirection.Lent && r.Status == DebtStatus.Active)
+            .SumAsync(r => (decimal?)r.RemainingAmount, cancellationToken)
+            .ConfigureAwait(false) ?? 0m;
+
+        var overdueBorrowedCount = await _db.FinDebtRecords
+            .AsNoTracking()
+            .Where(r =>
+                r.Direction == DebtDirection.Borrowed
+                && r.Status == DebtStatus.Active
+                && r.DueDate != null
+                && r.DueDate < today)
+            .CountAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var activeLent = await _db.FinDebtRecords.AsNoTracking()
-            .ToListAsync(cancellationToken)
+        var overdueLentCount = await _db.FinDebtRecords
+            .AsNoTracking()
+            .Where(r =>
+                r.Direction == DebtDirection.Lent
+                && r.Status == DebtStatus.Active
+                && r.DueDate != null
+                && r.DueDate < today)
+            .CountAsync(cancellationToken)
             .ConfigureAwait(false);
-
-        var totalBorrowedRemaining = activeBorrowed.Sum(r => r.RemainingAmount);
-        var totalLentRemaining = activeLent.Sum(r => r.RemainingAmount);
-
-        var overdueBorrowedCount = activeBorrowed.Count(r =>
-            r.DueDate is { } d && d < today);
-
-        var overdueLentCount = activeLent.Count(r =>
-            r.DueDate is { } d && d < today);
 
         return new GetDebtSummaryResponse(
             CurrencyUnits.ToWhole(totalBorrowedRemaining),

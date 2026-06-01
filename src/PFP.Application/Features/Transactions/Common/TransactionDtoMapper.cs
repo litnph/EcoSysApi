@@ -13,6 +13,7 @@ public static class TransactionDtoMapper
         string? categoryName,
         bool hasInstallmentPlan = false,
         bool isInstallmentPayment = false,
+        string? billingCycleStatementMonth = null,
         IReadOnlyList<TransactionTagDto>? tags = null) =>
         new(
             t.Id,
@@ -30,6 +31,7 @@ public static class TransactionDtoMapper
             t.CreatedAt,
             hasInstallmentPlan,
             isInstallmentPayment,
+            billingCycleStatementMonth,
             tags ?? Array.Empty<TransactionTagDto>());
 
     /// <summary>Builds an embedded source summary.</summary>

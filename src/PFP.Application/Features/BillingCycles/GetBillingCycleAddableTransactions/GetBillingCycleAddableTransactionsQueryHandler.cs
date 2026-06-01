@@ -73,6 +73,7 @@ public sealed class GetBillingCycleAddableTransactionsQueryHandler
                 t.CreatedAt,
                 _db.FinInstallmentPlans.Any(p => p.OriginalTxnId == t.Id),
                 t.InstallmentPlanId != null,
+                null,
                 Array.Empty<TransactionTagDto>()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
