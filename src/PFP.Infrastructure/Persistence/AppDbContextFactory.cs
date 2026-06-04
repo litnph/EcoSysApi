@@ -30,11 +30,11 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         if (string.IsNullOrWhiteSpace(connectionString))
             connectionString = TryReadDefaultConnectionFromApiAppsettings();
         connectionString ??=
-            "Server=(localdb)\\mssqllocaldb;Database=pfp_design;Trusted_Connection=True;TrustServerCertificate=True";
+            "Host=localhost;Port=5432;Database=pfp_design;Username=postgres;Password=postgres";
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer(connectionString, sql =>
-                sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
+            .UseNpgsql(connectionString, npgsql =>
+                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
             .Options;
 
         return new AppDbContext(options);

@@ -66,10 +66,10 @@ public static class InfrastructureServiceCollectionExtensions
 
     private static void ConfigureAppDbContext(DbContextOptionsBuilder options, string connectionString)
     {
-        options.UseSqlServer(connectionString, sql =>
+        options.UseNpgsql(connectionString, npgsql =>
         {
-            sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-            sql.EnableRetryOnFailure(maxRetryCount: 3);
+            npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+            npgsql.EnableRetryOnFailure(maxRetryCount: 3);
         });
     }
 }

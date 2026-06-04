@@ -13,7 +13,7 @@ public sealed class FinBillingCycleItemConfiguration : IEntityTypeConfiguration<
         builder.HasIndex(x => x.BillingCycleId);
         builder.HasIndex(x => x.TransactionId)
             .IsUnique()
-            .HasFilter("[removed_at] IS NULL")
+            .HasFilter("removed_at IS NULL")
             .HasDatabaseName("ux_fin_billing_cycle_items_transaction_id_active");
 
         builder.HasOne(x => x.BillingCycle)

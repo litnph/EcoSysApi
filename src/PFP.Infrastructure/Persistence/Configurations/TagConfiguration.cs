@@ -15,5 +15,6 @@ public sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
 
         builder.HasIndex(x => x.Name)
             .IsUnique()
-            .HasFilter("[is_deleted] = 0");    }
+            .HasFilter("is_deleted = false");
+    }
 }

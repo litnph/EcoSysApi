@@ -2,8 +2,8 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PFP.Infrastructure.Persistence;
 
 #nullable disable
@@ -18,68 +18,68 @@ namespace PFP.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.11")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("PFP.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("action");
 
                     b.Property<string>("AfterSnapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("after_snapshot");
 
                     b.Property<string>("BeforeSnapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("before_snapshot");
 
                     b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("changed_fields");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("entity_type");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("ip_address");
 
                     b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UserAgent")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("user_agent");
 
                     b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
@@ -98,37 +98,37 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<bool>("ArchiveBeforeDelete")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("archive_before_delete");
 
                     b.Property<string>("ArchiveStorageKeyPrefix")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("archive_storage_key_prefix");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("EntityType")
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("entity_type");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
                     b.Property<int>("RetainDays")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("retain_days");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -136,8 +136,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EntityType")
                         .IsUnique()
-                        .HasDatabaseName("ix_audit_log_retention_entity_type")
-                        .HasFilter("[entity_type] IS NOT NULL");
+                        .HasDatabaseName("ix_audit_log_retention_entity_type");
 
                     b.ToTable("audit_log_retention");
                 });
@@ -146,45 +145,45 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("entity_type");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<Guid>("TagId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("tag_id");
 
                     b.Property<Guid>("TaggedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("tagged_by");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -199,7 +198,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("TagId", "EntityType", "EntityId")
                         .IsUnique()
                         .HasDatabaseName("ix_entity_tags_tag_id_entity_type_entity_id")
-                        .HasFilter("[is_deleted] = 0");
+                        .HasFilter("is_deleted = false");
 
                     b.ToTable("entity_tags");
                 });
@@ -208,41 +207,41 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("entity_type");
 
                     b.Property<string>("FileKey")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("file_key");
 
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("file_name");
 
                     b.Property<long>("FileSize")
@@ -250,25 +249,25 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("file_size");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<bool>("IsPublic")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_public");
 
                     b.Property<string>("MimeType")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("mime_type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UploadedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("uploaded_by");
 
                     b.HasKey("Id")
@@ -287,88 +286,88 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("code");
 
                     b.Property<string>("Color")
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("color");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<int>("Depth")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("depth");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("character varying(1024)")
                         .HasColumnName("description");
 
                     b.Property<string>("Icon")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("icon");
 
                     b.Property<bool>("IsDefault")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_default");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<bool>("IsSystem")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_system");
 
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("kind");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<string>("NecessityLevel")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("necessity_level");
 
                     b.Property<Guid?>("ParentId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("parent_id");
 
                     b.Property<string>("Path")
                         .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnType("character varying(2048)")
                         .HasColumnName("path");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -388,71 +387,71 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("CategoryBreakdown")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("category_breakdown");
 
                     b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
 
                     b.Property<Guid?>("ClosedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("closed_by");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("LastRefreshedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_refreshed_at");
 
                     b.Property<int>("Month")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("month");
 
                     b.Property<decimal>("Net")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("net");
 
                     b.Property<DateTime?>("ReportCreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("report_created_at");
 
                     b.Property<string>("ReportSnapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("report_snapshot");
 
                     b.Property<string>("SourceBreakdown")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("source_breakdown");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalExpense")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_expense");
 
                     b.Property<decimal>("TotalIncome")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_income");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("Year")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("year");
 
                     b.HasKey("Id")
@@ -472,112 +471,112 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Balance")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("balance");
 
                     b.Property<string>("Color")
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("color");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<decimal?>("CreditLimit")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("credit_limit");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)")
+                        .HasColumnType("character varying(3)")
                         .HasColumnName("currency");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("character varying(1024)")
                         .HasColumnName("description");
 
                     b.Property<string>("ExternalRef")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("external_ref");
 
                     b.Property<string>("Icon")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("icon");
 
                     b.Property<decimal?>("InitialBalance")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("initial_balance");
 
                     b.Property<bool>("IsArchived")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_archived");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("last_session_id");
 
                     b.Property<decimal?>("MinInstallmentAmt")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("min_installment_amt");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<int?>("PaymentDueDay")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("payment_due_day");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
                     b.Property<int?>("StatementDay")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("statement_day");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -590,48 +589,48 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_type");
 
                     b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("changed_by");
 
                     b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("changed_fields");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
                     b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("snapshot");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -647,98 +646,98 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
                     b.Property<Guid?>("CategoryId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("category_id");
 
                     b.Property<string>("CounterpartyName")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("counterparty_name");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)")
+                        .HasColumnType("character varying(8)")
                         .HasColumnName("currency");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("description");
 
                     b.Property<Guid?>("DestSourceId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("dest_source_id");
 
                     b.Property<decimal?>("ExchangeRate")
                         .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)")
+                        .HasColumnType("numeric(18,6)")
                         .HasColumnName("exchange_rate");
 
                     b.Property<string>("ExternalRef")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("external_ref");
 
                     b.Property<Guid?>("InstallmentPlanId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("installment_plan_id");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("last_session_id");
 
                     b.Property<Guid?>("MonthlyPeriodId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("monthly_period_id");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<Guid?>("RefTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("ref_txn_id");
 
                     b.Property<Guid>("SourceId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<string>("Tags")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("character varying(1024)")
                         .HasColumnName("tags");
 
                     b.Property<DateOnly>("TxnDate")
@@ -747,19 +746,19 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -793,48 +792,48 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_type");
 
                     b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("changed_by");
 
                     b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("changed_fields");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
                     b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("snapshot");
 
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -850,39 +849,39 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<decimal?>("IssuerStatementAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("issuer_statement_amount");
 
                     b.Property<DateTime?>("LastRefreshedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_refreshed_at");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
                     b.Property<decimal>("PaidAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("paid_amount");
 
                     b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at");
 
                     b.Property<DateOnly>("PaymentDueDate")
@@ -899,11 +898,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ReconciliationNote")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("reconciliation_note");
 
                     b.Property<Guid>("SourceId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_id");
 
                     b.Property<DateOnly>("StatementDate")
@@ -912,16 +911,16 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_amount");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -944,32 +943,32 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<Guid>("BillingCycleId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("billing_cycle_id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("InclusionSource")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("inclusion_source");
 
                     b.Property<DateTime?>("RemovedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("removed_at");
 
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -981,7 +980,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("TransactionId")
                         .IsUnique()
                         .HasDatabaseName("ux_fin_billing_cycle_items_transaction_id_active")
-                        .HasFilter("[removed_at] IS NULL");
+                        .HasFilter("removed_at IS NULL");
 
                     b.ToTable("fin_billing_cycle_items");
                 });
@@ -990,30 +989,30 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)")
+                        .HasColumnType("character varying(3)")
                         .HasColumnName("currency");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<string>("Direction")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("direction");
 
                     b.Property<DateOnly?>("DueDate")
@@ -1021,58 +1020,58 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("due_date");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("last_session_id");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<decimal>("OriginalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("original_amount");
 
                     b.Property<Guid?>("OriginalTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("original_txn_id");
 
                     b.Property<string>("PersonContact")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("person_contact");
 
                     b.Property<string>("PersonName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("person_name");
 
                     b.Property<decimal>("RemainingAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("remaining_amount");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -1088,48 +1087,48 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_type");
 
                     b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("changed_by");
 
                     b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("changed_fields");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
                     b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("snapshot");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -1145,25 +1144,25 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("DebtRecordId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("debt_record_id");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<DateOnly>("TxnDate")
@@ -1171,16 +1170,16 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("txn_date");
 
                     b.Property<Guid?>("TxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("txn_id");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1199,16 +1198,16 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateOnly>("DueDate")
@@ -1216,33 +1215,33 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("due_date");
 
                     b.Property<int>("InstallmentNumber")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("installment_number");
 
                     b.Property<decimal>("PaidAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("paid_amount");
 
                     b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at");
 
                     b.Property<Guid>("PlanId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("installment_plan_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<Guid?>("TxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1265,68 +1264,68 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnType("character varying(1024)")
                         .HasColumnName("cancellation_reason");
 
                     b.Property<decimal?>("ConversionFeeAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("conversion_fee_amount");
 
                     b.Property<decimal?>("ConversionFeeRate")
                         .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)")
+                        .HasColumnType("numeric(5,4)")
                         .HasColumnName("conversion_fee_rate");
 
                     b.Property<string>("ConversionFeeStatus")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("conversion_fee_status");
 
                     b.Property<Guid?>("ConversionFeeTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("conversion_fee_txn_id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<decimal>("InterestRate")
                         .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)")
+                        .HasColumnType("numeric(5,4)")
                         .HasColumnName("interest_rate");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<Guid?>("LastSessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("last_session_id");
 
                     b.Property<decimal>("MonthlyAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("monthly_amount");
 
                     b.Property<Guid>("OriginalTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("origin_transaction_id");
 
                     b.Property<Guid>("SourceId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_id");
 
                     b.Property<DateOnly>("StartDate")
@@ -1335,28 +1334,28 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_amount");
 
                     b.Property<int>("TotalMonths")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("total_months");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -1378,48 +1377,48 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ChangeReason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_reason");
 
                     b.Property<string>("ChangeType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("change_type");
 
                     b.Property<Guid?>("ChangedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("changed_by");
 
                     b.Property<string>("ChangedFields")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("changed_fields");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<Guid?>("SessionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("session_id");
 
                     b.Property<string>("Snapshot")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("snapshot");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("Version")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
@@ -1435,64 +1434,64 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)")
+                        .HasColumnType("character varying(3)")
                         .HasColumnName("currency");
 
                     b.Property<decimal>("CurrentValue")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("current_value");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<decimal>("TotalInvested")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_invested");
 
                     b.Property<decimal>("TotalReturned")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_returned");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1505,39 +1504,39 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("InvestmentId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("investment_id");
 
                     b.Property<Guid?>("LinkedTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("linked_txn_id");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<decimal?>("PricePerUnit")
                         .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)")
+                        .HasColumnType("numeric(18,4)")
                         .HasColumnName("price_per_unit");
 
                     b.Property<decimal?>("Quantity")
                         .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)")
+                        .HasColumnType("numeric(18,4)")
                         .HasColumnName("quantity");
 
                     b.Property<DateOnly>("TxnDate")
@@ -1546,11 +1545,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("TxnType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("txn_type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1569,33 +1568,33 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<decimal>("CurrentAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("current_amount");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<decimal>("InterestRate")
                         .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)")
+                        .HasColumnType("numeric(5,4)")
                         .HasColumnName("interest_rate");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<DateOnly?>("MaturityDate")
@@ -1605,16 +1604,16 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<Guid>("SourceId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_id");
 
                     b.Property<DateOnly>("StartDate")
@@ -1623,21 +1622,21 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<decimal?>("TargetAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("target_amount");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1653,60 +1652,60 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<string>("PersonContact")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("person_contact");
 
                     b.Property<string>("PersonName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("person_name");
 
                     b.Property<DateTime?>("SettledAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("settled_at");
 
                     b.Property<Guid?>("SettledTxnId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("settled_txn_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1725,46 +1724,46 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("code");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Direction")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("direction");
 
                     b.Property<string>("EnglishName")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("english_name");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsDefault")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_default");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1780,7 +1779,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsDefault")
                         .IsUnique()
                         .HasDatabaseName("ix_locales_is_default_singleton")
-                        .HasFilter("[is_default] = 1");
+                        .HasFilter("is_default = true");
 
                     b.ToTable("locales");
 
@@ -1827,11 +1826,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<long?>("DurationMs")
@@ -1839,51 +1838,51 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("duration_ms");
 
                     b.Property<Guid?>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("entity_type");
 
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnType("character varying(2048)")
                         .HasColumnName("error_message");
 
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("event_type");
 
                     b.Property<string>("JobId")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("job_id");
 
                     b.Property<string>("JobName")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("job_name");
 
                     b.Property<string>("Payload")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("payload");
 
                     b.Property<string>("StackTrace")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("stack_trace");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -1905,43 +1904,43 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasMaxLength(7)
-                        .HasColumnType("nvarchar(7)")
+                        .HasColumnType("character varying(7)")
                         .HasColumnName("color");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("UsageCount")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("usage_count");
 
                     b.HasKey("Id")
@@ -1950,7 +1949,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique()
                         .HasDatabaseName("ix_tags_name")
-                        .HasFilter("[is_deleted] = 0");
+                        .HasFilter("is_deleted = false");
 
                     b.ToTable("tags");
                 });
@@ -1959,42 +1958,42 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("EntityId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("entity_id");
 
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("entity_type");
 
                     b.Property<string>("Field")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("field");
 
                     b.Property<string>("LocaleCode")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("locale_code");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -2017,31 +2016,31 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("FallbackLocaleCode")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("fallback_locale_code");
 
                     b.Property<string>("LocaleCode")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("locale_code");
 
                     b.Property<int>("Priority")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("priority");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -2090,37 +2089,37 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Description")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("description");
 
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("key");
 
                     b.Property<string>("LocaleCode")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("locale_code");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("value");
 
                     b.HasKey("Id")
@@ -2582,59 +2581,59 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("deleted_by");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(320)
-                        .HasColumnType("nvarchar(320)")
+                        .HasColumnType("character varying(320)")
                         .HasColumnName("email");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("full_name");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
                     b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
 
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("password_hash");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("role");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id")
@@ -2651,22 +2650,22 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnType("character varying(2048)")
                         .HasColumnName("avatar_url");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("DateFormat")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("date_format");
 
                     b.Property<DateOnly?>("DateOfBirth")
@@ -2675,38 +2674,38 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("DisplayName")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("display_name");
 
                     b.Property<string>("LanguageCode")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("language_code");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("phone_number");
 
                     b.Property<string>("Theme")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("theme");
 
                     b.Property<string>("Timezone")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("timezone");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
@@ -2726,57 +2725,57 @@ namespace PFP.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("DeviceName")
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("device_name");
 
                     b.Property<string>("DeviceType")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
+                        .HasColumnType("character varying(32)")
                         .HasColumnName("device_type");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("ip_address");
 
                     b.Property<DateTime>("LastUsedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");
 
                     b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("revoked_at");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("token_hash");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("UserAgent")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)")
+                        .HasColumnType("character varying(512)")
                         .HasColumnName("user_agent");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")

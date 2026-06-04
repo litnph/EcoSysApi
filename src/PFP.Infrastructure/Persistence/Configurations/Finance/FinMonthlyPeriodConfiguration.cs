@@ -11,9 +11,9 @@ public sealed class FinMonthlyPeriodConfiguration : IEntityTypeConfiguration<Fin
     public void Configure(EntityTypeBuilder<FinMonthlyPeriod> builder)
     {
         builder.HasIndex(x => new { x.Year, x.Month }).IsUnique();
-        builder.Property(x => x.CategoryBreakdown).HasColumnType("nvarchar(max)");
-        builder.Property(x => x.SourceBreakdown).HasColumnType("nvarchar(max)");
-        builder.Property(x => x.ReportSnapshot).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.CategoryBreakdown).HasColumnType("text");
+        builder.Property(x => x.SourceBreakdown).HasColumnType("text");
+        builder.Property(x => x.ReportSnapshot).HasColumnType("text");
         builder.HasOne(x => x.ClosedByUser)
                .WithMany()
                .HasForeignKey(x => x.ClosedBy)

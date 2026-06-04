@@ -1,26 +1,25 @@
-# EF Core migrations (SQL Server)
+# EF Core migrations (PostgreSQL)
 
-Migrations for this project target **SQL Server** (provider `Microsoft.EntityFrameworkCore.SqlServer`). The previous PostgreSQL migration history was removed as part of the provider switch.
+Migrations target **PostgreSQL** via `Npgsql.EntityFrameworkCore.PostgreSQL`. SQL Server migration history was removed when switching providers.
 
-## Generate the initial migration
+## Generate a new migration
 
 From the repository `BE` folder, with **Visual Studio not debugging PFP.API** (otherwise `bin\Debug` DLLs may be locked):
 
 ```powershell
 cd D:\Litnp\EcoSys\BE
-# Optional: avoid reading appsettings.Development.json during design-time
-$env:PFP_DESIGN_CONNECTION = 'Server=(localdb)\mssqllocaldb;Database=pfp_ef_design;Trusted_Connection=True;TrustServerCertificate=True'
+$env:PFP_DESIGN_CONNECTION = 'Host=localhost;Port=5432;Database=pfp_ef_design;Username=postgres;Password=postgres'
 
-dotnet ef migrations add InitialSqlServer `
+dotnet ef migrations add <MigrationName> `
   --project src\PFP.Infrastructure\PFP.Infrastructure.csproj `
   --startup-project src\PFP.API\PFP.API.csproj `
   --context AppDbContext `
   --output-dir Persistence\Migrations
 ```
 
-## Apply schema to your server
+## Apply schema
 
-Ensure the database in `ConnectionStrings:Default` exists (e.g. `EcoSys` on `PAC163\LITPAC`), then:
+Set `ConnectionStrings:Default` in `appsettings.Development.json` (or `PFP_DESIGN_CONNECTION` / `DATABASE_URL`), then:
 
 ```powershell
 dotnet ef database update `
@@ -29,4 +28,6 @@ dotnet ef database update `
   --context AppDbContext
 ```
 
-Hangfire will create its own tables in the same database on first API startup.
+With `Database:AutoMigrate` enabled, the API applies pending migrations on startup.
+
+Hangfire will create its own tables in the same database on first API startup when the Hangfire server is enabled.
