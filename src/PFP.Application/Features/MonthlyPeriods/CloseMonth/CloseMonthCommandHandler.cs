@@ -29,10 +29,8 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var blockingCycles = await _db.FinBillingCycles
-            .AsNoTracking()
-            .Include(bc => bc.Source)
-            .ToListAsync(cancellationToken)
+var blockingCycles = await CloseMonthBillingCycleRules
+            .GetBlockingCyclesAsync(_db, request.Year, request.Month, cancellationToken)
             .ConfigureAwait(false);
 
         if (blockingCycles.Count > 0)
