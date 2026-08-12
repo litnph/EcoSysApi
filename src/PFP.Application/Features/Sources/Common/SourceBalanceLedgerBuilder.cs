@@ -19,7 +19,7 @@ public static class SourceBalanceLedgerBuilder
 
         if (opening != 0m)
         {
-            var openingDate = DateOnly.FromDateTime(source.CreatedAt);
+            var openingDate = FinanceBusinessCalendar.GetDate(source.CreatedAt);
             entries.Add(new SourceBalanceLedgerEntryDto(
                 "opening",
                 null,

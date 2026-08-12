@@ -30,6 +30,9 @@ public sealed class FinInstallmentPlan : VersionedEntity
 
     public DateOnly StartDate { get; set; }
 
+    /// <summary>Version of the deterministic schedule formula used to create the pay rows.</summary>
+    public int ScheduleVersion { get; set; } = 2;
+
     public InstallmentStatus Status { get; set; } = InstallmentStatus.Active;
 
     /// <summary>Optional reason when <see cref="Status"/> becomes <see cref="InstallmentStatus.Cancelled"/>.</summary>

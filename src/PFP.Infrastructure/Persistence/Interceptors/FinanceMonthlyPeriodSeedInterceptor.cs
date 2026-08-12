@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using PFP.Application.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
 namespace PFP.Infrastructure.Persistence.Interceptors;
 
 /// <summary>
-/// When the first <see cref="FinSource"/> is created, ensures the current UTC calendar month exists in
+/// When the first <see cref="FinSource"/> is created, ensures the current finance calendar month exists in
 /// <c>FIN_MONTHLY_PERIODS</c>.
 /// </summary>
 public sealed class FinanceMonthlyPeriodSeedInterceptor : SaveChangesInterceptor
@@ -41,9 +42,9 @@ public sealed class FinanceMonthlyPeriodSeedInterceptor : SaveChangesInterceptor
         if (addedSources.Count == 0)
             return;
 
-        var utc = DateTime.UtcNow;
-        var year = utc.Year;
-        var month = utc.Month;
+        var today = FinanceBusinessCalendar.Today;
+        var year = today.Year;
+        var month = today.Month;
 
         if (HasPeriodTrackedOrPersisted(context, year, month))
             return;

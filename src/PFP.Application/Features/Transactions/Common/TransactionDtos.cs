@@ -5,10 +5,13 @@ namespace PFP.Application.Features.Transactions.Common;
 /// <summary>Tag linked to a transaction via <c>entity_tags</c>.</summary>
 public sealed record TransactionTagDto(Guid Id, string Name, string Color);
 
-/// <summary>Single row in a paginated transaction list.</summary>
+/// <summary>
+/// Single row in a paginated transaction list. Billing-cycle statement month uses YYYY-MM when active.
+/// </summary>
 public sealed record TransactionListItemDto(
     Guid Id,
     TransactionType Type,
+    TransactionPurpose Purpose,
     TxnStatus Status,
     long Amount,
     string Currency,
@@ -22,7 +25,6 @@ public sealed record TransactionListItemDto(
     DateTime CreatedAt,
     bool HasInstallmentPlan,
     bool IsInstallmentPayment,
-    /// <summary>YYYY-MM of the billing cycle statement month when on an active cycle line; otherwise null.</summary>
     string? BillingCycleStatementMonth,
     IReadOnlyList<TransactionTagDto> Tags);
 
@@ -44,6 +46,7 @@ public sealed record TransactionCategorySummaryDto(Guid Id, string Name, Categor
 public sealed record TransactionDetailDto(
     Guid Id,
     TransactionType Type,
+    TransactionPurpose Purpose,
     TxnStatus Status,
     long Amount,
     string Currency,
@@ -54,6 +57,8 @@ public sealed record TransactionDetailDto(
     string? Note,
     Guid? MonthlyPeriodId,
     Guid? RefTxnId,
+    Guid? SavingId,
+    Guid? BillingCycleId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     int Version,

@@ -51,7 +51,7 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
         if (source.StatementDay is not { } statementDay || source.PaymentDueDay is not { } paymentDueDay)
             throw new BusinessRuleException("StatementDay and PaymentDueDay are required on the credit card.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = FinanceBusinessCalendar.Today;
         BillingCyclePeriodDates dates;
 
         if (request.StatementYear is { } year && request.StatementMonth is { } month)

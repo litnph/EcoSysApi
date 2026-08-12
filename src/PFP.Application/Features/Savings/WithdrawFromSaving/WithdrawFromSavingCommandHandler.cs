@@ -33,6 +33,10 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
 
         if (saving is null)
             throw new NotFoundException("Savings record was not found.");
+
+        await PostingPeriodPolicy
+            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
+            .ConfigureAwait(false);
 if (saving.Status is SavingStatus.Withdrawn)
             throw new BusinessRuleException("This savings record is already marked as withdrawn.");
 
@@ -61,6 +65,7 @@ if (saving.Status is SavingStatus.Withdrawn)
         var txn = new FinTransaction
         {
 Type = TransactionType.Transfer,
+            Purpose = TransactionPurpose.SavingWithdrawal,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -72,6 +77,7 @@ Type = TransactionType.Transfer,
             Description = description,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             ExternalRef = externalRef.Length <= 255 ? externalRef : externalRef[..255],
+            SavingId = saving.Id,
         };
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>

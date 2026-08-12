@@ -23,7 +23,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter(
                 System.Text.Json.JsonNamingPolicy.CamelCase,
-                allowIntegerValues: true));
+                allowIntegerValues: false));
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddPfpSwagger();
@@ -33,7 +33,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPlatformRateLimiting();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtSecret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret must be configured (minimum 32 characters).");
+var jwtSecret = jwtSection["Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret)
+    || jwtSecret.Length < 32
+    || jwtSecret.StartsWith("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException("Jwt:Secret must be a non-placeholder secret of at least 32 characters.");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
 
 builder.Services.AddAuthentication(options =>
@@ -65,8 +69,9 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-if (app.Configuration.GetValue("Database:AutoMigrate", false)
-    || app.Configuration.GetValue("Database:RunSeedOnStartup", false))
+if (!app.Environment.IsProduction()
+    && (app.Configuration.GetValue("Database:AutoMigrate", false)
+        || app.Configuration.GetValue("Database:RunSeedOnStartup", false)))
 {
     var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     await using var scope = app.Services.CreateAsyncScope();
@@ -101,12 +106,26 @@ if (app.Configuration.GetValue("Database:AutoMigrate", false)
 }
 
 app.UsePfpMiddleware();
-app.UseSwagger();
-app.UseSwaggerUI();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    await next().ConfigureAwait(false);
+});
+if (app.Environment.IsDevelopment()
+    || app.Configuration.GetValue("Swagger:Enabled", false))
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 app.UseProductionProxy();
 app.UseFrontendCors();
 if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
     app.UseHttpsRedirection();
+}
 
 app.UseRateLimiter();
 app.UseAuthentication();

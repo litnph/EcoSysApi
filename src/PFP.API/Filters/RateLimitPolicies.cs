@@ -58,13 +58,6 @@ public static class RateLimitPolicies
 
     private static string ResolveClientIp(HttpContext httpContext)
     {
-        if (httpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded))
-        {
-            var first = forwarded.ToString().Split(',', 2)[0].Trim();
-            if (!string.IsNullOrWhiteSpace(first))
-                return first;
-        }
-
         return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 }

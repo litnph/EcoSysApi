@@ -23,7 +23,7 @@ public sealed class GetDebtSummaryQueryHandler : IRequestHandler<GetDebtSummaryQ
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = FinanceBusinessCalendar.Today;
 
         var totalBorrowedRemaining = await _db.FinDebtRecords
             .AsNoTracking()

@@ -43,7 +43,9 @@ public sealed record MonthlyReportDirectExpenseItemDto(
     DateOnly TxnDate,
     string Description,
     string? CategoryName,
-    string SourceName);
+    string SourceName,
+    Guid SourceId,
+    Guid? CategoryId);
 
 /// <summary>Direct expenses paid in the calendar month.</summary>
 public sealed record MonthlyReportDirectExpenseSectionDto(
@@ -57,7 +59,8 @@ public sealed record MonthlyReportBillingCycleTxnItemDto(
     long Amount,
     DateOnly TxnDate,
     string Description,
-    string? CategoryName);
+    string? CategoryName,
+    Guid? CategoryId);
 
 /// <summary>Installment pay line due in the billing cycle statement month.</summary>
 public sealed record MonthlyReportBillingCycleInstallmentDueDto(
@@ -70,7 +73,8 @@ public sealed record MonthlyReportBillingCycleInstallmentDueDto(
     DateOnly DueDate,
     long Amount,
     long PaidAmount,
-    InstallmentPayStatus Status);
+    InstallmentPayStatus Status,
+    Guid? CategoryId);
 
 /// <summary>One billing cycle whose statement falls in the report month.</summary>
 public sealed record MonthlyReportBillingCycleItemDto(

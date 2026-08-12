@@ -29,6 +29,13 @@ public sealed class DeleteInvestmentCommandHandler : IRequestHandler<DeleteInves
 
         if (entity is null)
             throw new NotFoundException("Investment was not found.");
+
+        var hasLedger = await _db.FinInvestmentTxns
+            .AsNoTracking()
+            .AnyAsync(t => t.InvestmentId == entity.Id, cancellationToken)
+            .ConfigureAwait(false);
+        if (hasLedger)
+            throw new BusinessRuleException("Investments with ledger history must be archived rather than deleted.");
 await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
         _db.FinInvestments.Remove(entity);

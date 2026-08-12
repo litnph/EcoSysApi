@@ -38,6 +38,7 @@ public sealed record InstallmentUpcomingPayDto(
     string PlanTitle,
     int InstallmentNumber,
     int TotalInstallments,
+    DateOnly StatementDate,
     DateOnly DueDate,
     long Amount,
     InstallmentUpcomingPayBucket Bucket);

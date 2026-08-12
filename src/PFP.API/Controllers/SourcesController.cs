@@ -76,7 +76,8 @@ public sealed class SourcesController : ControllerBase
             body.Currency,
             body.Icon,
             body.Color,
-            body.SortOrder);
+            body.SortOrder,
+            body.ExpectedVersion);
 
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateSourceResponse> { Data = result });
@@ -150,9 +151,12 @@ public sealed class SourcesController : ControllerBase
     /// <summary>Soft-deletes a finance source when it has no transactions.</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<DeleteSourceResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<DeleteSourceResponse>>> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<DeleteSourceResponse>>> Delete(
+        Guid id,
+        [FromQuery(Name = "expected_version")] int? expectedVersion,
+        CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new DeleteSourceCommand(id), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(new DeleteSourceCommand(id, expectedVersion), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<DeleteSourceResponse> { Data = result });
     }
 }

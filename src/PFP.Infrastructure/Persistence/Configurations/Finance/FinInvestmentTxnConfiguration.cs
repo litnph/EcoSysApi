@@ -16,7 +16,9 @@ public sealed class FinInvestmentTxnConfiguration : IEntityTypeConfiguration<Fin
         builder.Property(x => x.PricePerUnit).HasPrecision(18, 4);
 
         builder.HasIndex(x => new { x.InvestmentId, x.TxnDate });
-        builder.HasIndex(x => x.LinkedTxnId);
+        builder.HasIndex(x => x.LinkedTxnId)
+            .IsUnique()
+            .HasFilter("linked_txn_id IS NOT NULL");
 
         builder.HasOne(x => x.Investment)
                .WithMany(i => i.InvestmentTxns)

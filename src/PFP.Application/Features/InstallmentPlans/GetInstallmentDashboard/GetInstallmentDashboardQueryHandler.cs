@@ -28,12 +28,7 @@ public sealed class GetInstallmentDashboardQueryHandler
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var thisMonthStart = new DateOnly(today.Year, today.Month, 1);
-        var thisMonthEnd = thisMonthStart.AddMonths(1).AddDays(-1);
-        var nextMonthStart = thisMonthStart.AddMonths(1);
-        var nextMonthEnd = nextMonthStart.AddMonths(1).AddDays(-1);
-
+        var today = FinanceBusinessCalendar.Today;
         var plans = await _db.FinInstallmentPlans
             .AsNoTracking()
             .Include(p => p.Source)
@@ -71,7 +66,8 @@ public sealed class GetInstallmentDashboardQueryHandler
             {
                 totalPaid += pay.PaidAmount;
 
-                if (pay.Status == InstallmentPayStatus.Paid)
+                var effectiveStatus = InstallmentPaySchedule.ResolveStatus(pay, today);
+                if (effectiveStatus == InstallmentPayStatus.Paid)
                     continue;
 
                 var open = pay.Amount - pay.PaidAmount;
@@ -80,7 +76,7 @@ public sealed class GetInstallmentDashboardQueryHandler
 
                 totalRemaining += open;
 
-                var bucket = ResolveBucket(pay, today);
+                var bucket = ResolveBucket(pay.DueDate, effectiveStatus, today);
                 switch (bucket)
                 {
                     case InstallmentUpcomingPayBucket.Overdue:
@@ -124,6 +120,7 @@ public sealed class GetInstallmentDashboardQueryHandler
                         InstallmentPlanRules.ResolveOriginalTxnTitle(plan),
                         pay.InstallmentNumber,
                         plan.TotalMonths,
+                        pay.StatementDate,
                         pay.DueDate,
                         CurrencyUnits.ToWhole(open),
                         bucket));
@@ -178,13 +175,14 @@ public sealed class GetInstallmentDashboardQueryHandler
     }
 
     private static InstallmentUpcomingPayBucket ResolveBucket(
-        FinInstallmentPay pay,
+        DateOnly dueDate,
+        InstallmentPayStatus effectiveStatus,
         DateOnly today)
     {
-        if (pay.DueDate < today)
+        if (effectiveStatus == InstallmentPayStatus.Overdue)
             return InstallmentUpcomingPayBucket.Overdue;
 
-        if (pay.DueDate == today || pay.Status == InstallmentPayStatus.Due)
+        if (effectiveStatus == InstallmentPayStatus.Due)
             return InstallmentUpcomingPayBucket.DueToday;
 
         var thisMonthStart = new DateOnly(today.Year, today.Month, 1);
@@ -192,10 +190,10 @@ public sealed class GetInstallmentDashboardQueryHandler
         var nextMonthStart = thisMonthStart.AddMonths(1);
         var nextMonthEnd = nextMonthStart.AddMonths(1).AddDays(-1);
 
-        if (pay.DueDate >= thisMonthStart && pay.DueDate <= thisMonthEnd)
+        if (dueDate >= thisMonthStart && dueDate <= thisMonthEnd)
             return InstallmentUpcomingPayBucket.ThisMonth;
 
-        if (pay.DueDate >= nextMonthStart && pay.DueDate <= nextMonthEnd)
+        if (dueDate >= nextMonthStart && dueDate <= nextMonthEnd)
             return InstallmentUpcomingPayBucket.NextMonth;
 
         return InstallmentUpcomingPayBucket.Later;

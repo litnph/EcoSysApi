@@ -20,8 +20,19 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
     /// <summary>Registers validation rules.</summary>
     public CreateTransactionCommandValidator(IApplicationDbContext db)
     {
-RuleFor(x => x.Amount).GreaterThan(0);
-        RuleFor(x => x.Type)
+        WhenAsync(async (command, cancellationToken) =>
+        {
+            if (command.ClientRequestId is not { } key)
+                return true;
+
+            return !await db.FinTransactions
+                .AsNoTracking()
+                .AnyAsync(transaction => transaction.ClientRequestId == key, cancellationToken)
+                .ConfigureAwait(false);
+        }, () =>
+        {
+            RuleFor(x => x.Amount).GreaterThan(0);
+            RuleFor(x => x.Type)
             .Must(t => t is TransactionType.Direct
                        or TransactionType.Income
                        or TransactionType.Transfer
@@ -34,7 +45,7 @@ RuleFor(x => x.Amount).GreaterThan(0);
             .WithMessage("This transaction type is not supported.");
 
         RuleFor(x => x.TxnDate)
-            .LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1))
+            .LessThanOrEqualTo(_ => FinanceBusinessCalendar.Today.AddDays(1))
             .WithMessage("TxnDate cannot be more than one day in the future.");
 
         RuleFor(x => x.Note).MaximumLength(500).When(x => x.Note is not null);
@@ -259,5 +270,6 @@ RuleFor(x => x.Amount).GreaterThan(0);
                 return src is not null && src.Balance >= CurrencyUnits.FromWhole(cmd.Amount);
             })
             .WithMessage("Insufficient balance on the selected source.");
+        });
     }
 }

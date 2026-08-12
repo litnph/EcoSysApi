@@ -14,7 +14,9 @@ public sealed class CreateInstallmentPlanCommandValidator : AbstractValidator<Cr
     {
         RuleFor(x => x.TotalMonths).InclusiveBetween(3, 60);
 
-        RuleFor(x => x.InterestRate).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.InterestRate)
+            .Equal(0m)
+            .WithMessage("Non-zero installment interest is not supported until a versioned formula is configured.");
 
         RuleFor(x => x.ConversionFeeRate)
             .GreaterThanOrEqualTo(0m)

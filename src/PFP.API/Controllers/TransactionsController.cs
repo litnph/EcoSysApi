@@ -10,6 +10,7 @@ using PFP.Application.Features.Transactions.GetTransactions;
 using PFP.Application.Features.Transactions.DeleteTransaction;
 using PFP.Application.Features.Transactions.GetTransactionHistory;
 using PFP.Application.Features.Transactions.UpdateTransaction;
+using PFP.Application.Features.Transactions.ImportTransactions;
 using PFP.Application.Features.FileAttachments.Common;
 using PFP.Application.Features.FileAttachments.ListTransactionAttachments;
 using PFP.Application.Features.Transactions.GetTransferPair;
@@ -77,6 +78,28 @@ public sealed class TransactionsController : ControllerBase
     {
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<CreateTransactionResponse> { Data = result });
+    }
+
+    /// <summary>Validates an import batch through the real business pipeline and rolls all writes back.</summary>
+    [HttpPost("import/preview")]
+    [ProducesResponseType(typeof(ApiResponse<PreviewTransactionImportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<PreviewTransactionImportResponse>>> PreviewImport(
+        [FromBody] PreviewTransactionImportCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<PreviewTransactionImportResponse> { Data = result });
+    }
+
+    /// <summary>Commits an import atomically unless the caller explicitly enables partial mode.</summary>
+    [HttpPost("import/commit")]
+    [ProducesResponseType(typeof(ApiResponse<CommitTransactionImportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<CommitTransactionImportResponse>>> CommitImport(
+        [FromBody] CommitTransactionImportCommand command,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<CommitTransactionImportResponse> { Data = result });
     }
 
     /// <summary>Returns transaction detail including source and category.</summary>
@@ -149,7 +172,8 @@ public sealed class TransactionsController : ControllerBase
             body.Description,
             body.Note,
             body.MonthlyPeriodId,
-            body.Amount);
+            body.Amount,
+            body.ExpectedVersion);
 
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateTransactionResponse> { Data = result });
@@ -163,7 +187,9 @@ public sealed class TransactionsController : ControllerBase
         [FromBody] DeleteTransactionRequest? body,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new DeleteTransactionCommand(id, body?.Reason), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(
+            new DeleteTransactionCommand(id, body?.Reason, body?.ExpectedVersion),
+            cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<DeleteTransactionResponse> { Data = result });
     }
 }
@@ -188,4 +214,7 @@ public sealed class UpdateTransactionBody
 
     /// <summary>Optional new amount (whole currency units). Signed only for balance adjustments.</summary>
     public long? Amount { get; init; }
+
+    /// <summary>Version observed by the caller; stale writes return HTTP 409.</summary>
+    public int? ExpectedVersion { get; init; }
 }

@@ -5,8 +5,9 @@ using PFP.Domain.Enums;
 namespace PFP.Application.Features.Sources.Common;
 
 /// <summary>
-/// Derives outstanding credit-card debt from deferred charges, statement payments,
-/// and installment backfill adjustments (which are not stored as card-side transactions).
+/// Derives outstanding credit-card debt from charges, statement payments, and direct
+/// installment settlements. An installment without a linked transaction is never treated as paid
+/// independently because statement settlements are already represented by cycle paid amounts.
 /// </summary>
 public static class CreditCardBalanceRules
 {
@@ -37,15 +38,18 @@ public static class CreditCardBalanceRules
 
         running -= billingPaid;
 
-        var backfillPaid = await (
+        var directlyPaidInstallments = await (
             from plan in db.FinInstallmentPlans.AsNoTracking()
             where plan.SourceId == sourceId && plan.Status != InstallmentStatus.Cancelled
             from pay in plan.Pays
-            where pay.Status == InstallmentPayStatus.Paid && pay.TxnId == null
-            select pay.Amount
+            from paymentTxn in db.FinTransactions.AsNoTracking()
+            where pay.Status == InstallmentPayStatus.Paid
+                  && pay.TxnId == paymentTxn.Id
+                  && paymentTxn.Purpose == TransactionPurpose.InstallmentPayment
+            select pay.PaidAmount
         ).SumAsync(cancellationToken).ConfigureAwait(false);
 
-        running -= backfillPaid;
+        running -= directlyPaidInstallments;
 
         return decimal.Round(Math.Max(0m, running), 2, MidpointRounding.ToEven);
     }

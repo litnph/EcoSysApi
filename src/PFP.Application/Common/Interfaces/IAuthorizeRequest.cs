@@ -2,7 +2,7 @@ namespace PFP.Application.Common.Interfaces;
 
 /// <summary>
 /// Optional marker on commands/queries that declare authorisation requirements
-/// resolved by <see cref="Behaviors.AuthorizationBehavior"/>.
+/// resolved by the authorization pipeline behavior.
 /// </summary>
 public interface IAuthorizeRequest
 {

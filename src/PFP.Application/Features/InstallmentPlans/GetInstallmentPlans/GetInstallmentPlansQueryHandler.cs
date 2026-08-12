@@ -66,6 +66,7 @@ public sealed class GetInstallmentPlansQueryHandler : IRequestHandler<GetInstall
             CurrencyUnits.ToWhole(remaining),
             CurrencyUnits.ToWhole(p.TotalAmount),
             canDelete,
-            p.CreatedAt);
+            p.CreatedAt,
+            p.Version);
     }
 }

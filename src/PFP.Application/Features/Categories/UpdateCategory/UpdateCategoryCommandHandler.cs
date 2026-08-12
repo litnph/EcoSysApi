@@ -67,6 +67,9 @@ if (request.Kind != entity.Kind)
                 throw new BusinessRuleException("Thiết lập cha không hợp lệ (phát hiện vòng cây).");
         }
 
+        var oldDepth = entity.Depth;
+        var newDepth = parent?.Depth + 1 ?? 0;
+
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
         if (request.IsDefault)
@@ -79,8 +82,16 @@ if (request.Kind != entity.Kind)
         entity.Color = request.Color?.Trim();
         entity.SortOrder = request.SortOrder ?? entity.SortOrder;
         entity.IsDefault = request.IsDefault;
-        entity.Depth = parent?.Depth + 1 ?? 0;
+        entity.Depth = newDepth;
         entity.NecessityLevel = request.ParentId is null ? null : request.NecessityLevel;
+
+        if (oldDepth != newDepth)
+        {
+            var descendants = await LoadDescendantsAsync(entity.Id, ct).ConfigureAwait(false);
+            var depthDelta = newDepth - oldDepth;
+            foreach (var descendant in descendants)
+                descendant.Depth += depthDelta;
+        }
 
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);
@@ -113,9 +124,34 @@ if (request.Kind != entity.Kind)
         CancellationToken cancellationToken)
     {
         var rows = await _db.FinCategories
+            .Where(c => c.Kind == kind && c.Id != exceptId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         foreach (var row in rows)
             row.IsDefault = false;
+    }
+
+    private async Task<IReadOnlyList<FinCategory>> LoadDescendantsAsync(Guid rootId, CancellationToken ct)
+    {
+        var all = await _db.FinCategories.ToListAsync(ct).ConfigureAwait(false);
+        var byParent = all
+            .Where(c => c.ParentId is not null)
+            .GroupBy(c => c.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var result = new List<FinCategory>();
+        var queue = new Queue<Guid>();
+        queue.Enqueue(rootId);
+        while (queue.Count > 0)
+        {
+            var parentId = queue.Dequeue();
+            if (!byParent.TryGetValue(parentId, out var children))
+                continue;
+            foreach (var child in children)
+            {
+                result.Add(child);
+                queue.Enqueue(child.Id);
+            }
+        }
+        return result;
     }
 }

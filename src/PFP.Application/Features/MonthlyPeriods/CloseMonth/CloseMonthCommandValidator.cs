@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
 
@@ -17,7 +18,7 @@ public sealed class CloseMonthCommandValidator : AbstractValidator<CloseMonthCom
         RuleFor(x => x)
             .Must(cmd =>
             {
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var today = FinanceBusinessCalendar.Today;
                 var target = PeriodFirstDay(cmd.Year, cmd.Month);
                 return target <= today;
             })

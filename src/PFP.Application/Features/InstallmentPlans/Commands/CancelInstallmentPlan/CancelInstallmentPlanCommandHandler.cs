@@ -36,6 +36,7 @@ public sealed class CancelInstallmentPlanCommandHandler : IRequestHandler<Cancel
 
         if (plan is null || plan.Status != InstallmentStatus.Active)
             throw new NotFoundException("Installment plan was not found.");
+        OptimisticConcurrencyGuard.Ensure(plan.Version, request.ExpectedVersion);
 plan.Status = InstallmentStatus.Cancelled;
         plan.CancellationReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 

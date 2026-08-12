@@ -23,7 +23,7 @@ public sealed class GetDebtRecordsQueryHandler : IRequestHandler<GetDebtRecordsQ
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var today = DateOnly.FromDateTime(DateTime.UtcNow);
+var today = FinanceBusinessCalendar.Today;
 
         var query = _db.FinDebtRecords.AsNoTracking();
 
@@ -51,7 +51,8 @@ var today = DateOnly.FromDateTime(DateTime.UtcNow);
             r.DueDate,
             r.Status,
             r.DueDate is { } due ? (int?)(due.DayNumber - today.DayNumber) : null,
-            r.CreatedAt)).ToList();
+            r.CreatedAt,
+            r.Version)).ToList();
 
         return new GetDebtRecordsResponse(items);
     }

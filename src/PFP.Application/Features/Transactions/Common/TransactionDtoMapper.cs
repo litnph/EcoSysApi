@@ -18,6 +18,7 @@ public static class TransactionDtoMapper
         new(
             t.Id,
             t.Type,
+            t.Purpose,
             t.Status,
             CurrencyUnits.ToWhole(t.Amount),
             t.Currency,
@@ -55,6 +56,7 @@ public static class TransactionDtoMapper
         return new TransactionDetailDto(
             t.Id,
             t.Type,
+            t.Purpose,
             t.Status,
             CurrencyUnits.ToWhole(t.Amount),
             t.Currency,
@@ -65,6 +67,8 @@ public static class TransactionDtoMapper
             t.Note,
             t.MonthlyPeriodId,
             t.RefTxnId,
+            t.SavingId,
+            t.BillingCycleId,
             t.CreatedAt,
             t.UpdatedAt,
             t.Version,

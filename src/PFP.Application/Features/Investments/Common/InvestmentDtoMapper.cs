@@ -5,6 +5,8 @@ namespace PFP.Application.Features.Investments.Common;
 
 internal static class InvestmentDtoMapper
 {
+    internal const string ProfitLossFormulaVersion = "cash-flow-return-v1";
+
     public static InvestmentListItemDto ToListItem(FinInvestment i)
     {
         var pnl = i.CurrentValue + i.TotalReturned - i.TotalInvested;
@@ -17,7 +19,8 @@ internal static class InvestmentDtoMapper
             CurrencyUnits.ToWhole(i.TotalReturned),
             i.Currency,
             i.Note,
-            CurrencyUnits.ToWhole(pnl));
+            CurrencyUnits.ToWhole(pnl),
+            ProfitLossFormulaVersion);
     }
 
     public static InvestmentTxnDto ToTxnDto(FinInvestmentTxn t) =>
@@ -44,6 +47,7 @@ internal static class InvestmentDtoMapper
             i.Currency,
             i.Note,
             CurrencyUnits.ToWhole(pnl),
+            ProfitLossFormulaVersion,
             txns,
             i.CreatedAt,
             i.UpdatedAt);

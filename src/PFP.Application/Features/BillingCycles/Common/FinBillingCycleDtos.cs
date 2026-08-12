@@ -52,7 +52,8 @@ public sealed record FinBillingCycleInstallmentDueDto(
     DateOnly DueDate,
     long Amount,
     long PaidAmount,
-    InstallmentPayStatus Status);
+    InstallmentPayStatus Status,
+    Guid? CategoryId = null);
 
 /// <summary>Cycle header plus ordered activity for the detail endpoint.</summary>
 public sealed record FinBillingCycleDetailDto(

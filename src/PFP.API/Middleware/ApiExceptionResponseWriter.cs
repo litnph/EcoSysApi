@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using PFP.Application.Common.Exceptions;
 using PFP.Domain.Exceptions;
@@ -74,6 +75,22 @@ internal static class ApiExceptionResponseWriter
             NotFoundException ex => (HttpStatusCode.NotFound, "not_found", new[] { ex.Message }),
             ForbiddenException ex => (HttpStatusCode.Forbidden, "forbidden", new[] { ex.Message }),
             BusinessRuleException ex => ((HttpStatusCode)422, "business_rule", new[] { ex.Message }),
+            ConcurrencyConflictException ex => (
+                HttpStatusCode.Conflict,
+                "concurrency_conflict",
+                new[] { ex.Message }),
+            IdempotencyConflictException ex => (
+                HttpStatusCode.Conflict,
+                "idempotency_conflict",
+                new[] { ex.Message }),
+            DbUpdateException ex when IsClientRequestIdUniqueViolation(ex) => (
+                HttpStatusCode.Conflict,
+                "idempotency_conflict",
+                new[] { "A concurrent request already committed this ClientRequestId. Retry to read the stored result." }),
+            DbUpdateConcurrencyException => (
+                HttpStatusCode.Conflict,
+                "concurrency_conflict",
+                new[] { "The financial record changed since it was loaded. Refresh and retry." }),
             DomainException ex => ((HttpStatusCode)422, "domain_rule", new[] { ex.Message }),
             UnauthorizedAppException ex => (HttpStatusCode.Unauthorized, "unauthorized", new[] { ex.Message }),
             OperationCanceledException => (
@@ -85,6 +102,12 @@ internal static class ApiExceptionResponseWriter
                 "internal_error",
                 new[] { BuildInternalErrorMessage(exception, environment) }),
         };
+    }
+
+    private static bool IsClientRequestIdUniqueViolation(DbUpdateException exception)
+    {
+        var detail = exception.InnerException?.Message ?? exception.Message;
+        return detail.Contains("client_request_id", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildInternalErrorMessage(Exception exception, IHostEnvironment environment)

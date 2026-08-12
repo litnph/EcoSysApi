@@ -6,4 +6,5 @@ namespace PFP.Application.Features.InstallmentPlans.Commands.RecordInstallmentPa
 public sealed record RecordInstallmentPaymentCommand(
     Guid PlanId,
     int InstallmentNumber,
-    Guid PaymentSourceId) : IRequest<RecordInstallmentPaymentResponse>;
+    Guid PaymentSourceId,
+    int? ExpectedVersion = null) : IRequest<RecordInstallmentPaymentResponse>;

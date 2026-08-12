@@ -4,6 +4,7 @@ using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
+using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Transactions.UpdateTransaction;
@@ -40,16 +41,32 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
         if (txn is null || txn.IsDeleted)
             throw new NotFoundException("Transaction was not found.");
 
+        OptimisticConcurrencyGuard.Ensure(txn.Version, request.ExpectedVersion);
+
         if (txn.Type == TransactionType.Reversal)
             throw new BusinessRuleException("Reversal transactions are immutable.");
 
+        await PostingPeriodPolicy
+            .EnsureExistingTransactionMutableAsync(_db, txn, cancellationToken)
+            .ConfigureAwait(false);
+
+        await PostingPeriodPolicy
+            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
+            .ConfigureAwait(false);
+
+        FinCategory? category = null;
         if (request.CategoryId is { } categoryId)
         {
-            var categoryExists = await _db.FinCategories
-                .AnyAsync(c => c.Id == categoryId, cancellationToken)
+            category = await _db.FinCategories
+                .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken)
                 .ConfigureAwait(false);
-            if (!categoryExists)
+            if (category is null)
                 throw new NotFoundException("Category was not found in this module.");
+
+            var expectedKind = txn.Type == TransactionType.Income ? CategoryKind.Income : CategoryKind.Expense;
+            if (txn.Type is TransactionType.Direct or TransactionType.Deferred or TransactionType.Split or TransactionType.Income
+                && category.Kind != expectedKind)
+                throw new BusinessRuleException("Category kind is incompatible with the transaction type.");
         }
 
         if (request.MonthlyPeriodId is { } mpId)
@@ -85,6 +102,25 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
                 : request.Description.Trim();
             txn.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
             txn.MonthlyPeriodId = request.MonthlyPeriodId;
+
+            if (txn.Type == TransactionType.Transfer && txn.RefTxnId is { } partnerId)
+            {
+                var partner = await _db.FinTransactions
+                    .FirstOrDefaultAsync(t => t.Id == partnerId, ct)
+                    .ConfigureAwait(false);
+
+                if (partner is null || partner.RefTxnId != txn.Id || partner.IsDeleted)
+                    throw new BusinessRuleException("The linked transfer counterpart is missing or inconsistent.");
+
+                await PostingPeriodPolicy
+                    .EnsureExistingTransactionMutableAsync(_db, partner, ct)
+                    .ConfigureAwait(false);
+
+                partner.TxnDate = request.TxnDate;
+                partner.Description = txn.Description;
+                partner.Note = txn.Note;
+                partner.MonthlyPeriodId = request.MonthlyPeriodId;
+            }
 
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);

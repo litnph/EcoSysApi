@@ -26,8 +26,8 @@ public sealed class GetMonthlyPeriodQueryHandler : IRequestHandler<GetMonthlyPer
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var (income, expense, top) = await MonthlyPeriodSummaryCalculator
-            .ComputeAsync(_db, request.Year, request.Month, cancellationToken)
+        var report = await MonthlyPeriodSummaryCalculator
+            .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
             .ConfigureAwait(false);
 
         var period = await _db.FinMonthlyPeriods
@@ -37,18 +37,14 @@ var (income, expense, top) = await MonthlyPeriodSummaryCalculator
                 cancellationToken)
             .ConfigureAwait(false);
 
-        var net = income - expense;
-        var dto = new MonthlyPeriodSummaryDto(
+        var dto = MonthlyPeriodSummaryMapper.FromReport(
+            report,
             period?.Id,
             request.Year,
             request.Month,
             period?.Status ?? PeriodStatus.Open,
             period?.ClosedAt,
-            period?.ClosedBy,
-            CurrencyUnits.ToWhole(income),
-            CurrencyUnits.ToWhole(expense),
-            CurrencyUnits.ToWhole(net),
-            top);
+            period?.ClosedBy);
 
         return new GetMonthlyPeriodResponse(dto);
     }

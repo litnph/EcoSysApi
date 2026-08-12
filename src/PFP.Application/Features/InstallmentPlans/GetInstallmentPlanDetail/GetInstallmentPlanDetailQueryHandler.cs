@@ -41,16 +41,28 @@ public sealed class GetInstallmentPlanDetailQueryHandler : IRequestHandler<GetIn
 
         if (plan is null)
             throw new NotFoundException("Installment plan was not found.");
-var pays = plan.Pays
+
+        var today = FinanceBusinessCalendar.Today;
+        var capturedStatementDateRows = await _db.FinBillingCycles
+            .AsNoTracking()
+            .Where(c => c.SourceId == plan.SourceId && c.Status != BillingCycleStatus.Paid)
+            .Select(c => c.StatementDate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var capturedStatementDates = capturedStatementDateRows.ToHashSet();
+        var pays = plan.Pays
             .OrderBy(p => p.InstallmentNumber)
             .Select(p => new InstallmentPayItemDto(
                 p.InstallmentNumber,
+                p.StatementDate,
                 p.DueDate,
                 CurrencyUnits.ToWhole(p.Amount),
                 CurrencyUnits.ToWhole(p.PaidAmount),
-                p.Status,
+                InstallmentPaySchedule.ResolveStatus(p, today),
                 p.PaidAt,
-                p.TxnId))
+                p.TxnId,
+                p.Status != InstallmentPayStatus.Paid
+                    && !capturedStatementDates.Contains(p.StatementDate)))
             .ToList();
 
         var dto = new InstallmentPlanDetailDto(
@@ -74,6 +86,7 @@ var pays = plan.Pays
             plan.Status,
             plan.CancellationReason,
             InstallmentPlanRules.CanDelete(plan),
+            plan.Version,
             pays);
 
         return new GetInstallmentPlanDetailResponse(dto);

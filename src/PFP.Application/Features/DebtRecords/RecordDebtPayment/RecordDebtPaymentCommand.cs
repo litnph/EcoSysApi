@@ -18,7 +18,8 @@ public sealed record RecordDebtPaymentCommand(
     Guid SourceId,
     long Amount,
     DateOnly TxnDate,
-    string? Note) : IRequest<RecordDebtPaymentResponse>;
+    string? Note,
+    int? ExpectedVersion = null) : IRequest<RecordDebtPaymentResponse>;
 
 /// <summary>Wrapper around the freshly created repayment transaction detail.</summary>
 public sealed record RecordDebtPaymentResponse(TransactionDetailDto Transaction);

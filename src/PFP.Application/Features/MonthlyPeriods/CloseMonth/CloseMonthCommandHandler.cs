@@ -93,6 +93,8 @@ var blockingCycles = await CloseMonthBillingCycleRules
             period.TotalIncome = income;
             period.TotalExpense = expense;
             period.Net = net;
+            period.ReportCurrency = report.Metadata?.Currency;
+            period.HasConsolidatedTotals = report.Metadata?.ConsolidatedTotalsAvailable ?? true;
             period.CategoryBreakdown = categoryJson;
             period.SourceBreakdown = sourceJson;
             period.ReportSnapshot = MonthlyReportSnapshotStore.Serialize(report);
@@ -147,19 +149,14 @@ var blockingCycles = await CloseMonthBillingCycleRules
             return period.Id;
         }).ConfigureAwait(false);
 
-        var dto = new MonthlyPeriodSummaryDto(
+        var dto = MonthlyPeriodSummaryMapper.FromReport(
+            report,
             periodId,
             request.Year,
             request.Month,
             PeriodStatus.Closed,
             utcNow,
-            userId,
-            CurrencyUnits.ToWhole(income),
-            CurrencyUnits.ToWhole(expense),
-            CurrencyUnits.ToWhole(net),
-            topCategories,
-            categories,
-            sources);
+            userId);
 
         return new CloseMonthResponse(dto);
     }

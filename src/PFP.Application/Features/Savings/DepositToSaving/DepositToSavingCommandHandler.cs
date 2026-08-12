@@ -33,6 +33,10 @@ public sealed class DepositToSavingCommandHandler : IRequestHandler<DepositToSav
 
         if (saving is null)
             throw new NotFoundException("Savings record was not found.");
+
+        await PostingPeriodPolicy
+            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
+            .ConfigureAwait(false);
 if (saving.Status is not (SavingStatus.Active or SavingStatus.Matured))
             throw new BusinessRuleException("Deposits are only allowed while the savings record is active or matured.");
 
@@ -61,6 +65,7 @@ if (saving.Status is not (SavingStatus.Active or SavingStatus.Matured))
         var txn = new FinTransaction
         {
 Type = TransactionType.Transfer,
+            Purpose = TransactionPurpose.SavingDeposit,
             Status = TxnStatus.New,
             Amount = -CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -72,6 +77,7 @@ Type = TransactionType.Transfer,
             Description = description,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             ExternalRef = externalRef.Length <= 255 ? externalRef : externalRef[..255],
+            SavingId = saving.Id,
         };
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>

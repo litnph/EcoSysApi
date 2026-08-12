@@ -17,17 +17,20 @@ public sealed record InstallmentPlanListItemDto(
     long RemainingAmount,
     long TotalAmount,
     bool CanDelete,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int Version);
 
 /// <summary>Detail DTO for a single pay line.</summary>
 public sealed record InstallmentPayItemDto(
     int InstallmentNumber,
+    DateOnly StatementDate,
     DateOnly DueDate,
     long Amount,
     long PaidAmount,
     InstallmentPayStatus Status,
     DateTime? PaidAt,
-    Guid? TxnId);
+    Guid? TxnId,
+    bool CanPayDirectly);
 
 /// <summary>Full plan detail for <see cref="GetInstallmentPlanDetail.GetInstallmentPlanDetailQuery"/>.</summary>
 public sealed record InstallmentPlanDetailDto(
@@ -51,4 +54,5 @@ public sealed record InstallmentPlanDetailDto(
     InstallmentStatus Status,
     string? CancellationReason,
     bool CanDelete,
+    int Version,
     IReadOnlyList<InstallmentPayItemDto> Pays);

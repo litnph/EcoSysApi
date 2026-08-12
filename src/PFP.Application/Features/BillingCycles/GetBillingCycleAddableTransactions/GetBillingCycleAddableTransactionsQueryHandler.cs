@@ -60,6 +60,7 @@ public sealed class GetBillingCycleAddableTransactionsQueryHandler
             select new TransactionListItemDto(
                 t.Id,
                 t.Type,
+                t.Purpose,
                 t.Status,
                 (long)Math.Round(t.Amount, 0, MidpointRounding.AwayFromZero),
                 t.Currency,

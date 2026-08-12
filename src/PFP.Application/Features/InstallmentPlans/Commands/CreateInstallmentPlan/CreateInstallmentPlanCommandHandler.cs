@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.InstallmentPlans.Common;
@@ -37,8 +38,14 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
 
         if (txn is null || txn.IsDeleted || txn.Type != TransactionType.Deferred)
             throw new NotFoundException("Transaction was not found.");
-if (txn.Source.Type != SourceType.CreditCard)
+        if (txn.Source.Type != SourceType.CreditCard)
             throw new BusinessRuleException("Installment plans can only be created for credit card sources.");
+
+        if (txn.Source.StatementDay is not { } statementDay)
+            throw new BusinessRuleException("The credit card statement day is required to create an installment schedule.");
+
+        if (txn.Source.PaymentDueDay is not { } paymentDueDaysAfterStatement)
+            throw new BusinessRuleException("The credit card payment due offset is required to create an installment schedule.");
 
         var totalAmount = txn.Amount;
         decimal? conversionFeeAmount = null;
@@ -53,7 +60,7 @@ if (txn.Source.Type != SourceType.CreditCard)
         var (monthlyShare, lastShare) = InstallmentScheduleSplit.Split(totalAmount, totalMonths);
 
         var startDate = txn.TxnDate;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = FinanceBusinessCalendar.Today;
 
         // Wrap explicit transaction with the retrying execution strategy so EnableRetryOnFailure
         // can retry transient transport faults around the plan + schedule write.
@@ -63,7 +70,8 @@ if (txn.Source.Type != SourceType.CreditCard)
             await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
             var plan = new FinInstallmentPlan
-            {                OriginalTxnId = txn.Id,
+            {
+                OriginalTxnId = txn.Id,
                 SourceId = txn.SourceId,
                 TotalAmount = totalAmount,
                 TotalMonths = totalMonths,
@@ -73,6 +81,7 @@ if (txn.Source.Type != SourceType.CreditCard)
                 ConversionFeeAmount = conversionFeeAmount,
                 ConversionFeeStatus = conversionFeeStatus,
                 StartDate = startDate,
+                ScheduleVersion = InstallmentPaySchedule.CurrentScheduleVersion,
                 Status = InstallmentStatus.Active,
             };
 
@@ -81,34 +90,36 @@ if (txn.Source.Type != SourceType.CreditCard)
             if (txn.Status == TxnStatus.New)
                 txn.Status = TxnStatus.TransferredToInstallment;
 
-            var cardSource = await _db.FinSources
-                .FirstAsync(s => s.Id == txn.SourceId, cancellationToken)
-                .ConfigureAwait(false);
-
             var pays = new List<FinInstallmentPay>(totalMonths);
             for (var i = 1; i <= totalMonths; i++)
             {
                 var amount = i == totalMonths ? lastShare : monthlyShare;
-                var dueDate = InstallmentPaySchedule.DueDateForInstallment(startDate, i);
+                var statementDate = InstallmentPaySchedule.StatementDateForInstallment(
+                    startDate,
+                    statementDay,
+                    i);
+                var dueDate = InstallmentPaySchedule.DueDateForInstallment(
+                    startDate,
+                    statementDay,
+                    paymentDueDaysAfterStatement,
+                    i);
                 var pay = new FinInstallmentPay
                 {
                     PlanId = plan.Id,
                     InstallmentNumber = i,
                 };
-                InstallmentPaySchedule.ApplyInitialPayLine(pay, amount, dueDate, today);
+                InstallmentPaySchedule.ApplyInitialPayLine(
+                    pay,
+                    amount,
+                    statementDate,
+                    dueDate,
+                    today);
                 pays.Add(pay);
                 _db.FinInstallmentPays.Add(pay);
             }
 
             if (InstallmentPaySchedule.IsFullyPaid(pays))
                 plan.Status = InstallmentStatus.Completed;
-
-            var backfillPaidTotal = pays
-                .Where(p => p.Status == InstallmentPayStatus.Paid)
-                .Sum(p => p.Amount);
-
-            if (backfillPaidTotal > 0m)
-                cardSource.Balance = Math.Max(0m, cardSource.Balance - backfillPaidTotal);
 
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);

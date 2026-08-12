@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Domain.Enums;
@@ -30,6 +31,7 @@ public sealed class DeleteDebtRecordCommandHandler : IRequestHandler<DeleteDebtR
 
         if (record is null || record.IsDeleted)
             throw new NotFoundException("Debt record was not found.");
+        OptimisticConcurrencyGuard.Ensure(record.Version, request.ExpectedVersion);
 if (record.FinDebtTransactions.Count > 0)
             throw new BusinessRuleException("Cannot delete a debt record that already has repayment or collection movements.");
 

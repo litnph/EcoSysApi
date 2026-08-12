@@ -15,4 +15,15 @@ public sealed record MonthlyPeriodSummaryDto(
     long Net,
     IReadOnlyList<CategoryAmountBreakdownDto> TopExpenseCategories,
     IReadOnlyList<MonthCategoryBreakdownItemDto>? CategoryBreakdown = null,
-    IReadOnlyList<MonthSourceBreakdownItemDto>? SourceBreakdown = null);
+    IReadOnlyList<MonthSourceBreakdownItemDto>? SourceBreakdown = null,
+    string? Currency = null,
+    bool ConsolidatedTotalsAvailable = true,
+    IReadOnlyList<MonthlyCurrencySummaryDto>? CurrencyGroups = null);
+
+/// <summary>Summary totals for exactly one currency.</summary>
+public sealed record MonthlyCurrencySummaryDto(
+    string Currency,
+    long TotalIncome,
+    long TotalExpense,
+    long Net,
+    decimal? SavingsRatePercent);

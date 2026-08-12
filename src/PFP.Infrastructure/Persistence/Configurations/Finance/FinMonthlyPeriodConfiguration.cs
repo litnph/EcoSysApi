@@ -14,6 +14,7 @@ public sealed class FinMonthlyPeriodConfiguration : IEntityTypeConfiguration<Fin
         builder.Property(x => x.CategoryBreakdown).HasColumnType("text");
         builder.Property(x => x.SourceBreakdown).HasColumnType("text");
         builder.Property(x => x.ReportSnapshot).HasColumnType("text");
+        builder.Property(x => x.ReportCurrency).HasMaxLength(3);
         builder.HasOne(x => x.ClosedByUser)
                .WithMany()
                .HasForeignKey(x => x.ClosedBy)

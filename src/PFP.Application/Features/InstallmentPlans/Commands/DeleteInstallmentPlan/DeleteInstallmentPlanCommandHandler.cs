@@ -34,6 +34,8 @@ public sealed class DeleteInstallmentPlanCommandHandler
             if (plan is null)
                 throw new NotFoundException("Installment plan was not found.");
 
+            OptimisticConcurrencyGuard.Ensure(plan.Version, request.ExpectedVersion);
+
             if (plan.Status is not (InstallmentStatus.Active or InstallmentStatus.Completed))
                 throw new BusinessRuleException("Only an active or completed installment plan can be deleted.");
 
