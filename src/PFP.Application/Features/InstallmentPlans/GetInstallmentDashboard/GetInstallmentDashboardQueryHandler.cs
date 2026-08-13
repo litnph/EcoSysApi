@@ -151,7 +151,6 @@ public sealed class GetInstallmentDashboardQueryHandler
             .OrderBy(p => p.Bucket)
             .ThenBy(p => p.DueDate)
             .ThenBy(p => p.SourceName, StringComparer.OrdinalIgnoreCase)
-            .Take(30)
             .ToList();
 
         var dashboard = new InstallmentDashboardDto(
