@@ -29,15 +29,19 @@ public sealed class GetInstallmentDashboardQueryHandler
             throw new UnauthorizedAppException("Authentication is required.");
 
         var today = FinanceBusinessCalendar.Today;
-        var plans = await _db.FinInstallmentPlans
+        var allPlans = await _db.FinInstallmentPlans
             .AsNoTracking()
             .Include(p => p.Source)
             .Include(p => p.Pays)
             .Include(p => p.OriginalTransaction)
                 .ThenInclude(t => t.Category)
-            .Where(p => p.Status == InstallmentStatus.Active)
+            .Where(p => p.Status == InstallmentStatus.Active
+                || p.Pays.Any(pay => pay.Status == InstallmentPayStatus.Paid))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+        var activePlans = allPlans
+            .Where(p => p.Status == InstallmentStatus.Active)
+            .ToList();
 
         decimal totalRemaining = 0;
         decimal totalOriginal = 0;
@@ -55,8 +59,9 @@ public sealed class GetInstallmentDashboardQueryHandler
 
         var sourceMap = new Dictionary<Guid, SourceAccumulator>();
         var upcomingPays = new List<InstallmentUpcomingPayDto>();
+        var schedulePays = new List<InstallmentSchedulePayDto>();
 
-        foreach (var plan in plans)
+        foreach (var plan in activePlans)
         {
             totalOriginal += plan.TotalAmount;
 
@@ -128,6 +133,40 @@ public sealed class GetInstallmentDashboardQueryHandler
             }
         }
 
+        foreach (var plan in allPlans)
+        {
+            foreach (var pay in plan.Pays)
+            {
+                var effectiveStatus = InstallmentPaySchedule.ResolveStatus(pay, today);
+
+                // Active plans expose their full schedule. Historical plans retain only
+                // rows with payment evidence so cancelled future installments do not leak
+                // back into the payment calendar.
+                if (plan.Status != InstallmentStatus.Active
+                    && effectiveStatus != InstallmentPayStatus.Paid)
+                {
+                    continue;
+                }
+
+                schedulePays.Add(new InstallmentSchedulePayDto(
+                    plan.Id,
+                    plan.SourceId,
+                    plan.Source.Name,
+                    plan.Source.Icon,
+                    InstallmentPlanRules.ResolveOriginalTxnTitle(plan),
+                    pay.InstallmentNumber,
+                    plan.TotalMonths,
+                    pay.StatementDate,
+                    pay.DueDate,
+                    CurrencyUnits.ToWhole(pay.Amount),
+                    effectiveStatus,
+                    pay.PaidAt,
+                    effectiveStatus == InstallmentPayStatus.Paid
+                        ? null
+                        : ResolveBucket(pay.DueDate, effectiveStatus, today)));
+            }
+        }
+
         var completionPercent = totalOriginal <= 0
             ? 100
             : (int)Math.Round(Math.Min(100, totalPaid / totalOriginal * 100), MidpointRounding.AwayFromZero);
@@ -153,8 +192,14 @@ public sealed class GetInstallmentDashboardQueryHandler
             .ThenBy(p => p.SourceName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var orderedSchedulePays = schedulePays
+            .OrderBy(p => p.DueDate)
+            .ThenBy(p => p.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.InstallmentNumber)
+            .ToList();
+
         var dashboard = new InstallmentDashboardDto(
-            plans.Count,
+            activePlans.Count,
             CurrencyUnits.ToWhole(totalRemaining),
             dueCount,
             CurrencyUnits.ToWhole(dueAmount),
@@ -168,7 +213,8 @@ public sealed class GetInstallmentDashboardQueryHandler
             CurrencyUnits.ToWhole(nextMonthDueAmount),
             completionPercent,
             bySource,
-            orderedPays);
+            orderedPays,
+            orderedSchedulePays);
 
         return new GetInstallmentDashboardResponse(dashboard);
     }
