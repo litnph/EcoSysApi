@@ -15,6 +15,9 @@ public static class DbTransactionRunner
         Func<CancellationToken, Task> action,
         CancellationToken cancellationToken = default)
     {
+        if (db.Database.CurrentTransaction is not null)
+            return action(cancellationToken);
+
         var strategy = db.Database.CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>
         {
@@ -30,6 +33,9 @@ public static class DbTransactionRunner
         Func<CancellationToken, Task<T>> action,
         CancellationToken cancellationToken = default)
     {
+        if (db.Database.CurrentTransaction is not null)
+            return action(cancellationToken);
+
         var strategy = db.Database.CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>
         {

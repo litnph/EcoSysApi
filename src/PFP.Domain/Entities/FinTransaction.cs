@@ -17,6 +17,9 @@ public sealed class FinTransaction : VersionedEntity
     /// <summary>Functional transaction kind.</summary>
     public TransactionType Type { get; set; }
 
+    /// <summary>Stable business classification; never inferred from description or note text.</summary>
+    public TransactionPurpose Purpose { get; set; } = TransactionPurpose.General;
+
     /// <summary>Workflow status (new → installment / month close).</summary>
     public TxnStatus Status { get; set; } = TxnStatus.New;
 
@@ -49,6 +52,15 @@ public sealed class FinTransaction : VersionedEntity
 
     /// <summary>FK to <see cref="FinInstallmentPlan"/> when applicable.</summary>
     public Guid? InstallmentPlanId { get; set; }
+
+    /// <summary>Saving aggregate associated with a saving deposit/withdrawal.</summary>
+    public Guid? SavingId { get; set; }
+
+    /// <summary>Billing cycle settled by a statement-payment transaction.</summary>
+    public Guid? BillingCycleId { get; set; }
+
+    /// <summary>Caller-generated key used to make create requests safely replayable.</summary>
+    public Guid? ClientRequestId { get; set; }
 
     /// <summary>Short description for lists.</summary>
     public string Description { get; set; } = string.Empty;

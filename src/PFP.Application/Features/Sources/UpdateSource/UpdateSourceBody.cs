@@ -13,4 +13,5 @@ public sealed record UpdateSourceBody(
     string? Currency,
     string? Icon,
     string? Color,
-    int? SortOrder);
+    int? SortOrder,
+    int? ExpectedVersion = null);

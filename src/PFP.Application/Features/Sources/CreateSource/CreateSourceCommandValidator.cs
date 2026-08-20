@@ -22,7 +22,7 @@ RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         {
             RuleFor(x => x.CreditLimit).NotNull().GreaterThan(0);
             RuleFor(x => x.StatementDay).NotNull().InclusiveBetween(1, 31);
-            RuleFor(x => x.PaymentDueDay).NotNull().GreaterThan(0);
+            RuleFor(x => x.PaymentDueDay).NotNull().InclusiveBetween(1, 60);
             RuleFor(x => x.MinInstallmentAmt).GreaterThan(0).When(x => x.MinInstallmentAmt.HasValue);
         });
 

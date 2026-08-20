@@ -26,12 +26,12 @@ public sealed class GetCurrentMonthSummaryQueryHandler : IRequestHandler<GetCurr
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var utc = DateTime.UtcNow;
-        var year = utc.Year;
-        var month = utc.Month;
+        var today = FinanceBusinessCalendar.Today;
+        var year = today.Year;
+        var month = today.Month;
 
-        var (income, expense, top) = await MonthlyPeriodSummaryCalculator
-            .ComputeAsync(_db, year, month, cancellationToken)
+        var report = await MonthlyPeriodSummaryCalculator
+            .BuildReportAsync(_db, year, month, cancellationToken)
             .ConfigureAwait(false);
 
         var period = await _db.FinMonthlyPeriods
@@ -41,18 +41,14 @@ var utc = DateTime.UtcNow;
                 cancellationToken)
             .ConfigureAwait(false);
 
-        var net = income - expense;
-        var dto = new MonthlyPeriodSummaryDto(
+        var dto = MonthlyPeriodSummaryMapper.FromReport(
+            report,
             period?.Id,
             year,
             month,
             period?.Status ?? PeriodStatus.Open,
             period?.ClosedAt,
-            period?.ClosedBy,
-            CurrencyUnits.ToWhole(income),
-            CurrencyUnits.ToWhole(expense),
-            CurrencyUnits.ToWhole(net),
-            top);
+            period?.ClosedBy);
 
         return new GetCurrentMonthSummaryResponse(dto);
     }

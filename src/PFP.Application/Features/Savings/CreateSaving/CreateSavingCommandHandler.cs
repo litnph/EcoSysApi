@@ -31,6 +31,15 @@ var source = await _db.FinSources
         if (source is null || source.IsDeleted)
             throw new BusinessRuleException("The financial source is not available.");
 
+        if (source.IsArchived || source.Type == SourceType.CreditCard)
+            throw new BusinessRuleException("Savings require an active non-credit-card source.");
+
+        if (request.Status != SavingStatus.Active)
+            throw new BusinessRuleException("New savings records must start in the active status.");
+
+        if (request.MaturityDate is { } maturityDate && maturityDate < request.StartDate)
+            throw new BusinessRuleException("Maturity date cannot be earlier than start date.");
+
         var entity = new FinSaving
         {            SourceId = request.SourceId,
             Name = request.Name.Trim(),

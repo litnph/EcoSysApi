@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
@@ -38,6 +39,12 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
 
         if (orig is null)
             throw new NotFoundException("Transaction was not found.");
+
+        OptimisticConcurrencyGuard.Ensure(orig.Version, request.ExpectedVersion);
+
+        await PostingPeriodPolicy
+            .EnsureExistingTransactionMutableAsync(_db, orig, cancellationToken)
+            .ConfigureAwait(false);
 FinTransaction? partner = null;
         if (orig.Type == TransactionType.Transfer)
         {
@@ -60,7 +67,7 @@ FinTransaction? partner = null;
 
         var beforeAuditJson = TransactionHistoryJson.BuildTransactionStateSnapshot(orig);
         var utcNow = DateTime.UtcNow;
-        var today = DateOnly.FromDateTime(utcNow);
+        var today = FinanceBusinessCalendar.Today;
         var userId = _currentUser.UserId.Value;
 
         // Spec §4.2: the soft-delete, reversal row, history row, balance revert, and audit row MUST

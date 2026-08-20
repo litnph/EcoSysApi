@@ -10,6 +10,10 @@ public sealed class FinInstallmentPay : BaseEntity
 
     public int InstallmentNumber { get; set; }
 
+    /// <summary>Date on which this installment is captured by its credit-card statement.</summary>
+    public DateOnly StatementDate { get; set; }
+
+    /// <summary>Actual payment deadline derived from the statement date and card due offset.</summary>
     public DateOnly DueDate { get; set; }
 
     public decimal Amount { get; set; }

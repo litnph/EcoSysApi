@@ -4,6 +4,7 @@ using PFP.Application.Common.Exceptions;
 using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Investments.Common;
+using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Investments.UpdateInvestment;
@@ -31,22 +32,43 @@ public sealed class UpdateInvestmentCommandHandler : IRequestHandler<UpdateInves
 
         if (entity is null)
             throw new NotFoundException("Investment was not found.");
+
+        var nextCurrency = request.Currency.Trim().ToUpperInvariant();
+        if (entity.InvestmentTxns.Count > 0
+            && !string.Equals(entity.Currency, nextCurrency, StringComparison.Ordinal))
+            throw new BusinessRuleException("Investment currency is immutable after the first ledger event.");
+
+        var valuationChanged = entity.CurrentValue != request.CurrentValue;
 entity.Name = request.Name.Trim();
         entity.Type = request.Type;
         entity.CurrentValue = request.CurrentValue;
-        entity.Currency = request.Currency.Trim().ToUpperInvariant();
+        entity.Currency = nextCurrency;
         entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
+        if (valuationChanged)
+        {
+            _db.FinInvestmentTxns.Add(new FinInvestmentTxn
+            {
+                InvestmentId = entity.Id,
+                TxnType = InvestmentTxnType.Valuation,
+                Amount = request.CurrentValue,
+                TxnDate = FinanceBusinessCalendar.Today,
+                Note = $"Valuation ({InvestmentDtoMapper.ProfitLossFormulaVersion})",
+            });
+        }
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);
 
-        var txns = entity.InvestmentTxns
+        var txnRows = await _db.FinInvestmentTxns
+            .AsNoTracking()
+            .Where(t => t.InvestmentId == entity.Id)
             .OrderByDescending(t => t.TxnDate)
             .ThenByDescending(t => t.CreatedAt)
-            .Select(InvestmentDtoMapper.ToTxnDto)
-            .ToList();
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var txns = txnRows.ConvertAll(InvestmentDtoMapper.ToTxnDto);
 
         return new UpdateInvestmentResponse(InvestmentDtoMapper.ToDetail(entity, txns));
     }

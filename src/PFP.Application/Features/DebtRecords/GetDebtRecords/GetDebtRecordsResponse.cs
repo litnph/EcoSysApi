@@ -13,6 +13,7 @@ public sealed record DebtRecordListItemDto(
     DateOnly? DueDate,
     DebtStatus Status,
     int? DaysUntilDue,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    int Version);
 
 public sealed record GetDebtRecordsResponse(IReadOnlyList<DebtRecordListItemDto> Items);

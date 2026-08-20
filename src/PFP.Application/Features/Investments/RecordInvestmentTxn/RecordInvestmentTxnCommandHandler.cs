@@ -31,11 +31,19 @@ public sealed class RecordInvestmentTxnCommandHandler : IRequestHandler<RecordIn
 
         if (investment is null)
             throw new NotFoundException("Investment was not found.");
+
+        var amount = CurrencyUnits.FromWhole(request.Amount);
+        if (request.TxnType == InvestmentTxnType.Sell && amount > investment.CurrentValue)
+            throw new BusinessRuleException("Sell amount cannot exceed the current investment value.");
+
+        if (request.TxnType == InvestmentTxnType.Fee && amount > investment.CurrentValue)
+            throw new BusinessRuleException("Fee amount cannot exceed the current investment value.");
+
 if (request.LinkedTxnId is { } linkedId)
         {
             var linked = await _db.FinTransactions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == linkedId)
+                .FirstOrDefaultAsync(t => t.Id == linkedId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (linked is null)
@@ -43,9 +51,30 @@ if (request.LinkedTxnId is { } linkedId)
 
             if (!string.Equals(linked.Currency, investment.Currency, StringComparison.Ordinal))
                 throw new BusinessRuleException("Linked transaction currency must match the investment currency.");
+
+            if (linked.Amount != amount)
+                throw new BusinessRuleException("Linked transaction amount must match the investment ledger amount.");
+
+            var compatibleDirection = request.TxnType switch
+            {
+                InvestmentTxnType.Buy or InvestmentTxnType.Fee =>
+                    linked.Type is TransactionType.Direct or TransactionType.Deferred,
+                InvestmentTxnType.Sell or InvestmentTxnType.Dividend =>
+                    linked.Type == TransactionType.Income,
+                InvestmentTxnType.Valuation => false,
+                _ => false,
+            };
+            if (!compatibleDirection)
+                throw new BusinessRuleException("Linked transaction direction is incompatible with the investment event.");
+
+            var alreadyLinked = await _db.FinInvestmentTxns
+                .AsNoTracking()
+                .AnyAsync(t => t.LinkedTxnId == linkedId, cancellationToken)
+                .ConfigureAwait(false);
+            if (alreadyLinked)
+                throw new BusinessRuleException("Linked transaction is already used by another investment ledger entry.");
         }
 
-        var amount = CurrencyUnits.FromWhole(request.Amount);
         ApplyAggregates(investment, request.TxnType, amount);
 
         var row = new FinInvestmentTxn
@@ -101,8 +130,10 @@ if (request.LinkedTxnId is { } linkedId)
                 inv.TotalReturned += amount;
                 break;
             case InvestmentTxnType.Fee:
-                inv.TotalInvested += amount;
                 inv.CurrentValue -= amount;
+                break;
+            case InvestmentTxnType.Valuation:
+                inv.CurrentValue = amount;
                 break;
             default:
                 throw new BusinessRuleException("Unsupported investment transaction type.");

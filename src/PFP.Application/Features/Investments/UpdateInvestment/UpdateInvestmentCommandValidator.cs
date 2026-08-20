@@ -10,6 +10,7 @@ public sealed class UpdateInvestmentCommandValidator : AbstractValidator<UpdateI
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.Currency).NotEmpty().Length(3);
+        RuleFor(x => x.CurrentValue).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Note).MaximumLength(500).When(x => x.Note is not null);
     }
 }

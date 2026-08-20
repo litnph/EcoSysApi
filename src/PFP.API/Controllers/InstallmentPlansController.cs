@@ -76,9 +76,10 @@ public sealed class InstallmentPlansController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(
         Guid id,
+        [FromQuery(Name = "expected_version")] int? expectedVersion,
         CancellationToken cancellationToken)
     {
-        await _mediator.Send(new DeleteInstallmentPlanCommand(id), cancellationToken)
+        await _mediator.Send(new DeleteInstallmentPlanCommand(id, expectedVersion), cancellationToken)
             .ConfigureAwait(false);
         return Ok(new ApiResponse<object> { Data = new { } });
     }
@@ -92,7 +93,7 @@ public sealed class InstallmentPlansController : ControllerBase
         CancellationToken cancellationToken)
     {
         await _mediator
-            .Send(new CancelInstallmentPlanCommand(id, body?.Reason), cancellationToken)
+            .Send(new CancelInstallmentPlanCommand(id, body?.Reason, body?.ExpectedVersion), cancellationToken)
             .ConfigureAwait(false);
         return Ok(new ApiResponse<object> { Data = new { } });
     }
@@ -107,7 +108,7 @@ public sealed class InstallmentPlansController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _mediator
-            .Send(new RecordInstallmentPaymentCommand(id, number, body.PaymentSourceId), cancellationToken)
+            .Send(new RecordInstallmentPaymentCommand(id, number, body.PaymentSourceId, body.ExpectedVersion), cancellationToken)
             .ConfigureAwait(false);
         return Ok(new ApiResponse<RecordInstallmentPaymentResponse> { Data = result });
     }
@@ -118,6 +119,9 @@ public sealed class CancelInstallmentPlanBody
 {
     /// <summary>Optional cancellation reason.</summary>
     public string? Reason { get; set; }
+
+    /// <summary>Version observed by the caller; stale writes return HTTP 409.</summary>
+    public int? ExpectedVersion { get; set; }
 }
 
 /// <summary>JSON body for installment payment.</summary>
@@ -125,4 +129,7 @@ public sealed class RecordInstallmentPaymentBody
 {
     /// <summary>Source to debit (bank / cash / e-wallet).</summary>
     public Guid PaymentSourceId { get; set; }
+
+    /// <summary>Version observed by the caller; stale writes return HTTP 409.</summary>
+    public int? ExpectedVersion { get; set; }
 }

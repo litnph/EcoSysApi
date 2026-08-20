@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using PFP.Application.Features.InstallmentPlans.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
@@ -466,61 +467,36 @@ public static class DemoFinanceSeeder
             ConversionFeeAmount = 36_000,
             ConversionFeeStatus = ConversionFeeStatus.Pending,
             StartDate = today.AddDays(-2),
+            ScheduleVersion = InstallmentPaySchedule.CurrentScheduleVersion,
             Status = InstallmentStatus.Active,
         };
         db.FinInstallmentPlans.Add(installmentPlan);
         txnHeadphone.Status = TxnStatus.TransferredToInstallment;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        db.FinInstallmentPays.AddRange(
-            new FinInstallmentPay
+        var demoInstallmentPays = Enumerable.Range(1, installmentPlan.TotalMonths)
+            .Select(number =>
             {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 1,
-                DueDate = today.AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Due,
-            },
-            new FinInstallmentPay
-            {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 2,
-                DueDate = today.AddMonths(1).AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Upcoming,
-            },
-            new FinInstallmentPay
-            {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 3,
-                DueDate = today.AddMonths(2).AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Upcoming,
-            },
-            new FinInstallmentPay
-            {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 4,
-                DueDate = today.AddMonths(3).AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Upcoming,
-            },
-            new FinInstallmentPay
-            {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 5,
-                DueDate = today.AddMonths(4).AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Upcoming,
-            },
-            new FinInstallmentPay
-            {
-                PlanId = installmentPlan.Id,
-                InstallmentNumber = 6,
-                DueDate = today.AddMonths(5).AddDays(28),
-                Amount = 400_000,
-                Status = InstallmentPayStatus.Upcoming,
-            });
+                var pay = new FinInstallmentPay
+                {
+                    PlanId = installmentPlan.Id,
+                    InstallmentNumber = number,
+                };
+                var statementDate = InstallmentPaySchedule.StatementDateForInstallment(
+                    txnHeadphone.TxnDate,
+                    creditCard.StatementDay!.Value,
+                    number);
+                var dueDate = statementDate.AddDays(creditCard.PaymentDueDay!.Value);
+                InstallmentPaySchedule.ApplyInitialPayLine(
+                    pay,
+                    installmentPlan.MonthlyAmount,
+                    statementDate,
+                    dueDate,
+                    today);
+                return pay;
+            })
+            .ToArray();
+        db.FinInstallmentPays.AddRange(demoInstallmentPays);
 
         db.FinSavings.AddRange(
             new FinSaving

@@ -83,7 +83,13 @@ public sealed class DebtRecordsController : ControllerBase
         [FromBody] RecordDebtPaymentBody body,
         CancellationToken cancellationToken)
     {
-        var command = new RecordDebtPaymentCommand(id, body.SourceId, body.Amount, body.TxnDate, body.Note);
+        var command = new RecordDebtPaymentCommand(
+            id,
+            body.SourceId,
+            body.Amount,
+            body.TxnDate,
+            body.Note,
+            body.ExpectedVersion);
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<RecordDebtPaymentResponse> { Data = result });
     }
@@ -93,9 +99,12 @@ public sealed class DebtRecordsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<DeleteDebtRecordResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<DeleteDebtRecordResponse>>> Delete(
         Guid id,
+        [FromQuery(Name = "expected_version")] int? expectedVersion,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new DeleteDebtRecordCommand(id), cancellationToken).ConfigureAwait(false);
+        var result = await _mediator.Send(
+            new DeleteDebtRecordCommand(id, expectedVersion),
+            cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<DeleteDebtRecordResponse> { Data = result });
     }
 }
@@ -123,6 +132,7 @@ public sealed class CreateDebtRecordBody
 
     /// <summary>Optional free-form note (max 500 chars).</summary>
     public string? Note { get; init; }
+
 }
 
 /// <summary>JSON body for <see cref="DebtRecordsController.RecordPayment"/>.</summary>
@@ -139,4 +149,7 @@ public sealed class RecordDebtPaymentBody
 
     /// <summary>Optional note (max 500 chars).</summary>
     public string? Note { get; init; }
+
+    /// <summary>Debt version observed by the caller; stale payments return HTTP 409.</summary>
+    public int? ExpectedVersion { get; init; }
 }

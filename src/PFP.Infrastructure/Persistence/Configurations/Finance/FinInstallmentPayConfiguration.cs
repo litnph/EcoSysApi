@@ -10,6 +10,7 @@ public sealed class FinInstallmentPayConfiguration : IEntityTypeConfiguration<Fi
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<FinInstallmentPay> builder)
     {
+        builder.Property(x => x.StatementDate).HasColumnType("date");
         builder.Property(x => x.DueDate).HasColumnType("date");
         builder.Property(x => x.Amount).HasPrecision(18, 2);
         builder.Property(x => x.PaidAmount).HasPrecision(18, 2);

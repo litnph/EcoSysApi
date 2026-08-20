@@ -38,6 +38,29 @@ var source = await _db.FinSources
         if (source is null || source.IsDeleted)
             throw new BusinessRuleException("The financial source is not available.");
 
+        if (source.IsArchived || source.Type == SourceType.CreditCard)
+            throw new BusinessRuleException("Savings require an active non-credit-card source.");
+
+        if (entity.CurrentAmount > 0m && request.SourceId != entity.SourceId)
+            throw new BusinessRuleException("The linked source is immutable while the savings record has funds.");
+
+        if (!string.Equals(source.Currency, entity.Source.Currency, StringComparison.Ordinal))
+            throw new BusinessRuleException("A savings source change must preserve currency.");
+
+        if (request.MaturityDate is { } maturityDate && maturityDate < request.StartDate)
+            throw new BusinessRuleException("Maturity date cannot be earlier than start date.");
+
+        if (request.Status == SavingStatus.Withdrawn && entity.CurrentAmount != 0m)
+            throw new BusinessRuleException("A savings record can be closed only when its current amount is zero.");
+
+        var today = FinanceBusinessCalendar.Today;
+        var derivedOpenStatus = request.MaturityDate is { } due && due <= today
+            ? SavingStatus.Matured
+            : SavingStatus.Active;
+        var status = request.Status == SavingStatus.Withdrawn
+            ? SavingStatus.Withdrawn
+            : derivedOpenStatus;
+
         entity.SourceId = request.SourceId;
         entity.Name = request.Name.Trim();
         entity.TargetAmount = request.TargetAmount is { } target ? CurrencyUnits.FromWhole(target) : null;
@@ -45,7 +68,7 @@ var source = await _db.FinSources
         entity.StartDate = request.StartDate;
         entity.MaturityDate = request.MaturityDate;
         entity.Type = request.Type;
-        entity.Status = request.Status;
+        entity.Status = status;
         entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>

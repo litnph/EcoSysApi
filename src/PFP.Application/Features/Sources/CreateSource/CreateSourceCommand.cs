@@ -3,7 +3,7 @@ using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Sources.CreateSource;
 
-/// <summary>Creates a finance source under an enabled finance <see cref="Domain.Entities.SpaceModule"/>.</summary>
+/// <summary>Creates a source in the finance module.</summary>
 public sealed record CreateSourceCommand(
     string Name,
     SourceType Type,

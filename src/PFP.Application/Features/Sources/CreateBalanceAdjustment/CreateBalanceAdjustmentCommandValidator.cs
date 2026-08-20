@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Sources.Common;
 using PFP.Domain.Enums;
@@ -14,7 +15,7 @@ public sealed class CreateBalanceAdjustmentCommandValidator : AbstractValidator<
         RuleFor(x => x.Amount).NotEqual(0);
 
         RuleFor(x => x.TxnDate)
-            .LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1));
+            .LessThanOrEqualTo(_ => FinanceBusinessCalendar.Today.AddDays(1));
 
         RuleFor(x => x.SourceId).MustAsync(async (id, ct) =>
         {

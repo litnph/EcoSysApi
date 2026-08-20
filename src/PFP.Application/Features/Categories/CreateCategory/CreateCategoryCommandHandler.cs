@@ -75,7 +75,7 @@ FinCategory? parent = null;
         Guid? exceptId,
         CancellationToken cancellationToken)
     {
-        IQueryable<FinCategory> query = _db.FinCategories;
+        IQueryable<FinCategory> query = _db.FinCategories.Where(c => c.Kind == kind);
         if (exceptId is { } id)
             query = query.Where(c => c.Id != id);
 

@@ -1,3 +1,5 @@
+using PFP.Domain.Enums;
+
 namespace PFP.Application.Features.InstallmentPlans.GetInstallmentDashboard;
 
 public sealed record GetInstallmentDashboardResponse(InstallmentDashboardDto Dashboard);
@@ -17,7 +19,8 @@ public sealed record InstallmentDashboardDto(
     long NextMonthDueAmount,
     int CompletionPercent,
     IReadOnlyList<InstallmentDashboardSourceDto> BySource,
-    IReadOnlyList<InstallmentUpcomingPayDto> UpcomingPays);
+    IReadOnlyList<InstallmentUpcomingPayDto> UpcomingPays,
+    IReadOnlyList<InstallmentSchedulePayDto> SchedulePays);
 
 public sealed record InstallmentDashboardSourceDto(
     Guid SourceId,
@@ -38,9 +41,25 @@ public sealed record InstallmentUpcomingPayDto(
     string PlanTitle,
     int InstallmentNumber,
     int TotalInstallments,
+    DateOnly StatementDate,
     DateOnly DueDate,
     long Amount,
     InstallmentUpcomingPayBucket Bucket);
+
+public sealed record InstallmentSchedulePayDto(
+    Guid PlanId,
+    Guid SourceId,
+    string SourceName,
+    string? SourceIcon,
+    string PlanTitle,
+    int InstallmentNumber,
+    int TotalInstallments,
+    DateOnly StatementDate,
+    DateOnly DueDate,
+    long Amount,
+    InstallmentPayStatus Status,
+    DateTime? PaidAt,
+    InstallmentUpcomingPayBucket? Bucket);
 
 public enum InstallmentUpcomingPayBucket
 {

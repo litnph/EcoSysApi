@@ -11,6 +11,8 @@ internal static class MonthlyReportPeriodWriter
         period.TotalIncome = CurrencyUnits.FromWhole(report.Summary.TotalIncome);
         period.TotalExpense = CurrencyUnits.FromWhole(report.Summary.TotalExpense);
         period.Net = CurrencyUnits.FromWhole(report.Summary.Net);
+        period.ReportCurrency = report.Metadata?.Currency;
+        period.HasConsolidatedTotals = report.Metadata?.ConsolidatedTotalsAvailable ?? true;
         period.CategoryBreakdown = MonthlyPeriodSummaryCalculator.SerialiseCategoryBreakdown(report.CategoryBreakdown);
         period.SourceBreakdown = MonthlyPeriodSummaryCalculator.SerialiseSourceBreakdown(report.SourceBreakdown);
         period.ReportSnapshot = MonthlyReportSnapshotStore.Serialize(report);

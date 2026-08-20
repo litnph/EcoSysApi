@@ -92,11 +92,12 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("api/v1/finance/transactions?page=1&page_size=10")).StatusCode);
 
         // Credit card + billing
+        var creditCardName = $"IT Visa {Guid.NewGuid():N}";
         var ccResp = await client.PostAsJsonAsync(
             "api/v1/finance/sources",
             new
             {
-                name = "IT Visa",
+                name = creditCardName,
                 type = "creditCard",
                 currency = "VND",
                 creditLimit = 50_000_000L,
@@ -108,7 +109,10 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
 
         await using var scope2 = _fixture.Services.CreateAsyncScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
-        var ccId = await db2.FinSources.Where(s => s.Name == "IT Visa").Select(s => s.Id).FirstAsync();
+        var ccId = await db2.FinSources
+            .Where(s => s.Name == creditCardName)
+            .Select(s => s.Id)
+            .FirstAsync();
 
         var genCycleResp = await client.PostAsJsonAsync(
             "api/v1/finance/billing-cycles/generate",
@@ -116,12 +120,17 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
             FinanceApiWireJson.Web);
         Assert.Equal(HttpStatusCode.OK, genCycleResp.StatusCode);
 
-        var cycleId = await db2.FinBillingCycles.Where(c => c.SourceId == ccId).Select(c => c.Id).FirstAsync();
+        var cycle = await db2.FinBillingCycles
+            .Where(c => c.SourceId == ccId)
+            .Select(c => new { c.Id, c.StatementDate })
+            .FirstAsync();
+        var cycleId = cycle.Id;
+        var deferredDate = cycle.StatementDate < today ? cycle.StatementDate : today;
 
         var deferredResp = await client.PostAsJsonAsync(
             "api/v1/finance/transactions",
             new CreateTransactionWire(
-                "deferred", 500, ccId, h.ExpenseCategoryId, today, null, null, null),
+                "deferred", 500, ccId, h.ExpenseCategoryId, deferredDate, null, null, null),
             FinanceApiWireJson.Web);
         Assert.Equal(HttpStatusCode.OK, deferredResp.StatusCode);
 
@@ -130,7 +139,9 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
             $"api/v1/finance/billing-cycles/{cycleId}/items",
             new { transactionId = deferredTxnId },
             FinanceApiWireJson.Web);
-        Assert.Equal(HttpStatusCode.OK, addItemResp.StatusCode);
+        Assert.True(
+            addItemResp.StatusCode == HttpStatusCode.OK,
+            await addItemResp.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("api/v1/finance/billing-cycles")).StatusCode);
 

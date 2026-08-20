@@ -8,4 +8,7 @@ public sealed class FileStorageOptions
 
     /// <summary>Default presigned URL lifetime (minutes) when clients do not override.</summary>
     public int DefaultSignedUrlMinutes { get; set; } = 15;
+
+    /// <summary>Server-enforced upload limit in MiB. Client form fields may only lower this value.</summary>
+    public int MaxUploadSizeMb { get; set; } = 10;
 }

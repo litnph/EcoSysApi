@@ -15,4 +15,5 @@ public sealed record UpdateSourceCommand(
     string? Currency,
     string? Icon,
     string? Color,
-    int? SortOrder) : IRequest<UpdateSourceResponse>;
+    int? SortOrder,
+    int? ExpectedVersion = null) : IRequest<UpdateSourceResponse>;

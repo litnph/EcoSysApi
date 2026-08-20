@@ -74,6 +74,13 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        foreach (var entityType in builder.Model.GetEntityTypes()
+                     .Where(t => typeof(VersionedEntity).IsAssignableFrom(t.ClrType)))
+        {
+            var versionProperty = entityType.FindProperty(nameof(VersionedEntity.Version));
+            if (versionProperty is not null)
+                versionProperty.IsConcurrencyToken = true;
+        }
         builder.ApplySoftDeleteQueryFilter();
         DbInitializer.ApplyModelSeed(builder);
         builder.ApplySnakeCaseNaming();

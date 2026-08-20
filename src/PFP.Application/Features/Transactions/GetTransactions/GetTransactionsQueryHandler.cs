@@ -57,6 +57,7 @@ public sealed class GetTransactionsQueryHandler : IRequestHandler<GetTransaction
             {
                 t.Id,
                 t.Type,
+                t.Purpose,
                 t.Status,
                 Amount = (long)Math.Round(t.Amount, 0, MidpointRounding.AwayFromZero),
                 t.Currency,
@@ -87,6 +88,7 @@ public sealed class GetTransactionsQueryHandler : IRequestHandler<GetTransaction
         var items = rows.Select(r => new TransactionListItemDto(
             r.Id,
             r.Type,
+            r.Purpose,
             r.Status,
             r.Amount,
             r.Currency,

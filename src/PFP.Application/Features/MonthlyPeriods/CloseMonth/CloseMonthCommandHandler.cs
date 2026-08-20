@@ -29,10 +29,8 @@ public sealed class CloseMonthCommandHandler : IRequestHandler<CloseMonthCommand
     {
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
-var blockingCycles = await _db.FinBillingCycles
-            .AsNoTracking()
-            .Include(bc => bc.Source)
-            .ToListAsync(cancellationToken)
+var blockingCycles = await CloseMonthBillingCycleRules
+            .GetBlockingCyclesAsync(_db, request.Year, request.Month, cancellationToken)
             .ConfigureAwait(false);
 
         if (blockingCycles.Count > 0)
@@ -95,6 +93,8 @@ var blockingCycles = await _db.FinBillingCycles
             period.TotalIncome = income;
             period.TotalExpense = expense;
             period.Net = net;
+            period.ReportCurrency = report.Metadata?.Currency;
+            period.HasConsolidatedTotals = report.Metadata?.ConsolidatedTotalsAvailable ?? true;
             period.CategoryBreakdown = categoryJson;
             period.SourceBreakdown = sourceJson;
             period.ReportSnapshot = MonthlyReportSnapshotStore.Serialize(report);
@@ -149,19 +149,14 @@ var blockingCycles = await _db.FinBillingCycles
             return period.Id;
         }).ConfigureAwait(false);
 
-        var dto = new MonthlyPeriodSummaryDto(
+        var dto = MonthlyPeriodSummaryMapper.FromReport(
+            report,
             periodId,
             request.Year,
             request.Month,
             PeriodStatus.Closed,
             utcNow,
-            userId,
-            CurrencyUnits.ToWhole(income),
-            CurrencyUnits.ToWhole(expense),
-            CurrencyUnits.ToWhole(net),
-            topCategories,
-            categories,
-            sources);
+            userId);
 
         return new CloseMonthResponse(dto);
     }

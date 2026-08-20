@@ -16,6 +16,25 @@ public static class TransactionAmountEditPolicy
         Guid transactionId,
         CancellationToken cancellationToken = default)
     {
+        var transaction = await db.FinTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == transactionId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (transaction is null)
+            return false;
+
+        try
+        {
+            await PostingPeriodPolicy
+                .EnsureExistingTransactionMutableAsync(db, transaction, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (BusinessRuleException)
+        {
+            return false;
+        }
+
         if (await db.FinInstallmentPlans.AsNoTracking()
                 .AnyAsync(p => p.OriginalTxnId == transactionId, cancellationToken)
                 .ConfigureAwait(false))

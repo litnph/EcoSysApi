@@ -33,6 +33,7 @@ public sealed class DeleteSourceCommandHandler : IRequestHandler<DeleteSourceCom
 
         if (entity is null)
             throw new NotFoundException("Finance source was not found.");
+        OptimisticConcurrencyGuard.Ensure(entity.Version, request.ExpectedVersion);
 var hasTransactions = await _db.FinTransactions
             .AnyAsync(
                 t => t.SourceId == request.Id || t.DestSourceId == request.Id,

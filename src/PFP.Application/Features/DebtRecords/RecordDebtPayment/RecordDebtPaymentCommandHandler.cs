@@ -35,6 +35,8 @@ public sealed class RecordDebtPaymentCommandHandler : IRequestHandler<RecordDebt
         if (debt is null)
             throw new NotFoundException("Debt record was not found.");
 
+        OptimisticConcurrencyGuard.Ensure(debt.Version, request.ExpectedVersion);
+
         if (debt.Status != DebtStatus.Active)
             throw new BusinessRuleException("This debt record is no longer active.");
 
@@ -62,7 +64,8 @@ public sealed class RecordDebtPaymentCommandHandler : IRequestHandler<RecordDebt
             PersonContact: debt.PersonContact,
             DebtRecordId: debt.Id,
             DueDate: null,
-            Splits: null);
+            Splits: null,
+            ExpectedAggregateVersion: request.ExpectedVersion);
 
         var inner_result = await _mediator.Send(inner, cancellationToken).ConfigureAwait(false);
         return new RecordDebtPaymentResponse(inner_result.Transaction);

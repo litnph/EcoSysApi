@@ -14,4 +14,7 @@ public enum InvestmentTxnType
 
     /// <summary>Fee charged against the position.</summary>
     Fee = 4,
+
+    /// <summary>Point-in-time mark-to-market value; amount is the resulting position value.</summary>
+    Valuation = 5,
 }

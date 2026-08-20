@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.InstallmentPlans.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.InstallmentPlans.Commands.RecordInstallmentPayment;
@@ -37,16 +39,33 @@ public sealed class RecordInstallmentPaymentCommandValidator : AbstractValidator
                     return;
                 }
 
-                if (pay.Status is not (InstallmentPayStatus.Due or InstallmentPayStatus.Overdue))
-                    ctx.AddFailure(nameof(cmd.InstallmentNumber), "The installment must be due or overdue to accept a payment.");
+                var today = FinanceBusinessCalendar.Today;
+                var effectiveStatus = InstallmentPaySchedule.ResolveStatus(pay, today);
+                if (effectiveStatus == InstallmentPayStatus.Paid)
+                    ctx.AddFailure(nameof(cmd.InstallmentNumber), "The installment has already been paid.");
             });
 
         RuleFor(x => x.PaymentSourceId).MustAsync(
                 async (sourceId, ct) =>
                 {
-                    var exists = await db.FinSources.AsNoTracking().AnyAsync(s => s.Id == sourceId, ct).ConfigureAwait(false);
-                    return exists;
+                    var source = await db.FinSources.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sourceId, ct).ConfigureAwait(false);
+                    return source is not null && !source.IsDeleted && !source.IsArchived && source.Type != SourceType.CreditCard;
                 })
-            .WithMessage("Payment source was not found.");
+            .WithMessage("Payment source must be an active non-credit-card source.");
+
+        RuleFor(x => x).MustAsync(
+                async (cmd, ct) =>
+                {
+                    var plan = await db.FinInstallmentPlans.AsNoTracking()
+                        .Include(p => p.Source)
+                        .FirstOrDefaultAsync(p => p.Id == cmd.PlanId, ct)
+                        .ConfigureAwait(false);
+                    var paymentSource = await db.FinSources.AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == cmd.PaymentSourceId, ct)
+                        .ConfigureAwait(false);
+                    return plan is null || paymentSource is null
+                        || string.Equals(plan.Source.Currency, paymentSource.Currency, StringComparison.Ordinal);
+                })
+            .WithMessage("Payment source currency must match the installment plan currency.");
     }
 }

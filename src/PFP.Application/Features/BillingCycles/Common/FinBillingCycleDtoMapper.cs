@@ -1,4 +1,5 @@
 using PFP.Application.Common;
+using PFP.Application.Features.InstallmentPlans.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
@@ -60,7 +61,8 @@ public static class FinBillingCycleDtoMapper
         Guid originalTxnId,
         int totalInstallments,
         string planDescription,
-        string? categoryName) =>
+        string? categoryName,
+        Guid? categoryId = null) =>
         new(
             pay.Id,
             pay.PlanId,
@@ -72,5 +74,6 @@ public static class FinBillingCycleDtoMapper
             pay.DueDate,
             CurrencyUnits.ToWhole(pay.Amount),
             CurrencyUnits.ToWhole(pay.PaidAmount),
-            pay.Status);
+            InstallmentPaySchedule.ResolveStatus(pay, FinanceBusinessCalendar.Today),
+            categoryId);
 }

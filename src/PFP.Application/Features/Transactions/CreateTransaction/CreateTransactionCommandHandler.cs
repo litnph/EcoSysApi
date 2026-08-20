@@ -32,6 +32,26 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         request = await NormalizeExpenseCommandAsync(request, cancellationToken).ConfigureAwait(false);
 
+        if (request.ClientRequestId is { } requestId)
+        {
+            var replay = await _db.FinTransactions
+                .AsNoTracking()
+                .Include(t => t.Source)
+                .Include(t => t.Category)
+                .FirstOrDefaultAsync(t => t.ClientRequestId == requestId, cancellationToken)
+                .ConfigureAwait(false);
+            if (replay is not null)
+            {
+                if (!IsEquivalentReplay(request, replay))
+                    throw new IdempotencyConflictException();
+                return new CreateTransactionResponse(MapDetail(replay));
+            }
+        }
+
+        await PostingPeriodPolicy
+            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
+            .ConfigureAwait(false);
+
         if (request.Type is TransactionType.DebtBorrow
             or TransactionType.LoanGive
             or TransactionType.DebtRepay
@@ -101,6 +121,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.DebtBorrow,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -170,6 +191,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.LoanGive,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -231,6 +253,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (debt is null || debt.IsDeleted)
             throw new NotFoundException("Debt record was not found.");
 
+        OptimisticConcurrencyGuard.Ensure(debt.Version, request.ExpectedAggregateVersion);
+
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -247,6 +271,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.DebtRepay,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -312,6 +337,8 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (debt is null || debt.IsDeleted)
             throw new NotFoundException("Debt record was not found.");
 
+        OptimisticConcurrencyGuard.Ensure(debt.Version, request.ExpectedAggregateVersion);
+
         var source = await _db.FinSources
             .FirstOrDefaultAsync(s => s.Id == request.SourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -328,6 +355,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.LoanCollect,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -415,6 +443,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.Deferred,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -487,6 +516,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = TransactionType.Split,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -568,6 +598,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         var txn = new FinTransaction
         {            Type = request.Type,
+            ClientRequestId = request.ClientRequestId,
             Status = TxnStatus.New,
             Amount = CurrencyUnits.FromWhole(request.Amount),
             Currency = source.Currency,
@@ -646,6 +677,7 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             var outbound = new FinTransaction
             {
                 Type = TransactionType.Transfer,
+                ClientRequestId = request.ClientRequestId,
                 Status = TxnStatus.New,
                 Amount = -CurrencyUnits.FromWhole(request.Amount),
                 Currency = fromSource.Currency,
@@ -766,4 +798,25 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
     }
 
     private static TransactionDetailDto MapDetail(FinTransaction t) => TransactionDtoMapper.ToDetail(t);
+
+    private static bool IsEquivalentReplay(CreateTransactionCommand request, FinTransaction replay)
+    {
+        var descriptionMatches = string.IsNullOrWhiteSpace(request.Description)
+                                 || string.Equals(request.Description.Trim(), replay.Description, StringComparison.Ordinal);
+        var noteMatches = string.IsNullOrWhiteSpace(request.Note)
+                          || string.Equals(request.Note.Trim(), replay.Note, StringComparison.Ordinal);
+        var personMatches = string.IsNullOrWhiteSpace(request.PersonName)
+                            || string.Equals(request.PersonName.Trim(), replay.CounterpartyName, StringComparison.Ordinal);
+
+        return request.Type == replay.Type
+               && CurrencyUnits.FromWhole(request.Amount) == Math.Abs(replay.Amount)
+               && request.SourceId == replay.SourceId
+               && request.CategoryId == replay.CategoryId
+               && request.TxnDate == replay.TxnDate
+               && request.MonthlyPeriodId == replay.MonthlyPeriodId
+               && request.ToSourceId == replay.DestSourceId
+               && descriptionMatches
+               && noteMatches
+               && personMatches;
+    }
 }

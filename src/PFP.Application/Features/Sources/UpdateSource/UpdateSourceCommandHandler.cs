@@ -34,9 +34,34 @@ public sealed class UpdateSourceCommandHandler : IRequestHandler<UpdateSourceCom
 
         if (entity is null)
             throw new NotFoundException("Finance source was not found.");
-var nowUser = _currentUser.UserId.Value;
+
+        OptimisticConcurrencyGuard.Ensure(entity.Version, request.ExpectedVersion);
+
+        var requestedCurrency = string.IsNullOrWhiteSpace(request.Currency)
+            ? entity.Currency
+            : request.Currency.Trim().ToUpperInvariant();
+
+        if (request.Type != entity.Type || !string.Equals(requestedCurrency, entity.Currency, StringComparison.Ordinal))
+        {
+            var hasFinancialDependencies = await _db.FinTransactions
+                .AsNoTracking()
+                .AnyAsync(t => t.SourceId == entity.Id || t.DestSourceId == entity.Id, cancellationToken)
+                .ConfigureAwait(false)
+                || await _db.FinBillingCycles.AsNoTracking()
+                    .AnyAsync(c => c.SourceId == entity.Id, cancellationToken).ConfigureAwait(false)
+                || await _db.FinInstallmentPlans.AsNoTracking()
+                    .AnyAsync(p => p.SourceId == entity.Id, cancellationToken).ConfigureAwait(false)
+                || await _db.FinSavings.AsNoTracking()
+                    .AnyAsync(s => s.SourceId == entity.Id, cancellationToken).ConfigureAwait(false);
+
+            if (hasFinancialDependencies)
+                throw new BusinessRuleException(
+                    "Source type and currency are immutable after financial activity exists. Create a replacement source instead.");
+        }
+
+        var nowUser = _currentUser.UserId.Value;
         var sessionId = _currentUser.SessionId!.Value;
-        var currency = string.IsNullOrWhiteSpace(request.Currency) ? entity.Currency : request.Currency.Trim().ToUpperInvariant();
+        var currency = requestedCurrency;
 
         entity.Name = request.Name.Trim();
         entity.Type = request.Type;

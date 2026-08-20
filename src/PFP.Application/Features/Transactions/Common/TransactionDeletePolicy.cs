@@ -25,6 +25,23 @@ public static class TransactionDeletePolicy
         if (txn.Type == TransactionType.Reversal)
             return false;
 
+        if (txn.Purpose is TransactionPurpose.SavingDeposit or TransactionPurpose.SavingWithdrawal
+            || txn.Type == TransactionType.Transfer
+               && txn.RefTxnId is null
+               && txn.ExternalRef?.StartsWith("saving:", StringComparison.Ordinal) == true)
+            return false;
+
+        try
+        {
+            await PostingPeriodPolicy
+                .EnsureExistingTransactionMutableAsync(db, txn, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (BusinessRuleException)
+        {
+            return false;
+        }
+
         if (txn.Type is not (
             TransactionType.Direct
             or TransactionType.Income
@@ -59,7 +76,7 @@ public static class TransactionDeletePolicy
         return true;
     }
 
-    /// <inheritdoc cref="CanDeleteAsync"/>
+    /// <inheritdoc cref="CanDeleteAsync(IApplicationDbContext, FinTransaction, CancellationToken)"/>
     public static async Task<bool> CanDeleteAsync(
         IApplicationDbContext db,
         Guid transactionId,
@@ -73,7 +90,7 @@ public static class TransactionDeletePolicy
         return txn is not null && await CanDeleteAsync(db, txn, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc cref="CanDeleteAsync"/>
+    /// <inheritdoc cref="CanDeleteAsync(IApplicationDbContext, Guid, CancellationToken)"/>
     public static async Task EnsureCanDeleteAsync(
         IApplicationDbContext db,
         Guid transactionId,

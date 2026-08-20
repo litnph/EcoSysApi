@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PFP.Domain.Entities;
+using PFP.Domain.Entities.Finance;
 
 namespace PFP.Infrastructure.Persistence.Configurations.Finance;
 
@@ -22,6 +23,11 @@ public sealed class FinTransactionConfiguration : IEntityTypeConfiguration<FinTr
         builder.HasIndex(x => x.SourceId);
         builder.HasIndex(x => new { x.SourceId, x.TxnDate });        builder.HasIndex(x => x.CategoryId);
         builder.HasIndex(x => x.InstallmentPlanId);
+        builder.HasIndex(x => x.SavingId);
+        builder.HasIndex(x => x.BillingCycleId);
+        builder.HasIndex(x => x.ClientRequestId)
+            .IsUnique()
+            .HasFilter("client_request_id IS NOT NULL");
         builder.HasOne(x => x.Source)
                .WithMany(s => s.Transactions)
                .HasForeignKey(x => x.SourceId)
@@ -50,6 +56,16 @@ public sealed class FinTransactionConfiguration : IEntityTypeConfiguration<FinTr
         builder.HasOne(x => x.InstallmentPlan)
                .WithMany()
                .HasForeignKey(x => x.InstallmentPlanId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<FinSaving>()
+               .WithMany()
+               .HasForeignKey(x => x.SavingId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<FinBillingCycle>()
+               .WithMany()
+               .HasForeignKey(x => x.BillingCycleId)
                .OnDelete(DeleteBehavior.Restrict);
     }
 }

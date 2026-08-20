@@ -11,7 +11,8 @@ public sealed record InvestmentListItemDto(
     long TotalReturned,
     string Currency,
     string? Note,
-    long ProfitLoss);
+    long ProfitLoss,
+    string ProfitLossFormulaVersion);
 
 public sealed record InvestmentTxnDto(
     Guid Id,
@@ -33,6 +34,7 @@ public sealed record InvestmentDetailDto(
     string Currency,
     string? Note,
     long ProfitLoss,
+    string ProfitLossFormulaVersion,
     IReadOnlyList<InvestmentTxnDto> Transactions,
     DateTime CreatedAt,
     DateTime UpdatedAt);

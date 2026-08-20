@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.MonthlyPeriods.Common;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriodsList;
 using PFP.Domain.Enums;
 
@@ -43,8 +44,27 @@ public sealed class GetMonthlyPeriodsListQueryHandler : IRequestHandler<GetMonth
             CurrencyUnits.ToWhole(row.Net),
             row.ReportCreatedAt!.Value,
             row.LastRefreshedAt,
-            row.ClosedAt)).ToList();
+            row.ClosedAt,
+            row.ReportCurrency,
+            row.HasConsolidatedTotals,
+            ReadCurrencyGroups(row.ReportSnapshot))).ToList();
 
         return new GetMonthlyPeriodsListResponse(list);
+    }
+
+    private static IReadOnlyList<MonthlyCurrencySummaryDto> ReadCurrencyGroups(string? snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot))
+            return [];
+
+        var report = MonthlyReportSnapshotStore.Deserialize(snapshot);
+        return (report.CurrencyGroups ?? [])
+            .Select(group => new MonthlyCurrencySummaryDto(
+                group.Currency,
+                group.Summary.TotalIncome,
+                group.Summary.TotalExpense,
+                group.Summary.Net,
+                group.Summary.SavingsRatePercent))
+            .ToList();
     }
 }

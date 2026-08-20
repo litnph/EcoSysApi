@@ -23,6 +23,12 @@ public sealed class FinMonthlyPeriod : BaseEntity
     /// <summary><see cref="TotalIncome"/> − <see cref="TotalExpense"/> (persisted on close).</summary>
     public decimal Net { get; set; }
 
+    /// <summary>Currency represented by legacy scalar totals; null for legacy rows without evidence.</summary>
+    public string? ReportCurrency { get; set; }
+
+    /// <summary>True only when scalar totals represent the entire report without cross-currency addition.</summary>
+    public bool HasConsolidatedTotals { get; set; } = true;
+
     /// <summary>Open vs closed month.</summary>
     public PeriodStatus Status { get; set; } = PeriodStatus.Open;
 

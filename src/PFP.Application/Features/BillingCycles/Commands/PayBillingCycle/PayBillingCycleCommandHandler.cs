@@ -54,6 +54,9 @@ if (request.PaymentSourceId == cycle.SourceId)
         if (paymentSource.IsArchived)
             throw new BusinessRuleException("The payment source is archived and cannot be used.");
 
+        if (paymentSource.Type == SourceType.CreditCard)
+            throw new BusinessRuleException("Billing-cycle payments require a non-credit-card source.");
+
         if (!string.Equals(paymentSource.Currency, cycle.Source.Currency, StringComparison.Ordinal))
             throw new BusinessRuleException("Payment source currency must match the credit card currency.");
 
@@ -73,14 +76,16 @@ if (request.PaymentSourceId == cycle.SourceId)
         var payTxn = new FinTransaction
         {
 Type = TransactionType.Direct,
+            Purpose = TransactionPurpose.StatementPayment,
             Status = TxnStatus.New,
             Amount = paymentAmount,
             Currency = paymentSource.Currency,
-            TxnDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            TxnDate = FinanceBusinessCalendar.Today,
             SourceId = paymentSource.Id,
             CategoryId = null,
             Description = description,
             Note = note,
+            BillingCycleId = cycle.Id,
         };
 
         _db.FinTransactions.Add(payTxn);
@@ -93,6 +98,34 @@ Type = TransactionType.Direct,
         {
             cycle.Status = BillingCycleStatus.Paid;
             cycle.PaidAt = DateTime.UtcNow;
+
+            var installmentPays = await _db.FinInstallmentPays
+                .Include(p => p.Plan)
+                .Where(p => p.Plan.SourceId == cycle.SourceId
+                            && p.Plan.Status != InstallmentStatus.Cancelled
+                            && p.Status != InstallmentPayStatus.Paid
+                            && p.StatementDate == cycle.StatementDate)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            foreach (var installmentPay in installmentPays)
+            {
+                installmentPay.Status = InstallmentPayStatus.Paid;
+                installmentPay.PaidAmount = installmentPay.Amount;
+                installmentPay.PaidAt = DateTime.UtcNow;
+                installmentPay.TxnId = payTxn.Id;
+            }
+
+            foreach (var plan in installmentPays.Select(p => p.Plan).DistinctBy(p => p.Id))
+            {
+                var hasOtherUnpaid = await _db.FinInstallmentPays
+                    .AnyAsync(p => p.PlanId == plan.Id
+                                   && !installmentPays.Select(x => x.Id).Contains(p.Id)
+                                   && p.Status != InstallmentPayStatus.Paid, ct)
+                    .ConfigureAwait(false);
+                if (!hasOtherUnpaid)
+                    plan.Status = InstallmentStatus.Completed;
+            }
         }
 
         var utcNow = DateTime.UtcNow;

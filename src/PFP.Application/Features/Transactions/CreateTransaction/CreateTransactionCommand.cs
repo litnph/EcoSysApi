@@ -20,4 +20,6 @@ public sealed record CreateTransactionCommand(
     string? PersonContact,
     Guid? DebtRecordId,
     DateOnly? DueDate,
-    IReadOnlyList<SplitItemDto>? Splits) : IRequest<CreateTransactionResponse>;
+    IReadOnlyList<SplitItemDto>? Splits,
+    Guid? ClientRequestId = null,
+    int? ExpectedAggregateVersion = null) : IRequest<CreateTransactionResponse>;

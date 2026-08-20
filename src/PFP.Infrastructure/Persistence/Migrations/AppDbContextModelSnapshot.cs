@@ -406,6 +406,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("HasConsolidatedTotals")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_consolidated_totals");
+
                     b.Property<DateTime?>("LastRefreshedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_refreshed_at");
@@ -422,6 +426,11 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ReportCreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("report_created_at");
+
+                    b.Property<string>("ReportCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("report_currency");
 
                     b.Property<string>("ReportSnapshot")
                         .HasColumnType("text")
@@ -576,6 +585,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
@@ -654,9 +664,17 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("BillingCycleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("billing_cycle_id");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
+
+                    b.Property<Guid?>("ClientRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_request_id");
 
                     b.Property<string>("CounterpartyName")
                         .HasMaxLength(255)
@@ -722,9 +740,18 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("purpose");
+
                     b.Property<Guid?>("RefTxnId")
                         .HasColumnType("uuid")
                         .HasColumnName("ref_txn_id");
+
+                    b.Property<Guid?>("SavingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("saving_id");
 
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uuid")
@@ -758,14 +785,23 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_fin_transactions");
 
+                    b.HasIndex("BillingCycleId")
+                        .HasDatabaseName("ix_fin_transactions_billing_cycle_id");
+
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_fin_transactions_category_id");
+
+                    b.HasIndex("ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_fin_transactions_client_request_id")
+                        .HasFilter("client_request_id IS NOT NULL");
 
                     b.HasIndex("DestSourceId")
                         .HasDatabaseName("ix_fin_transactions_dest_source_id");
@@ -778,6 +814,9 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RefTxnId")
                         .HasDatabaseName("ix_fin_transactions_ref_txn_id");
+
+                    b.HasIndex("SavingId")
+                        .HasDatabaseName("ix_fin_transactions_saving_id");
 
                     b.HasIndex("SourceId")
                         .HasDatabaseName("ix_fin_transactions_source_id");
@@ -1071,6 +1110,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
@@ -1231,6 +1271,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("installment_plan_id");
 
+                    b.Property<DateOnly>("StatementDate")
+                        .HasColumnType("date")
+                        .HasColumnName("statement_date");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1324,6 +1368,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("origin_transaction_id");
 
+                    b.Property<int>("ScheduleVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schedule_version");
+
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uuid")
                         .HasColumnName("source_id");
@@ -1355,6 +1403,7 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.Property<int>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
@@ -1556,7 +1605,9 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasName("pk_fin_investment_txns");
 
                     b.HasIndex("LinkedTxnId")
-                        .HasDatabaseName("ix_fin_investment_txns_linked_txn_id");
+                        .IsUnique()
+                        .HasDatabaseName("ix_fin_investment_txns_linked_txn_id")
+                        .HasFilter("linked_txn_id IS NOT NULL");
 
                     b.HasIndex("InvestmentId", "TxnDate")
                         .HasDatabaseName("ix_fin_investment_txns_investment_id_txn_date");
@@ -2874,6 +2925,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PFP.Domain.Entities.FinTransaction", b =>
                 {
+                    b.HasOne("PFP.Domain.Entities.Finance.FinBillingCycle", null)
+                        .WithMany()
+                        .HasForeignKey("BillingCycleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_fin_transactions_fin_billing_cycles_billing_cycle_id");
+
                     b.HasOne("PFP.Domain.Entities.FinCategory", "Category")
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId")
@@ -2903,6 +2960,12 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("RefTxnId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_fin_transactions_fin_transactions_ref_txn_id");
+
+                    b.HasOne("PFP.Domain.Entities.Finance.FinSaving", null)
+                        .WithMany()
+                        .HasForeignKey("SavingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_fin_transactions_fin_savings_saving_id");
 
                     b.HasOne("PFP.Domain.Entities.FinSource", "Source")
                         .WithMany("Transactions")

@@ -18,7 +18,8 @@ public sealed record UpdateTransactionCommand(
     string Description,
     string? Note,
     Guid? MonthlyPeriodId,
-    long? Amount) : IRequest<UpdateTransactionResponse>;
+    long? Amount,
+    int? ExpectedVersion = null) : IRequest<UpdateTransactionResponse>;
 
 /// <summary>Wrapper around the refreshed transaction detail.</summary>
 public sealed record UpdateTransactionResponse(TransactionDetailDto Transaction);
