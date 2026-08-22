@@ -99,6 +99,17 @@ Type = TransactionType.Direct,
             cycle.Status = BillingCycleStatus.Paid;
             cycle.PaidAt = DateTime.UtcNow;
 
+            var statementTransactions = await _db.FinBillingCycleItems
+                .Where(item => item.BillingCycleId == cycle.Id
+                    && item.RemovedAt == null
+                    && item.Transaction.Status == TxnStatus.Statemented)
+                .Select(item => item.Transaction)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            foreach (var transaction in statementTransactions)
+                transaction.Status = TxnStatus.Completed;
+
             var installmentPays = await _db.FinInstallmentPays
                 .Include(p => p.Plan)
                 .Where(p => p.Plan.SourceId == cycle.SourceId

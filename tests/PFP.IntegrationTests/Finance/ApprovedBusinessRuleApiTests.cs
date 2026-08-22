@@ -237,6 +237,102 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
         Assert.False(payload.GetProperty("metadata").GetProperty("consolidatedTotalsAvailable").GetBoolean());
     }
 
+    [Fact]
+    public async Task Closing_month_completes_asset_transactions_but_not_credit_card_transactions()
+    {
+        using var client = _fixture.CreateClient();
+        var harness = await FinanceTestHarness.SeedAndLoginAsync(_fixture, client, 10_000m, 500m);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
+
+        DateOnly reportDate;
+        Guid creditCardId;
+        await using (var scope = _fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var occupiedPeriods = await db.FinMonthlyPeriods
+                .AsNoTracking()
+                .Select(period => new { period.Year, period.Month })
+                .ToListAsync();
+            reportDate = Enumerable
+                .Range(2000, FinanceBusinessCalendar.Today.Year - 2000)
+                .SelectMany(year => Enumerable.Range(1, 12).Select(month => new DateOnly(year, month, 1)))
+                .First(candidate => occupiedPeriods.All(
+                    period => period.Year != candidate.Year || period.Month != candidate.Month));
+
+            var creditCard = new FinSource
+            {
+                Name = $"Monthly close card {Guid.NewGuid():N}",
+                Type = SourceType.CreditCard,
+                Balance = 0m,
+                Currency = "VND",
+                CreditLimit = 50_000m,
+                StatementDay = 10,
+                PaymentDueDay = 25,
+                SortOrder = 30,
+            };
+            db.FinSources.Add(creditCard);
+            await db.SaveChangesAsync();
+            creditCardId = creditCard.Id;
+        }
+
+        var directResponse = await client.PostAsJsonAsync(
+            "api/v1/finance/transactions",
+            new
+            {
+                type = "direct",
+                amount = 100L,
+                sourceId = harness.SourceAId,
+                categoryId = harness.ExpenseCategoryId,
+                txnDate = reportDate,
+                description = "Monthly close asset transaction",
+                clientRequestId = Guid.NewGuid(),
+            },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, directResponse.StatusCode);
+        var directTransactionId = await FinanceApiWireJson.ReadTransactionIdFromCreateResponseAsync(directResponse);
+
+        var deferredResponse = await client.PostAsJsonAsync(
+            "api/v1/finance/transactions",
+            new
+            {
+                type = "deferred",
+                amount = 200L,
+                sourceId = creditCardId,
+                categoryId = harness.ExpenseCategoryId,
+                txnDate = reportDate,
+                description = "Monthly close credit-card transaction",
+                clientRequestId = Guid.NewGuid(),
+            },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, deferredResponse.StatusCode);
+        var deferredTransactionId = await FinanceApiWireJson.ReadTransactionIdFromCreateResponseAsync(deferredResponse);
+
+        var createReport = await client.PostAsJsonAsync(
+            "api/v1/finance/monthly-periods/reports",
+            new { year = reportDate.Year, month = reportDate.Month },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, createReport.StatusCode);
+
+        var closeReport = await client.PostAsJsonAsync(
+            "api/v1/finance/monthly-periods/close",
+            new { year = reportDate.Year, month = reportDate.Month },
+            FinanceApiWireJson.Web);
+        Assert.True(
+            closeReport.StatusCode == HttpStatusCode.OK,
+            $"Expected monthly close to succeed, but received {(int)closeReport.StatusCode}: {await closeReport.Content.ReadAsStringAsync()}");
+
+        await using var verificationScope = _fixture.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var statuses = await verificationDb.FinTransactions
+            .AsNoTracking()
+            .Where(transaction => transaction.Id == directTransactionId
+                || transaction.Id == deferredTransactionId)
+            .ToDictionaryAsync(transaction => transaction.Id, transaction => transaction.Status);
+
+        Assert.Equal(TxnStatus.Completed, statuses[directTransactionId]);
+        Assert.Equal(TxnStatus.New, statuses[deferredTransactionId]);
+    }
+
     private static object ImportItem(Guid key, FinanceTestHarness.FinanceHarness harness, long amount) =>
         new
         {

@@ -14,4 +14,7 @@ public enum TxnStatus
 
     /// <summary><c>cancelled</c> — voided.</summary>
     Cancelled = 4,
+
+    /// <summary><c>statemented</c> — included in a closed credit-card statement and awaiting full payment.</summary>
+    Statemented = 5,
 }

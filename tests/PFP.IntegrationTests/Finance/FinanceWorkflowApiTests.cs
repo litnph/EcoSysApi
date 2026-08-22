@@ -148,6 +148,51 @@ public sealed class FinanceWorkflowApiTests : IClassFixture<IntegrationTestFixtu
         var closeCycleResp = await client.PostAsync($"api/v1/finance/billing-cycles/{cycleId}/close", null);
         Assert.Equal(HttpStatusCode.OK, closeCycleResp.StatusCode);
 
+        await using (var statementScope = _fixture.Services.CreateAsyncScope())
+        {
+            var statementDb = statementScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var statementStatus = await statementDb.FinTransactions
+                .AsNoTracking()
+                .Where(transaction => transaction.Id == deferredTxnId)
+                .Select(transaction => transaction.Status)
+                .SingleAsync();
+            Assert.Equal(TxnStatus.Statemented, statementStatus);
+        }
+
+        var partialPayCycleResp = await client.PostAsJsonAsync(
+            $"api/v1/finance/billing-cycles/{cycleId}/pay",
+            new { paymentSourceId = h.SourceAId, amount = 200 },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, partialPayCycleResp.StatusCode);
+
+        await using (var partialPayScope = _fixture.Services.CreateAsyncScope())
+        {
+            var partialPayDb = partialPayScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var partialPayStatus = await partialPayDb.FinTransactions
+                .AsNoTracking()
+                .Where(transaction => transaction.Id == deferredTxnId)
+                .Select(transaction => transaction.Status)
+                .SingleAsync();
+            Assert.Equal(TxnStatus.Statemented, partialPayStatus);
+        }
+
+        var fullPayCycleResp = await client.PostAsJsonAsync(
+            $"api/v1/finance/billing-cycles/{cycleId}/pay",
+            new { paymentSourceId = h.SourceAId, amount = 300 },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, fullPayCycleResp.StatusCode);
+
+        await using (var fullPayScope = _fixture.Services.CreateAsyncScope())
+        {
+            var fullPayDb = fullPayScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var fullPayStatus = await fullPayDb.FinTransactions
+                .AsNoTracking()
+                .Where(transaction => transaction.Id == deferredTxnId)
+                .Select(transaction => transaction.Status)
+                .SingleAsync();
+            Assert.Equal(TxnStatus.Completed, fullPayStatus);
+        }
+
         // Debt borrow
         var borrowResp = await client.PostAsJsonAsync(
             "api/v1/finance/transactions",

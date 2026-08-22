@@ -39,13 +39,15 @@ public sealed class DeleteMonthlyReportCommandHandler
         {
             var linkedTxns = await _db.FinTransactions
                 .Where(t => t.MonthlyPeriodId == period.Id && !t.IsDeleted)
+                .Include(t => t.Source)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             foreach (var txn in linkedTxns)
             {
                 txn.MonthlyPeriodId = null;
-                if (txn.Status == TxnStatus.Completed)
+                if (txn.Source.Type != SourceType.CreditCard
+                    && txn.Status == TxnStatus.Completed)
                     txn.Status = TxnStatus.New;
             }
         }

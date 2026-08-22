@@ -20,7 +20,7 @@ public sealed class FinTransaction : VersionedEntity
     /// <summary>Stable business classification; never inferred from description or note text.</summary>
     public TransactionPurpose Purpose { get; set; } = TransactionPurpose.General;
 
-    /// <summary>Workflow status (new → installment / month close).</summary>
+    /// <summary>Workflow status (new → statemented / installment → completed).</summary>
     public TxnStatus Status { get; set; } = TxnStatus.New;
 
     /// <summary>

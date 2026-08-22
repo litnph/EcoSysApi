@@ -110,13 +110,16 @@ var blockingCycles = await CloseMonthBillingCycleRules
                     && t.TxnDate <= monthEnd
                     && t.Status != TxnStatus.Cancelled
                     && t.Status != TxnStatus.Completed)
+                .Include(t => t.Source)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             foreach (var txn in monthTxns)
             {
-                txn.Status = TxnStatus.Completed;
                 txn.MonthlyPeriodId = period.Id;
+
+                if (txn.Source.Type != SourceType.CreditCard)
+                    txn.Status = TxnStatus.Completed;
             }
 
             var closeAuditPayload = JsonSerializer.Serialize(new
