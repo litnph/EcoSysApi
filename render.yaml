@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ecosys-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Jwt__Secret
+        generateValue: true
+      - key: Jwt__Issuer
+        value: pfp-api
+      - key: Jwt__Audience
+        value: pfp-client
+      - key: DATABASE_URL
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        sync: false

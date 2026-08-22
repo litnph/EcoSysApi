@@ -15,6 +15,7 @@ using PFP.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddRenderDatabaseUrl();
+builder.AddRenderEnvironmentAliases();
 builder.AddFrontendCors();
 
 builder.Services.AddControllers()

@@ -6,6 +6,19 @@ namespace PFP.API.Configuration;
 public static class HostingConfigurationExtensions
 {
     /// <summary>
+    /// Maps conventional single-underscore Render environment variables to the
+    /// hierarchical ASP.NET Core configuration keys used by the application.
+    /// Native keys such as <c>Jwt__Secret</c> continue to take precedence.
+    /// </summary>
+    public static WebApplicationBuilder AddRenderEnvironmentAliases(this WebApplicationBuilder builder)
+    {
+        CopyEnvironmentValueWhenMissing(builder, "Jwt:Secret", "JWT_SECRET");
+        CopyEnvironmentValueWhenMissing(builder, "Jwt:Issuer", "JWT_ISSUER");
+        CopyEnvironmentValueWhenMissing(builder, "Jwt:Audience", "JWT_AUDIENCE");
+        return builder;
+    }
+
+    /// <summary>
     /// Maps Render/Heroku/Neon-style <c>DATABASE_URL</c> to <c>ConnectionStrings:Default</c> when not already set.
     /// </summary>
     public static WebApplicationBuilder AddRenderDatabaseUrl(this WebApplicationBuilder builder)
@@ -37,6 +50,19 @@ public static class HostingConfigurationExtensions
 
         return
             $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
+    }
+
+    private static void CopyEnvironmentValueWhenMissing(
+        WebApplicationBuilder builder,
+        string configurationKey,
+        string environmentVariable)
+    {
+        if (!string.IsNullOrWhiteSpace(builder.Configuration[configurationKey]))
+            return;
+
+        var value = Environment.GetEnvironmentVariable(environmentVariable);
+        if (!string.IsNullOrWhiteSpace(value))
+            builder.Configuration[configurationKey] = value;
     }
 
     /// <summary>Trust X-Forwarded-* from the edge proxy (HTTPS, client IP).</summary>
