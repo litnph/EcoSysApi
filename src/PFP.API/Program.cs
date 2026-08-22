@@ -27,6 +27,7 @@ builder.Services.AddControllers()
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddPfpSwagger();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -68,6 +69,13 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// Render terminates TLS at its edge. Resolve the original scheme/client before
+// any middleware reads request metadata or performs HTTPS redirection.
+app.UseProductionProxy();
+// Keep the Render liveness probe independent from authentication, localisation,
+// and database availability. Readiness is exercised by the normal API routes.
+app.UseHealthChecks("/health");
 
 if (!app.Environment.IsProduction()
     && (app.Configuration.GetValue("Database:AutoMigrate", false)
@@ -119,7 +127,6 @@ if (app.Environment.IsDevelopment()
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseProductionProxy();
 app.UseFrontendCors();
 if (!app.Environment.IsDevelopment())
 {
@@ -130,6 +137,8 @@ if (!app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/", () => Results.Ok(new { service = "PFP.API", status = "healthy" }))
+    .AllowAnonymous();
 app.MapControllers();
 app.Run();
 

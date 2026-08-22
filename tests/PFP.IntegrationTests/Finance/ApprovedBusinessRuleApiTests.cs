@@ -228,7 +228,9 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
             $"api/v1/finance/monthly-periods/{reportDate.Year}/{reportDate.Month}/report");
         Assert.Equal(HttpStatusCode.OK, report.StatusCode);
         using var reportJson = await ReadJsonAsync(report);
-        var payload = reportJson.RootElement.GetProperty("data").GetProperty("report");
+        var data = reportJson.RootElement.GetProperty("data");
+        Assert.Equal("open", data.GetProperty("status").GetString());
+        var payload = data.GetProperty("report");
         var groups = payload.GetProperty("currencyGroups").EnumerateArray().ToArray();
         var currencies = groups.Select(group => group.GetProperty("currency").GetString()).ToHashSet();
 

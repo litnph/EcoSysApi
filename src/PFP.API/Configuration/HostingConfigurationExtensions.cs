@@ -45,10 +45,17 @@ public static class HostingConfigurationExtensions
         if (app.Environment.IsDevelopment())
             return app;
 
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        var options = new ForwardedHeadersOptions
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-        });
+            ForwardLimit = 1,
+        };
+
+        // Render's proxy addresses are dynamic and cannot be allow-listed here.
+        // The service container is only reachable through Render's edge proxy.
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+        app.UseForwardedHeaders(options);
 
         return app;
     }

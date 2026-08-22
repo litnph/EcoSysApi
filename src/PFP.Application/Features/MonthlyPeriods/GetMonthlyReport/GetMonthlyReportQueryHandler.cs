@@ -47,6 +47,6 @@ public sealed class GetMonthlyReportQueryHandler : IRequestHandler<GetMonthlyRep
                 .ConfigureAwait(false);
         }
 
-        return new GetMonthlyReportResponse(report);
+        return new GetMonthlyReportResponse(report, period.Status);
     }
 }
