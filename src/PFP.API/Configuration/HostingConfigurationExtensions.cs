@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.HttpOverrides;
 
 namespace PFP.API.Configuration;
@@ -15,6 +16,28 @@ public static class HostingConfigurationExtensions
         CopyEnvironmentValueWhenMissing(builder, "Jwt:Secret", "JWT_SECRET");
         CopyEnvironmentValueWhenMissing(builder, "Jwt:Issuer", "JWT_ISSUER");
         CopyEnvironmentValueWhenMissing(builder, "Jwt:Audience", "JWT_AUDIENCE");
+        return builder;
+    }
+
+    /// <summary>
+    /// Keeps an existing manually-created Render service bootable when no JWT
+    /// secret has been configured. The generated key is cryptographically random
+    /// but instance-local, so an explicit environment secret remains preferred.
+    /// </summary>
+    public static WebApplicationBuilder AddRenderJwtFallback(this WebApplicationBuilder builder)
+    {
+        if (!string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Secret"])
+            || !string.Equals(
+                Environment.GetEnvironmentVariable("RENDER"),
+                "true",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return builder;
+        }
+
+        builder.Configuration["Jwt:Secret"] = Convert.ToBase64String(
+            RandomNumberGenerator.GetBytes(64));
+        builder.Configuration["Jwt:UsesEphemeralSecret"] = bool.TrueString;
         return builder;
     }
 

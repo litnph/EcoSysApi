@@ -16,6 +16,7 @@ using PFP.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 builder.AddRenderDatabaseUrl();
 builder.AddRenderEnvironmentAliases();
+builder.AddRenderJwtFallback();
 builder.AddFrontendCors();
 
 builder.Services.AddControllers()
@@ -70,6 +71,13 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue("Jwt:UsesEphemeralSecret", false))
+{
+    app.Logger.LogWarning(
+        "Jwt:Secret was not configured on Render. An ephemeral signing key was generated for this instance. " +
+        "Set Jwt__Secret or JWT_SECRET to keep tokens valid across restarts and when scaling to multiple instances.");
+}
 
 // Render terminates TLS at its edge. Resolve the original scheme/client before
 // any middleware reads request metadata or performs HTTPS redirection.
