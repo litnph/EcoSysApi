@@ -97,6 +97,12 @@ internal static class ApiExceptionResponseWriter
                 (HttpStatusCode)499,
                 "request_cancelled",
                 new[] { "The request was cancelled." }),
+            InvalidOperationException ex when ex.Message.Contains(
+                "ConnectionString property has not been initialized",
+                StringComparison.OrdinalIgnoreCase) => (
+                HttpStatusCode.ServiceUnavailable,
+                "database_not_configured",
+                new[] { "Database connection is not configured on the API host." }),
             _ => (
                 HttpStatusCode.InternalServerError,
                 "internal_error",

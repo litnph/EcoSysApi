@@ -80,12 +80,21 @@ var swaggerEnabled = app.Environment.IsDevelopment()
     || isRender;
 var databaseConfigured = !string.IsNullOrWhiteSpace(
     app.Configuration.GetConnectionString("Default"));
+var databaseConfigurationSource = app.Configuration["Database:ConfigurationSource"]
+    ?? "unknown";
 
 if (app.Configuration.GetValue("Jwt:UsesEphemeralSecret", false))
 {
     app.Logger.LogWarning(
         "Jwt:Secret was not configured on Render. An ephemeral signing key was generated for this instance. " +
         "Set Jwt__Secret or JWT_SECRET to keep tokens valid across restarts and when scaling to multiple instances.");
+}
+
+if (!databaseConfigured)
+{
+    app.Logger.LogError(
+        "Database connection is not configured. Add DATABASE_URL or ConnectionStrings__Default " +
+        "as a runtime environment variable on Render.");
 }
 
 // Render terminates TLS at its edge. Resolve the original scheme/client before
@@ -162,6 +171,7 @@ app.MapGet("/", () => Results.Ok(new
         service = "PFP.API",
         status = databaseConfigured ? "healthy" : "degraded",
         database = databaseConfigured ? "configured" : "not_configured",
+        databaseConfigurationSource,
         swagger = swaggerEnabled ? "/swagger" : null,
     }))
     .AllowAnonymous();

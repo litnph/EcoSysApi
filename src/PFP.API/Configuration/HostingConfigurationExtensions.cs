@@ -6,6 +6,22 @@ namespace PFP.API.Configuration;
 /// <summary>Production hosting helpers (Render, reverse proxies).</summary>
 public static class HostingConfigurationExtensions
 {
+    private static readonly string[] DatabaseUrlEnvironmentVariables =
+    [
+        "DATABASE_URL",
+        "NEON_DATABASE_URL",
+        "POSTGRES_URL",
+        "POSTGRESQL_URL",
+        "DB_CONNECTION_STRING",
+    ];
+
+    private static readonly string[] DatabaseUrlSecretFiles =
+    [
+        "/etc/secrets/DATABASE_URL",
+        "/etc/secrets/database_url",
+        "/etc/secrets/ConnectionStrings__Default",
+    ];
+
     /// <summary>
     /// Maps conventional single-underscore Render environment variables to the
     /// hierarchical ASP.NET Core configuration keys used by the application.
@@ -42,18 +58,82 @@ public static class HostingConfigurationExtensions
     }
 
     /// <summary>
-    /// Maps Render/Heroku/Neon-style <c>DATABASE_URL</c> to <c>ConnectionStrings:Default</c> when not already set.
+    /// Resolves a PostgreSQL connection from ASP.NET configuration, common
+    /// Render/Neon environment aliases, or a Render runtime secret file.
     /// </summary>
     public static WebApplicationBuilder AddRenderDatabaseUrl(this WebApplicationBuilder builder)
     {
         if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default")))
+        {
+            builder.Configuration["Database:ConfigurationSource"] = "connection_strings_default";
             return builder;
+        }
 
-        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-        if (!string.IsNullOrWhiteSpace(databaseUrl))
+        foreach (var variable in DatabaseUrlEnvironmentVariables)
+        {
+            var databaseUrl = NormalizeDatabaseUrl(
+                Environment.GetEnvironmentVariable(variable));
+            if (string.IsNullOrWhiteSpace(databaseUrl))
+                continue;
+
             builder.Configuration["ConnectionStrings:Default"] = ToNpgsqlConnectionString(databaseUrl);
+            builder.Configuration["Database:ConfigurationSource"] = $"environment:{variable}";
+            return builder;
+        }
+
+        foreach (var path in DatabaseUrlSecretFiles)
+        {
+            if (!File.Exists(path))
+                continue;
+
+            try
+            {
+                var databaseUrl = NormalizeDatabaseUrl(File.ReadAllText(path));
+                if (string.IsNullOrWhiteSpace(databaseUrl))
+                    continue;
+
+                builder.Configuration["ConnectionStrings:Default"] = ToNpgsqlConnectionString(databaseUrl);
+                builder.Configuration["Database:ConfigurationSource"] = $"secret_file:{Path.GetFileName(path)}";
+                return builder;
+            }
+            catch (IOException)
+            {
+                // A later startup diagnostic reports the missing configuration.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A later startup diagnostic reports the missing configuration.
+            }
+        }
+
+        builder.Configuration["Database:ConfigurationSource"] = "missing";
 
         return builder;
+    }
+
+    private static string? NormalizeDatabaseUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var normalized = value.Trim();
+        var equalsIndex = normalized.IndexOf('=');
+        if (equalsIndex > 0
+            && normalized[..equalsIndex].Trim().Equals(
+                "DATABASE_URL",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[(equalsIndex + 1)..].Trim();
+        }
+
+        if (normalized.Length >= 2
+            && ((normalized[0] == '"' && normalized[^1] == '"')
+                || (normalized[0] == '\'' && normalized[^1] == '\'')))
+        {
+            normalized = normalized[1..^1].Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 
     internal static string ToNpgsqlConnectionString(string databaseUrl)
