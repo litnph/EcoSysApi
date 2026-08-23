@@ -83,7 +83,9 @@ public sealed class LocalizationMiddleware
     }
 
     private static bool ShouldBypass(PathString path) =>
-        path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase)
+        path == "/"
+        || path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/hangfire", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase);
 

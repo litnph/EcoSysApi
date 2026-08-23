@@ -71,6 +71,15 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+var isRender = string.Equals(
+    Environment.GetEnvironmentVariable("RENDER"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+var swaggerEnabled = app.Environment.IsDevelopment()
+    || app.Configuration.GetValue("Swagger:Enabled", false)
+    || isRender;
+var databaseConfigured = !string.IsNullOrWhiteSpace(
+    app.Configuration.GetConnectionString("Default"));
 
 if (app.Configuration.GetValue("Jwt:UsesEphemeralSecret", false))
 {
@@ -130,8 +139,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     await next().ConfigureAwait(false);
 });
-if (app.Environment.IsDevelopment()
-    || app.Configuration.GetValue("Swagger:Enabled", false))
+if (swaggerEnabled)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -140,13 +148,22 @@ app.UseFrontendCors();
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
-    app.UseHttpsRedirection();
+    // Render terminates HTTPS at the edge. Redirecting again inside the
+    // container can fail when a probe/request has no forwarded scheme header.
+    if (!isRender)
+        app.UseHttpsRedirection();
 }
 
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/", () => Results.Ok(new { service = "PFP.API", status = "healthy" }))
+app.MapGet("/", () => Results.Ok(new
+    {
+        service = "PFP.API",
+        status = databaseConfigured ? "healthy" : "degraded",
+        database = databaseConfigured ? "configured" : "not_configured",
+        swagger = swaggerEnabled ? "/swagger" : null,
+    }))
     .AllowAnonymous();
 app.MapControllers();
 app.Run();
