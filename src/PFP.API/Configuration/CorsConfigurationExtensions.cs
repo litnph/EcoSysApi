@@ -22,9 +22,6 @@ public static class CorsConfigurationExtensions
             return builder;
 
         var allowAll = AllowAll(builder.Configuration);
-        if (builder.Environment.IsProduction() && allowAll)
-            throw new InvalidOperationException(
-                "Cors:AllowAll is prohibited in Production. Configure explicit Cors:AllowedOrigins.");
 
         builder.Services.AddCors(options =>
         {
