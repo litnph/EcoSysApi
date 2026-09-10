@@ -93,6 +93,6 @@ public sealed class DeleteTransactionCommandValidator : AbstractValidator<Delete
                     .ConfigureAwait(false);
                 return txn is null || await TransactionDeletePolicy.CanDeleteAsync(db, txn, ct).ConfigureAwait(false);
             })
-            .WithMessage("Không thể xóa giao dịch đã nằm trong kỳ sao kê hoặc liên quan đến trả góp.");
+            .WithMessage("Không thể xóa giao dịch thuộc kỳ sao kê đã khóa hoặc liên quan đến trả góp.");
     }
 }

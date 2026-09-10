@@ -9,10 +9,13 @@ namespace PFP.Application.Features.BillingCycles.Common;
 public static class BillingCycleInstallmentRules
 {
     /// <summary>
-    /// Installment pays captured on the exact statement date for the same card.
+    /// Installment pays captured in the same statement month for the same card.
+    /// Matching by month keeps an existing installment schedule attached when the card's
+    /// configured statement day changes after the schedule was created.
     /// </summary>
-    public static bool IsPayDueOnStatement(FinInstallmentPay pay, DateOnly statementDate) =>
-        pay.StatementDate == statementDate;
+    public static bool IsPayInStatementMonth(FinInstallmentPay pay, DateOnly statementDate) =>
+        pay.StatementDate.Year == statementDate.Year
+        && pay.StatementDate.Month == statementDate.Month;
 
     public static IQueryable<FinInstallmentPay> DuePaysQuery(
         IApplicationDbContext db,
@@ -23,7 +26,8 @@ public static class BillingCycleInstallmentRules
         where plan.SourceId == sourceId
               && plan.Status != InstallmentStatus.Cancelled
               && pay.Status != InstallmentPayStatus.Paid
-              && pay.StatementDate == statementDate
+              && pay.StatementDate.Year == statementDate.Year
+              && pay.StatementDate.Month == statementDate.Month
         select pay;
 
     public static async Task<IReadOnlyList<FinBillingCycleInstallmentDueDto>> LoadDueDtosAsync(
@@ -39,8 +43,8 @@ public static class BillingCycleInstallmentRules
             from cat in catJoin.DefaultIfEmpty()
             where plan.SourceId == cycle.SourceId
                   && plan.Status != InstallmentStatus.Cancelled
-                  && pay.Status != InstallmentPayStatus.Paid
-                  && pay.StatementDate == cycle.StatementDate
+                  && pay.StatementDate.Year == cycle.StatementDate.Year
+                  && pay.StatementDate.Month == cycle.StatementDate.Month
             orderby pay.DueDate, pay.InstallmentNumber
             select new
             {
@@ -94,7 +98,6 @@ public static class BillingCycleInstallmentRules
             from cat in catJoin.DefaultIfEmpty()
             where sourceIds.Contains(plan.SourceId)
                   && plan.Status != InstallmentStatus.Cancelled
-                  && pay.Status != InstallmentPayStatus.Paid
                   && pay.StatementDate >= rangeStart
                   && pay.StatementDate <= rangeEnd
             select new
@@ -115,7 +118,7 @@ public static class BillingCycleInstallmentRules
             cycle => cycle.Id,
             cycle => (IReadOnlyList<FinBillingCycleInstallmentDueDto>)rows
                 .Where(row => row.SourceId == cycle.SourceId
-                              && IsPayDueOnStatement(row.Pay, cycle.StatementDate))
+                              && IsPayInStatementMonth(row.Pay, cycle.StatementDate))
                 .OrderBy(row => row.Pay.DueDate)
                 .ThenBy(row => row.Pay.InstallmentNumber)
                 .Select(row => FinBillingCycleDtoMapper.ToInstallmentDueDto(

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.InstallmentPlans.Commands.DeleteInstallmentPlan;
@@ -12,11 +13,16 @@ public sealed class DeleteInstallmentPlanCommandHandler
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
-    public DeleteInstallmentPlanCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public DeleteInstallmentPlanCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     public async Task<Unit> Handle(DeleteInstallmentPlanCommand request, CancellationToken cancellationToken)
@@ -81,6 +87,10 @@ public sealed class DeleteInstallmentPlanCommandHandler
             _db.FinInstallmentPays.RemoveRange(plan.Pays);
             _db.FinInstallmentPlans.Remove(plan);
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await _budgetAlerts.EvaluateCurrentCycleAsync(
+                    _currentUser.UserId.Value,
+                    ct)
+                .ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);
 
         return Unit.Value;

@@ -14,6 +14,7 @@ public interface IApplicationDbContext
     DbSet<FileAttachment> FileAttachments { get; }
     DbSet<Tag> Tags { get; }
     DbSet<EntityTag> EntityTags { get; }
+    DbSet<TransactionClassificationRule> TransactionClassificationRules { get; }
 
     DbSet<FinSource> FinSources { get; }
     DbSet<FinCategory> FinCategories { get; }
@@ -33,6 +34,9 @@ public interface IApplicationDbContext
     DbSet<FinSaving> FinSavings { get; }
     DbSet<FinInvestment> FinInvestments { get; }
     DbSet<FinInvestmentTxn> FinInvestmentTxns { get; }
+    DbSet<FinCategoryBudget> FinCategoryBudgets { get; }
+    DbSet<FinBudgetAlertState> FinBudgetAlertStates { get; }
+    DbSet<UserNotification> UserNotifications { get; }
 
     DbSet<SystemEventLog> SystemEventLogs { get; }
     DbSet<AuditLog> AuditLogs { get; }

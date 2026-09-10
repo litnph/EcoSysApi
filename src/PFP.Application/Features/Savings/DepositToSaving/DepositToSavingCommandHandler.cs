@@ -34,10 +34,7 @@ public sealed class DepositToSavingCommandHandler : IRequestHandler<DepositToSav
         if (saving is null)
             throw new NotFoundException("Savings record was not found.");
 
-        await PostingPeriodPolicy
-            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
-            .ConfigureAwait(false);
-if (saving.Status is not (SavingStatus.Active or SavingStatus.Matured))
+        if (saving.Status is not (SavingStatus.Active or SavingStatus.Matured))
             throw new BusinessRuleException("Deposits are only allowed while the savings record is active or matured.");
 
         var source = saving.Source;
@@ -49,15 +46,6 @@ if (saving.Status is not (SavingStatus.Active or SavingStatus.Matured))
 
         if (source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the linked financial source.");
-
-        if (request.MonthlyPeriodId is { } mpId)
-        {
-            var mpOk = await _db.FinMonthlyPeriods
-                .AnyAsync(p => p.Id == mpId, cancellationToken)
-                .ConfigureAwait(false);
-            if (!mpOk)
-                throw new NotFoundException("Monthly period was not found for this module.");
-        }
 
         var description = Truncate512($"Savings deposit: {saving.Name}");
         var externalRef = $"saving:{saving.Id}";
@@ -73,7 +61,7 @@ Type = TransactionType.Transfer,
             SourceId = source.Id,
             DestSourceId = null,
             CategoryId = null,
-            MonthlyPeriodId = request.MonthlyPeriodId,
+            MonthlyPeriodId = null,
             Description = description,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             ExternalRef = externalRef.Length <= 255 ? externalRef : externalRef[..255],

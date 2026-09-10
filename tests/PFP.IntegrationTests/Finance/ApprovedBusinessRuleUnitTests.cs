@@ -1,5 +1,7 @@
 using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
+using PFP.Application.Features.BillingCycles.Common;
+using PFP.Application.Features.Budgets.Common;
 using PFP.Application.Features.InstallmentPlans.Common;
 using PFP.Application.Features.Sources.CreateSource;
 using PFP.Application.Features.Sources.UpdateSource;
@@ -13,6 +15,102 @@ namespace PFP.IntegrationTests.Finance;
 
 public sealed class ApprovedBusinessRuleUnitTests
 {
+    [Theory]
+    [InlineData(1, 2026, 8, 2026, 7, 1, 2026, 8, 1)]
+    [InlineData(20, 2026, 8, 2026, 7, 20, 2026, 8, 20)]
+    public void Reporting_period_uses_inclusive_previous_and_exclusive_current_cutoff(
+        int reportDay,
+        int year,
+        int month,
+        int startYear,
+        int startMonth,
+        int startDay,
+        int endYear,
+        int endMonth,
+        int endDay)
+    {
+        var period = ReportingPeriodCalculator.ForTargetMonth(year, month, reportDay);
+
+        Assert.Equal(new DateOnly(startYear, startMonth, startDay), period.StartInclusive);
+        Assert.Equal(new DateOnly(endYear, endMonth, endDay), period.EndExclusive);
+        Assert.True(period.Contains(period.StartInclusive));
+        Assert.False(period.Contains(period.EndExclusive));
+    }
+
+    [Theory]
+    [InlineData(2023, 3, 2023, 2, 28)]
+    [InlineData(2024, 3, 2024, 2, 29)]
+    public void Reporting_day_31_clamps_each_February_boundary(
+        int year,
+        int month,
+        int startYear,
+        int startMonth,
+        int startDay)
+    {
+        var period = ReportingPeriodCalculator.ForTargetMonth(year, month, 31);
+
+        Assert.Equal(new DateOnly(startYear, startMonth, startDay), period.StartInclusive);
+        Assert.Equal(new DateOnly(year, month, 31), period.EndExclusive);
+    }
+
+    [Fact]
+    public void Reporting_period_handles_December_to_January_transition()
+    {
+        var period = ReportingPeriodCalculator.ForTargetMonth(2027, 1, 31);
+
+        Assert.Equal(new DateOnly(2026, 12, 31), period.StartInclusive);
+        Assert.Equal(new DateOnly(2027, 1, 31), period.EndExclusive);
+    }
+
+    [Fact]
+    public void Reporting_midnight_converts_with_the_finance_timezone()
+    {
+        var boundary = ReportingPeriodCalculator.ToUtcBoundary(new DateOnly(2026, 7, 20));
+
+        Assert.Equal(DateTimeOffset.Parse("2026-07-19T17:00:00Z"), boundary);
+    }
+
+    [Theory]
+    [InlineData(2026, 8, 19, 20, 2026, 8)]
+    [InlineData(2026, 8, 20, 20, 2026, 9)]
+    [InlineData(2023, 2, 27, 31, 2023, 2)]
+    [InlineData(2023, 2, 28, 31, 2023, 3)]
+    public void Active_reporting_cycle_uses_the_month_containing_its_end_boundary(
+        int year,
+        int month,
+        int day,
+        int reportDay,
+        int expectedYear,
+        int expectedMonth)
+    {
+        var target = ReportingPeriodCalculator.TargetMonthContaining(
+            new DateOnly(year, month, day),
+            reportDay);
+
+        Assert.Equal((expectedYear, expectedMonth), target);
+    }
+
+    [Theory]
+    [InlineData(0, new double[0])]
+    [InlineData(1, new[] { 50d })]
+    [InlineData(2, new[] { 33.33d, 66.67d })]
+    [InlineData(3, new[] { 25d, 50d, 75d })]
+    [InlineData(4, new[] { 20d, 40d, 60d, 80d })]
+    public void Warning_thresholds_are_evenly_distributed(int count, double[] expected)
+    {
+        Assert.Equal(expected.Select(value => (decimal)value), BudgetThresholds.Generate(count));
+    }
+
+    [Fact]
+    public void Warning_threshold_validation_rejects_duplicates_and_out_of_range_values()
+    {
+        Assert.False(BudgetThresholds.IsValid(new[] { 25m, 25m }, 2));
+        Assert.False(BudgetThresholds.IsValid(new[] { 0m }, 1));
+        Assert.False(BudgetThresholds.IsValid(new[] { 100m }, 1));
+        Assert.False(BudgetThresholds.IsValid(new[] { 75m, 25m }, 2));
+        Assert.True(BudgetThresholds.IsValid(new[] { 25m, 75m }, 2));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(61)]
@@ -97,6 +195,22 @@ public sealed class ApprovedBusinessRuleUnitTests
             installmentNumber: 1);
 
         Assert.Equal(new DateOnly(2026, 9, 9), dueDate);
+    }
+
+    [Fact]
+    public void Installment_is_attached_to_the_same_statement_month_even_if_day_changed()
+    {
+        var pay = new FinInstallmentPay
+        {
+            StatementDate = new DateOnly(2026, 8, 15),
+        };
+
+        Assert.True(BillingCycleInstallmentRules.IsPayInStatementMonth(
+            pay,
+            new DateOnly(2026, 8, 20)));
+        Assert.False(BillingCycleInstallmentRules.IsPayInStatementMonth(
+            pay,
+            new DateOnly(2026, 9, 15)));
     }
 
     [Fact]

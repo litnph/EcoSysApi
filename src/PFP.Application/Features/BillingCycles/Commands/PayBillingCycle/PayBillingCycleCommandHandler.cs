@@ -115,7 +115,8 @@ Type = TransactionType.Direct,
                 .Where(p => p.Plan.SourceId == cycle.SourceId
                             && p.Plan.Status != InstallmentStatus.Cancelled
                             && p.Status != InstallmentPayStatus.Paid
-                            && p.StatementDate == cycle.StatementDate)
+                            && p.StatementDate.Year == cycle.StatementDate.Year
+                            && p.StatementDate.Month == cycle.StatementDate.Month)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 

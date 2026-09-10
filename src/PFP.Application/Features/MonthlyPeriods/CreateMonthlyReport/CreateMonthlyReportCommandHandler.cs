@@ -38,22 +38,33 @@ public sealed class CreateMonthlyReportCommandHandler
         if (existing?.Status == PeriodStatus.Closed)
             throw new BusinessRuleException("This month is already closed.");
 
-        var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
-            .ConfigureAwait(false);
-
         var utcNow = DateTime.UtcNow;
         var period = existing ?? new FinMonthlyPeriod
         {
             Year = request.Year,
             Month = request.Month,
         };
+        period.ReportCreatedAt = utcNow;
+        period.Status = PeriodStatus.Open;
 
         if (existing is null)
             _db.FinMonthlyPeriods.Add(period);
 
-        period.ReportCreatedAt = utcNow;
-        period.Status = PeriodStatus.Open;
+        var userId = _currentUser.UserId.Value;
+        var reportDay = await MonthlyReportUserPreferences
+            .GetReportDayAsync(_db, userId, cancellationToken)
+            .ConfigureAwait(false);
+        var report = await MonthlyPeriodSummaryCalculator
+            .BuildReportAsync(
+                _db,
+                request.Year,
+                request.Month,
+                userId,
+                reportDay,
+                cancellationToken,
+                new MonthlyReportTransactionOwnership.ReportIdentity(period.Id, utcNow))
+            .ConfigureAwait(false);
+
         MonthlyReportPeriodWriter.Apply(period, report, utcNow);
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

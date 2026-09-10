@@ -12,7 +12,9 @@ public static class TransactionDeletePolicy
 {
     /// <summary>
     /// Delete is blocked for reversals, unsupported types, billing-cycle lines,
-    /// installment-linked rows, and closed monthly periods.
+    /// installment-linked rows, completed transactions, and explicitly assigned
+    /// closed monthly periods. A closed period matching only <c>TxnDate</c> does
+    /// not by itself block deletion.
     /// </summary>
     public static async Task<bool> CanDeleteAsync(
         IApplicationDbContext db,
@@ -31,16 +33,11 @@ public static class TransactionDeletePolicy
                && txn.ExternalRef?.StartsWith("saving:", StringComparison.Ordinal) == true)
             return false;
 
-        try
-        {
-            await PostingPeriodPolicy
-                .EnsureExistingTransactionMutableAsync(db, txn, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (BusinessRuleException)
-        {
+        // Deletion deliberately does not use PostingPeriodPolicy here. That
+        // policy also infers a closed month from TxnDate, while delete should
+        // only respect the transaction's explicit/finalized state.
+        if (txn.Status == TxnStatus.Completed)
             return false;
-        }
 
         if (txn.Type is not (
             TransactionType.Direct
@@ -57,8 +54,11 @@ public static class TransactionDeletePolicy
                 .ConfigureAwait(false))
             return false;
 
+        // A transaction on an open statement may be deleted: the delete handler
+        // removes the statement item and recalculates that cycle atomically.
+        // Once the statement is locked, its historical lines remain immutable.
         if (await BillingCycleMembershipRules
-                .HasActiveItemOnAnyCycleAsync(db, txn.Id, cancellationToken)
+                .HasActiveItemInLockedCycleAsync(db, txn.Id, cancellationToken)
                 .ConfigureAwait(false))
             return false;
 
@@ -107,6 +107,6 @@ public static class TransactionDeletePolicy
 
         if (!await CanDeleteAsync(db, txn, cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException(
-                "Không thể xóa giao dịch đã nằm trong kỳ sao kê hoặc liên quan đến trả góp.");
+                "Không thể xóa giao dịch thuộc kỳ sao kê đã khóa hoặc liên quan đến trả góp.");
     }
 }

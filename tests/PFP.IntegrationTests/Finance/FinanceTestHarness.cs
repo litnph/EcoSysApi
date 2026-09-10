@@ -22,6 +22,7 @@ internal static class FinanceTestHarness
         Guid sourceAId;
         Guid sourceBId;
         Guid categoryId;
+        Guid incomeCategoryId;
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {
@@ -46,14 +47,15 @@ internal static class FinanceTestHarness
                 SortOrder = 0,
             };
             db.FinCategories.Add(category);
-            db.FinCategories.Add(new FinCategory
+            var incomeCategory = new FinCategory
             {
                 Name = "Salary",
                 Code = "inc-" + Guid.NewGuid().ToString("N")[..16],
                 Kind = CategoryKind.Income,
                 Depth = 0,
                 SortOrder = 0,
-            });
+            };
+            db.FinCategories.Add(incomeCategory);
 
             var sourceA = new FinSource
             {
@@ -78,6 +80,7 @@ internal static class FinanceTestHarness
             sourceAId = sourceA.Id;
             sourceBId = sourceB.Id;
             categoryId = category.Id;
+            incomeCategoryId = incomeCategory.Id;
         }
 
         var loginResp = await client.PostAsJsonAsync(
@@ -87,12 +90,13 @@ internal static class FinanceTestHarness
         loginResp.EnsureSuccessStatusCode();
         var (accessToken, _) = await AuthApiWire.ReadTokensAsync(loginResp);
 
-        return new FinanceHarness(sourceAId, sourceBId, categoryId, accessToken);
+        return new FinanceHarness(sourceAId, sourceBId, categoryId, incomeCategoryId, accessToken);
     }
 
     internal sealed record FinanceHarness(
         Guid SourceAId,
         Guid SourceBId,
         Guid ExpenseCategoryId,
+        Guid IncomeCategoryId,
         string AccessToken);
 }

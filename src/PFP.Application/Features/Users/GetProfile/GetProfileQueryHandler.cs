@@ -49,6 +49,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
             profile?.Timezone ?? "Asia/Ho_Chi_Minh",
             profile?.DateFormat ?? "dd/MM/yyyy",
             profile?.Theme ?? "system",
+            profile?.MonthlyReportDay ?? 1,
             profile?.DisplayName,
             profile?.PhoneNumber,
             profile?.DateOfBirth,

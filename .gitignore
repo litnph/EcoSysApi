@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Local IIS runtime configuration (contains machine-specific secrets)
+/src/PFP.API/web.config
+
 # User-specific files
 *.rsuser
 *.suo

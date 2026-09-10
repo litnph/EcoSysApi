@@ -38,10 +38,10 @@ public sealed class FinMonthlyPeriod : BaseEntity
     /// <summary>User who closed the month.</summary>
     public Guid? ClosedBy { get; set; }
 
-    /// <summary>JSON array: category expense breakdown at close (<c>jsonb</c>).</summary>
+    /// <summary>JSON array: category expense breakdown at close.</summary>
     public string? CategoryBreakdown { get; set; }
 
-    /// <summary>JSON array: per-source expense totals at close (<c>jsonb</c>).</summary>
+    /// <summary>JSON array: per-source expense totals at close.</summary>
     public string? SourceBreakdown { get; set; }
 
     /// <summary>UTC when the user explicitly created the monthly report.</summary>

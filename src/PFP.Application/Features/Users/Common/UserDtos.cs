@@ -24,6 +24,7 @@ public sealed record UserProfileDto(
     string Timezone,
     string DateFormat,
     string Theme,
+    int MonthlyReportDay,
     string? DisplayName,
     string? PhoneNumber,
     DateOnly? DateOfBirth,

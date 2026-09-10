@@ -39,6 +39,16 @@ public sealed class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategor
 if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == request.Id, cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("Không thể xóa danh mục đang được sử dụng bởi giao dịch.");
 
+        if (await _db.FinCategoryBudgets.AnyAsync(
+                budget => budget.CategoryId == request.Id,
+                cancellationToken).ConfigureAwait(false))
+            throw new BusinessRuleException("Cannot delete a category that has a budget configuration.");
+
+        if (await _db.TransactionClassificationRules.AnyAsync(
+                rule => rule.CategoryId == request.Id,
+                cancellationToken).ConfigureAwait(false))
+            throw new BusinessRuleException("Cannot delete a category used by a classification rule.");
+
         if (await _db.FinCategories.AnyAsync(c => c.ParentId == request.Id, cancellationToken).ConfigureAwait(false))
             throw new BusinessRuleException("Xóa danh mục con trước");
 

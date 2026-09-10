@@ -50,6 +50,10 @@ public sealed class CreateTransactionCommandValidator : AbstractValidator<Create
 
         RuleFor(x => x.Note).MaximumLength(500).When(x => x.Note is not null);
         RuleFor(x => x.Description).MaximumLength(512).When(x => x.Description is not null);
+        RuleFor(x => x.TagIds)
+            .Must(ids => ids is null || (ids.Count <= 20 && ids.All(id => id != Guid.Empty)
+                && ids.Distinct().Count() == ids.Count))
+            .WithMessage("TagIds must contain at most 20 distinct, non-empty values.");
         RuleFor(x => x.PersonName).MaximumLength(200).When(x => x.PersonName is not null);
         RuleFor(x => x.PersonContact).MaximumLength(200).When(x => x.PersonContact is not null);
 

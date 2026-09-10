@@ -4,6 +4,8 @@ using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
+using PFP.Application.Features.MonthlyPeriods.Common;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
@@ -15,12 +17,20 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
+    private readonly ITransactionTagWriter _tagWriter;
 
     /// <summary>Creates the handler.</summary>
-    public CreateTransactionCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public CreateTransactionCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts,
+        ITransactionTagWriter tagWriter)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
+        _tagWriter = tagWriter;
     }
 
     /// <summary>Persists the transaction(s), balance movement, and manual history rows in one DB transaction.</summary>
@@ -31,6 +41,9 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             throw new UnauthorizedAppException("Authentication is required.");
 
         request = await NormalizeExpenseCommandAsync(request, cancellationToken).ConfigureAwait(false);
+        // Report membership is system-managed. New transactions always start unassigned;
+        // an explicit monthly-report refresh is the only operation that may claim them.
+        request = request with { MonthlyPeriodId = null };
 
         if (request.ClientRequestId is { } requestId)
         {
@@ -48,45 +61,42 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
             }
         }
 
-        await PostingPeriodPolicy
-            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
-            .ConfigureAwait(false);
+        CreateTransactionResponse? response = null;
+        await DbTransactionRunner.ExecuteAsync(_db, async ct =>
+        {
+            if (request.Type is TransactionType.DebtBorrow
+                or TransactionType.LoanGive
+                or TransactionType.DebtRepay
+                or TransactionType.LoanCollect)
+                response = await HandleDebtAsync(request, ct).ConfigureAwait(false);
+            else if (request.Type == TransactionType.Transfer)
+                response = await HandleTransferAsync(request, ct).ConfigureAwait(false);
+            else if (request.Type == TransactionType.Deferred)
+                response = await HandleDeferredAsync(request, ct).ConfigureAwait(false);
+            else if (request.Type == TransactionType.Split)
+                response = await HandleSplitAsync(request, ct).ConfigureAwait(false);
+            else
+                response = await HandleDirectOrIncomeAsync(request, ct).ConfigureAwait(false);
 
-        if (request.Type is TransactionType.DebtBorrow
-            or TransactionType.LoanGive
-            or TransactionType.DebtRepay
-            or TransactionType.LoanCollect)
-            return await HandleDebtAsync(request, cancellationToken).ConfigureAwait(false);
+            await _tagWriter.AddAsync(response!.Transaction.Id, request.TagIds, _currentUser.UserId.Value, ct)
+                .ConfigureAwait(false);
 
-        if (request.Type == TransactionType.Transfer)
-            return await HandleTransferAsync(request, cancellationToken).ConfigureAwait(false);
+            if (request.Type == TransactionType.Direct)
+            {
+                await _budgetAlerts.EvaluateCurrentCycleAsync(
+                        _currentUser.UserId.Value,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+        }, cancellationToken).ConfigureAwait(false);
 
-        if (request.Type == TransactionType.Deferred)
-            return await HandleDeferredAsync(request, cancellationToken).ConfigureAwait(false);
-
-        if (request.Type == TransactionType.Split)
-            return await HandleSplitAsync(request, cancellationToken).ConfigureAwait(false);
-
-        return await HandleDirectOrIncomeAsync(request, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task EnsureMonthlyPeriodExistsAsync(CreateTransactionCommand request, CancellationToken cancellationToken)
-    {
-        if (request.MonthlyPeriodId is not { } mpId)
-            return;
-        var mpExists = await _db.FinMonthlyPeriods
-            .AnyAsync(p => p.Id == mpId, cancellationToken)
-            .ConfigureAwait(false);
-        if (!mpExists)
-            throw new NotFoundException("Monthly period was not found for this module.");
+        return response!;
     }
 
     private async Task<CreateTransactionResponse> HandleDebtAsync(
         CreateTransactionCommand request,
         CancellationToken cancellationToken)
     {
-        await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
-
         return request.Type switch
         {
             TransactionType.DebtBorrow => await HandleDebtBorrowAsync(request, cancellationToken).ConfigureAwait(false),
@@ -435,8 +445,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
-        await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
-
         var description = ResolveDescription(
             request.Description,
             BuildDirectIncomeDescription(TransactionType.Direct, category.Name));
@@ -504,8 +512,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
 
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
-
-        await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
@@ -587,8 +593,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
 
-        await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
-
         if (request.Type == TransactionType.Direct && source.Balance < CurrencyUnits.FromWhole(request.Amount))
             throw new BusinessRuleException("Insufficient balance on the selected source.");
 
@@ -639,8 +643,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
     {
         var toSourceId = request.ToSourceId
             ?? throw new BusinessRuleException("ToSourceId is required for a transfer.");
-
-        await EnsureMonthlyPeriodExistsAsync(request, cancellationToken).ConfigureAwait(false);
 
         var outboundId = await DbTransactionRunner.ExecuteAsync(_db, async ct =>
         {
@@ -813,7 +815,6 @@ public sealed class CreateTransactionCommandHandler : IRequestHandler<CreateTran
                && request.SourceId == replay.SourceId
                && request.CategoryId == replay.CategoryId
                && request.TxnDate == replay.TxnDate
-               && request.MonthlyPeriodId == replay.MonthlyPeriodId
                && request.ToSourceId == replay.DestSourceId
                && descriptionMatches
                && noteMatches

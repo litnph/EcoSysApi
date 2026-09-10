@@ -19,5 +19,8 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
         RuleFor(x => x.Theme)
             .Must(t => AllowedThemes.Contains(t))
             .WithMessage("Theme must be one of: light, dark, system.");
+        RuleFor(x => x.MonthlyReportDay)
+            .InclusiveBetween(1, 31)
+            .When(x => x.MonthlyReportDay.HasValue);
     }
 }

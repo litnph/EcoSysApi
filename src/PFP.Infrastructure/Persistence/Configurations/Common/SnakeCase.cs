@@ -3,7 +3,7 @@ using System.Text;
 namespace PFP.Infrastructure.Persistence.Configurations.Common;
 
 /// <summary>
-/// Tiny helpers for converting CLR PascalCase names into PostgreSQL-friendly snake_case identifiers.
+/// Tiny helpers for converting CLR PascalCase names into snake_case identifiers.
 /// <para>
 /// Used by the model naming convention to map entities like <c>FinTransaction</c> → <c>fin_transactions</c>
 /// and properties like <c>BillingCycleId</c> → <c>billing_cycle_id</c>, and by the enum value converter

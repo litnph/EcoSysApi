@@ -4,6 +4,7 @@ using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Transactions.Common;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Enums;
 
@@ -18,12 +19,17 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
     /// <summary>Creates the handler.</summary>
-    public UpdateTransactionCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public UpdateTransactionCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     /// <inheritdoc cref="IRequestHandler{UpdateTransactionCommand, UpdateTransactionResponse}.Handle" />
@@ -51,7 +57,7 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
             .ConfigureAwait(false);
 
         await PostingPeriodPolicy
-            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
+            .EnsureOpenTargetAsync(_db, request.TxnDate, monthlyPeriodId: null, cancellationToken)
             .ConfigureAwait(false);
 
         FinCategory? category = null;
@@ -67,15 +73,6 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
             if (txn.Type is TransactionType.Direct or TransactionType.Deferred or TransactionType.Split or TransactionType.Income
                 && category.Kind != expectedKind)
                 throw new BusinessRuleException("Category kind is incompatible with the transaction type.");
-        }
-
-        if (request.MonthlyPeriodId is { } mpId)
-        {
-            var mpExists = await _db.FinMonthlyPeriods
-                .AnyAsync(p => p.Id == mpId, cancellationToken)
-                .ConfigureAwait(false);
-            if (!mpExists)
-                throw new NotFoundException("Monthly period was not found in this module.");
         }
 
         await DbTransactionRunner.ExecuteAsync(_db, async ct =>
@@ -101,7 +98,6 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
                 ? string.Empty
                 : request.Description.Trim();
             txn.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-            txn.MonthlyPeriodId = request.MonthlyPeriodId;
 
             if (txn.Type == TransactionType.Transfer && txn.RefTxnId is { } partnerId)
             {
@@ -119,10 +115,16 @@ public sealed class UpdateTransactionCommandHandler : IRequestHandler<UpdateTran
                 partner.TxnDate = request.TxnDate;
                 partner.Description = txn.Description;
                 partner.Note = txn.Note;
-                partner.MonthlyPeriodId = request.MonthlyPeriodId;
             }
 
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            if (txn.Type == TransactionType.Direct)
+            {
+                await _budgetAlerts.EvaluateCurrentCycleAsync(
+                        _currentUser.UserId.Value,
+                        ct)
+                    .ConfigureAwait(false);
+            }
         }, cancellationToken).ConfigureAwait(false);
 
         var refreshed = await _db.FinTransactions

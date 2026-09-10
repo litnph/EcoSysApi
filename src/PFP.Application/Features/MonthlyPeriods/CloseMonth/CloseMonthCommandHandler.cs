@@ -40,8 +40,18 @@ var blockingCycles = await CloseMonthBillingCycleRules
                 string.Format(CultureInfo.InvariantCulture, "Còn {0} kỳ sao kê chưa đóng: {1}", blockingCycles.Count, cardNames));
         }
 
+        var userId = _currentUser.UserId.Value;
+        var existingSnapshot = await _db.FinMonthlyPeriods
+            .AsNoTracking()
+            .Where(period => period.Year == request.Year && period.Month == request.Month)
+            .Select(period => period.ReportSnapshot)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var reportDay = await MonthlyReportUserPreferences
+            .GetReportDayAsync(_db, userId, existingSnapshot, cancellationToken)
+            .ConfigureAwait(false);
         var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, request.Year, request.Month, cancellationToken)
+            .BuildReportAsync(_db, request.Year, request.Month, userId, reportDay, cancellationToken)
             .ConfigureAwait(false);
 
         var income = CurrencyUnits.FromWhole(report.Summary.TotalIncome);
@@ -60,8 +70,6 @@ var blockingCycles = await CloseMonthBillingCycleRules
             .ToList();
 
         var utcNow = DateTime.UtcNow;
-        var userId = _currentUser.UserId.Value;
-
         // Compose the explicit transaction with the EF Core retrying execution strategy so transient
         // failures retry the whole close-month unit (spec §4.4).
         var strategy = _db.Database.CreateExecutionStrategy();
@@ -103,21 +111,19 @@ var blockingCycles = await CloseMonthBillingCycleRules
             period.ClosedAt = utcNow;
             period.ClosedBy = userId;
 
-            var monthStart = new DateOnly(request.Year, request.Month, 1);
-            var monthEnd = new DateOnly(request.Year, request.Month, DateTime.DaysInMonth(request.Year, request.Month));
-            var monthTxns = await _db.FinTransactions
-                .Where(t => t.TxnDate >= monthStart
-                    && t.TxnDate <= monthEnd
+            var calendarStart = new DateOnly(request.Year, request.Month, 1);
+            var calendarEndExclusive = calendarStart.AddMonths(1);
+            var closingTxns = await _db.FinTransactions
+                .Where(t => (t.MonthlyPeriodId == period.Id
+                             || (t.TxnDate >= calendarStart && t.TxnDate < calendarEndExclusive))
                     && t.Status != TxnStatus.Cancelled
                     && t.Status != TxnStatus.Completed)
                 .Include(t => t.Source)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            foreach (var txn in monthTxns)
+            foreach (var txn in closingTxns)
             {
-                txn.MonthlyPeriodId = period.Id;
-
                 if (txn.Source.Type != SourceType.CreditCard)
                     txn.Status = TxnStatus.Completed;
             }

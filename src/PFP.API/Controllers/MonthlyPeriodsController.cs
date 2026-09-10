@@ -73,7 +73,7 @@ public sealed class MonthlyPeriodsController : ControllerBase
         return Ok(new ApiResponse<DeleteMonthlyReportResponse> { Data = result });
     }
 
-    /// <summary>UTC current calendar month summary for a finance module.</summary>
+    /// <summary>Current active user reporting-cycle summary for the finance module.</summary>
     [HttpGet("current")]
     [ProducesResponseType(typeof(ApiResponse<GetCurrentMonthSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetCurrentMonthSummaryResponse>>> GetCurrent(
@@ -83,7 +83,7 @@ public sealed class MonthlyPeriodsController : ControllerBase
         return Ok(new ApiResponse<GetCurrentMonthSummaryResponse> { Data = result });
     }
 
-    /// <summary>Full report for a calendar month (cashflow, breakdowns, comparisons).</summary>
+    /// <summary>Full report for a target report month (cashflow, breakdowns, comparisons).</summary>
     [HttpGet("{year:int}/{month:int}/report")]
     [ProducesResponseType(typeof(ApiResponse<GetMonthlyReportResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetMonthlyReportResponse>>> GetReport(

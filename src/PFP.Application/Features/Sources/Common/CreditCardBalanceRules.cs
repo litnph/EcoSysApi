@@ -5,9 +5,10 @@ using PFP.Domain.Enums;
 namespace PFP.Application.Features.Sources.Common;
 
 /// <summary>
-/// Derives outstanding credit-card debt from charges, statement payments, and direct
-/// installment settlements. An installment without a linked transaction is never treated as paid
-/// independently because statement settlements are already represented by cycle paid amounts.
+/// Derives outstanding credit-card debt from charges, statement payments, and paid installment
+/// schedule lines. The installment status is the payment source of truth, including legacy paid
+/// lines that do not have a linked transaction. Installment amounts already included in a paid
+/// statement are de-duplicated so the same repayment is not applied twice.
 /// </summary>
 public static class CreditCardBalanceRules
 {
@@ -30,26 +31,71 @@ public static class CreditCardBalanceRules
         foreach (var leg in legs)
             running = ApplyChargeLeg(running, leg.Type, leg.Amount);
 
-        var billingPaid = await db.FinBillingCycles.AsNoTracking()
+        var billingCycles = await db.FinBillingCycles.AsNoTracking()
             .Where(c => c.SourceId == sourceId)
-            .Select(c => c.PaidAmount)
-            .SumAsync(cancellationToken)
+            .Select(c => new
+            {
+                c.Id,
+                c.StatementDate,
+                c.TotalAmount,
+                c.PaidAmount,
+                c.Status,
+            })
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var billingPaid = billingCycles.Sum(c => c.PaidAmount);
         running -= billingPaid;
 
-        var directlyPaidInstallments = await (
+        var paidInstallments = await (
             from plan in db.FinInstallmentPlans.AsNoTracking()
-            where plan.SourceId == sourceId && plan.Status != InstallmentStatus.Cancelled
+            where plan.SourceId == sourceId
             from pay in plan.Pays
-            from paymentTxn in db.FinTransactions.AsNoTracking()
             where pay.Status == InstallmentPayStatus.Paid
-                  && pay.TxnId == paymentTxn.Id
-                  && paymentTxn.Purpose == TransactionPurpose.InstallmentPayment
-            select pay.PaidAmount
-        ).SumAsync(cancellationToken).ConfigureAwait(false);
+            select new { pay.StatementDate, pay.Amount }
+        ).ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        running -= directlyPaidInstallments;
+        var statementItemTotals = await (
+            from cycle in db.FinBillingCycles.AsNoTracking()
+            where cycle.SourceId == sourceId
+            join item in db.FinBillingCycleItems.AsNoTracking()
+                on cycle.Id equals item.BillingCycleId
+            join txn in db.FinTransactions.AsNoTracking()
+                on item.TransactionId equals txn.Id
+            where item.RemovedAt == null && !txn.IsDeleted
+            group txn by cycle.Id
+            into grouped
+            select new
+            {
+                CycleId = grouped.Key,
+                Total = grouped.Sum(txn => txn.Amount),
+            }
+        ).ToDictionaryAsync(row => row.CycleId, row => row.Total, cancellationToken)
+            .ConfigureAwait(false);
+
+        var paidInstallmentTotal = paidInstallments.Sum(pay => pay.Amount);
+
+        // A fully paid statement already reduces the card by PaidAmount. Its installment portion
+        // is TotalAmount minus ordinary transaction items, so add that overlap back before
+        // applying every Paid schedule line. This also supports legacy rows whose TxnId is null.
+        var statementCoveredInstallmentTotal = paidInstallments
+            .GroupBy(pay => new { pay.StatementDate.Year, pay.StatementDate.Month })
+            .Sum(monthPays =>
+            {
+                var paidScheduleAmount = monthPays.Sum(pay => pay.Amount);
+                var paidStatementInstallmentAmount = billingCycles
+                    .Where(cycle => cycle.Status == BillingCycleStatus.Paid
+                                    && cycle.StatementDate.Year == monthPays.Key.Year
+                                    && cycle.StatementDate.Month == monthPays.Key.Month)
+                    .Sum(cycle => Math.Max(
+                        0m,
+                        cycle.TotalAmount
+                        - statementItemTotals.GetValueOrDefault(cycle.Id, 0m)));
+
+                return Math.Min(paidScheduleAmount, paidStatementInstallmentAmount);
+            });
+
+        running -= paidInstallmentTotal - statementCoveredInstallmentTotal;
 
         return decimal.Round(Math.Max(0m, running), 2, MidpointRounding.ToEven);
     }

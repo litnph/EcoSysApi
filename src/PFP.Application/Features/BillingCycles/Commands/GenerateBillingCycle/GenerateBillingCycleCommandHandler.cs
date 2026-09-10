@@ -6,6 +6,7 @@ using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
 using PFP.Application.Features.InstallmentPlans.Commands.ProcessConversionFee;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
@@ -18,18 +19,21 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
     private readonly ICurrentUserService _currentUser;
     private readonly IMediator _mediator;
     private readonly ILogger<GenerateBillingCycleCommandHandler> _logger;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
     /// <summary>Creates the handler.</summary>
     public GenerateBillingCycleCommandHandler(
         IApplicationDbContext db,
         ICurrentUserService currentUser,
         IMediator mediator,
-        ILogger<GenerateBillingCycleCommandHandler> logger)
+        ILogger<GenerateBillingCycleCommandHandler> logger,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
         _mediator = mediator;
         _logger = logger;
+        _budgetAlerts = budgetAlerts;
     }
 
     /// <inheritdoc />
@@ -111,6 +115,12 @@ public sealed class GenerateBillingCycleCommandHandler : IRequestHandler<Generat
         await BillingCycleTotals.RecalculateAsync(trackedCycle, _db, cancellationToken)
             .ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_currentUser.UserId is { } userId)
+        {
+            await _budgetAlerts.EvaluateCurrentCycleAsync(userId, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         return new GenerateBillingCycleResponse(FinBillingCycleDtoMapper.ToDto(trackedCycle, source.Name));
     }

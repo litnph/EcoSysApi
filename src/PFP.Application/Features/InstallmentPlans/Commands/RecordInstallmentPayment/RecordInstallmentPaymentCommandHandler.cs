@@ -79,7 +79,8 @@ public sealed class RecordInstallmentPaymentCommandHandler : IRequestHandler<Rec
             .AsNoTracking()
             .AnyAsync(c => c.SourceId == plan.SourceId
                            && c.Status != BillingCycleStatus.Paid
-                           && c.StatementDate == pay.StatementDate,
+                           && c.StatementDate.Year == pay.StatementDate.Year
+                           && c.StatementDate.Month == pay.StatementDate.Month,
                 cancellationToken)
             .ConfigureAwait(false);
         if (capturedByCycle)

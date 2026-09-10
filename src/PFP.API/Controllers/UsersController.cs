@@ -56,7 +56,8 @@ public sealed class UsersController : ControllerBase
             body.LanguageCode,
             body.Timezone,
             body.DateFormat,
-            body.Theme);
+            body.Theme,
+            body.MonthlyReportDay);
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateProfileResponse> { Data = result });
     }
@@ -118,6 +119,9 @@ public sealed class UpdateProfileBody
 
     /// <summary>UI theme: <c>light</c> | <c>dark</c> | <c>system</c>.</summary>
     public string Theme { get; init; } = "system";
+
+    /// <summary>Exclusive monthly-report cutoff day (1-31, clamped in short months).</summary>
+    public int? MonthlyReportDay { get; init; }
 }
 
 /// <summary>JSON body for <see cref="UsersController.ChangePassword"/>.</summary>

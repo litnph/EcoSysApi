@@ -28,6 +28,9 @@ public sealed class UserProfile : BaseEntity
     /// <summary>UI theme preference: <c>light</c> | <c>dark</c> | <c>system</c>.</summary>
     public string Theme { get; set; } = "system";
 
+    /// <summary>Day-of-month (1-31) used as the exclusive end boundary of monthly reports.</summary>
+    public int MonthlyReportDay { get; set; } = 1;
+
     /// <summary>Optional display-name override (otherwise <see cref="User.FullName"/> is shown).</summary>
     public string? DisplayName { get; set; }
 

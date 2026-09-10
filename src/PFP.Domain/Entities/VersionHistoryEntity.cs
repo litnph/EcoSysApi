@@ -33,7 +33,7 @@ public abstract class VersionHistoryEntity : BaseEntity
     /// <summary>JSON array of field names that changed in this revision (only populated for <see cref="HistoryChangeType.Updated"/>).</summary>
     public string? ChangedFields { get; set; }
 
-    /// <summary>JSON snapshot of the row AFTER the change. Stored as <c>jsonb</c> in PostgreSQL.</summary>
+    /// <summary>JSON snapshot of the row AFTER the change. Stored as <c>nvarchar(max)</c>.</summary>
     public string? Snapshot { get; set; }
 
     /// <summary>Optional human-readable reason for the change (recorded by handlers that ask the user "why").</summary>

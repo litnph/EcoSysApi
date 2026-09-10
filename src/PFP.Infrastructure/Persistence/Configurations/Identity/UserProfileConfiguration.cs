@@ -14,6 +14,10 @@ public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProf
         builder.Property(x => x.Timezone).HasMaxLength(64).IsRequired();
         builder.Property(x => x.DateFormat).HasMaxLength(32).IsRequired();
         builder.Property(x => x.Theme).HasMaxLength(16).IsRequired();
+        builder.Property(x => x.MonthlyReportDay).HasDefaultValue(1).IsRequired();
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_user_profiles_monthly_report_day",
+            "monthly_report_day >= 1 AND monthly_report_day <= 31"));
         builder.Property(x => x.DisplayName).HasMaxLength(255);
         builder.Property(x => x.PhoneNumber).HasMaxLength(32);
         builder.Property(x => x.AvatarUrl).HasMaxLength(2048);

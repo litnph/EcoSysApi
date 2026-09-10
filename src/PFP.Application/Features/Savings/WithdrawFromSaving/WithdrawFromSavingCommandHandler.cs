@@ -34,10 +34,7 @@ public sealed class WithdrawFromSavingCommandHandler : IRequestHandler<WithdrawF
         if (saving is null)
             throw new NotFoundException("Savings record was not found.");
 
-        await PostingPeriodPolicy
-            .EnsureOpenTargetAsync(_db, request.TxnDate, request.MonthlyPeriodId, cancellationToken)
-            .ConfigureAwait(false);
-if (saving.Status is SavingStatus.Withdrawn)
+        if (saving.Status is SavingStatus.Withdrawn)
             throw new BusinessRuleException("This savings record is already marked as withdrawn.");
 
         if (saving.CurrentAmount < CurrencyUnits.FromWhole(request.Amount))
@@ -49,15 +46,6 @@ if (saving.Status is SavingStatus.Withdrawn)
 
         if (source.IsArchived)
             throw new BusinessRuleException("The financial source is archived and cannot receive new transactions.");
-
-        if (request.MonthlyPeriodId is { } mpId)
-        {
-            var mpOk = await _db.FinMonthlyPeriods
-                .AnyAsync(p => p.Id == mpId, cancellationToken)
-                .ConfigureAwait(false);
-            if (!mpOk)
-                throw new NotFoundException("Monthly period was not found for this module.");
-        }
 
         var description = Truncate512($"Savings withdrawal: {saving.Name}");
         var externalRef = $"saving:{saving.Id}";
@@ -73,7 +61,7 @@ Type = TransactionType.Transfer,
             SourceId = source.Id,
             DestSourceId = null,
             CategoryId = null,
-            MonthlyPeriodId = request.MonthlyPeriodId,
+            MonthlyPeriodId = null,
             Description = description,
             Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
             ExternalRef = externalRef.Length <= 255 ? externalRef : externalRef[..255],

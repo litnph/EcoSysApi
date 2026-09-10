@@ -43,6 +43,11 @@ if (request.Kind != entity.Kind)
             if (await _db.FinTransactions.AnyAsync(t => t.CategoryId == entity.Id, cancellationToken).ConfigureAwait(false))
                 throw new BusinessRuleException("Không thể đổi loại danh mục khi đã có giao dịch sử dụng danh mục này.");
 
+            if (await _db.FinCategoryBudgets.AnyAsync(
+                    budget => budget.CategoryId == entity.Id,
+                    cancellationToken).ConfigureAwait(false))
+                throw new BusinessRuleException("Cannot change the kind of a category that has a budget configuration.");
+
             if (await _db.FinCategories.AnyAsync(c => c.ParentId == entity.Id, cancellationToken).ConfigureAwait(false))
                 throw new BusinessRuleException("Không thể đổi loại danh mục khi còn danh mục con.");
         }

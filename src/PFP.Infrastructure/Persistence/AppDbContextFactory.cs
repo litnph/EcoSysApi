@@ -1,7 +1,7 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
 
 namespace PFP.Infrastructure.Persistence;
 
@@ -10,13 +10,9 @@ namespace PFP.Infrastructure.Persistence;
 /// <para>
 /// Connection string resolution (first match wins):
 /// <list type="number">
-/// <item><c>PFP_DESIGN_CONNECTION</c> environment variable — explicit override for CI or ad-hoc
-/// commands.</item>
-/// <item><c>ConnectionStrings:Default</c> from the first <c>appsettings.Development.json</c> found
-/// under a <c>PFP.API</c> folder by walking up from <see cref="Directory.GetCurrentDirectory"/> and
-/// <see cref="AppContext.BaseDirectory"/> (so <c>dotnet ef</c> picks up the same connection string as
-/// the API when you run from the repo).</item>
-/// <item>Fallback LocalDB string so the model still loads when no DB is configured.</item>
+/// <item><c>ConnectionStrings:Default</c> from <c>appsettings.json</c> and the active
+/// environment-specific appsettings file under <c>PFP.API</c>.</item>
+/// <item>The standard <c>ConnectionStrings__Default</c> environment variable override.</item>
 /// </list>
 /// Runtime wiring remains in <see cref="InfrastructureServiceCollectionExtensions.AddInfrastructure"/>.
 /// </para>
@@ -26,63 +22,83 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     /// <inheritdoc/>
     public AppDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("PFP_DESIGN_CONNECTION");
+        var apiProjectDirectory = FindApiProjectDirectory()
+            ?? throw new InvalidOperationException(
+                "Could not locate the PFP.API project directory for design-time configuration.");
+        var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? "Development";
+
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(apiProjectDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile($"appsettings.{environment}.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration.GetConnectionString("Default");
         if (string.IsNullOrWhiteSpace(connectionString))
-            connectionString = TryReadDefaultConnectionFromApiAppsettings();
-        connectionString ??=
-            "Host=localhost;Port=5432;Database=pfp_design;Username=postgres;Password=postgres";
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:Default is not configured for EF Core design-time tools.");
+        }
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
+            .UseSqlServer(connectionString, sql =>
+                sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
             .Options;
 
         return new AppDbContext(options);
     }
 
-    private static string? TryReadDefaultConnectionFromApiAppsettings()
+    private static string? FindApiProjectDirectory()
     {
-        foreach (var path in EnumeratePfpApiAppsettingsDevelopmentPaths())
+        foreach (var root in EnumerateSearchRoots())
         {
-            if (!File.Exists(path)) continue;
+            var directory = new DirectoryInfo(root);
+            for (var depth = 0; depth < 14 && directory is not null; depth++, directory = directory.Parent)
+            {
+                var candidates = new[]
+                {
+                    Path.Combine(directory.FullName, "src", "PFP.API"),
+                    Path.Combine(directory.FullName, "PFP.API"),
+                };
 
-            try
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(path));
-                if (!doc.RootElement.TryGetProperty("ConnectionStrings", out var cs)) continue;
-                if (!cs.TryGetProperty("Default", out var def)) continue;
-                var s = def.GetString();
-                if (!string.IsNullOrWhiteSpace(s)) return s;
-            }
-            catch (JsonException)
-            {
-                // Malformed JSON — try next candidate path.
+                foreach (var candidate in candidates)
+                {
+                    if (File.Exists(Path.Combine(candidate, "PFP.API.csproj"))
+                        && File.Exists(Path.Combine(candidate, "appsettings.json")))
+                    {
+                        return candidate;
+                    }
+                }
             }
         }
 
         return null;
     }
 
-    private static IEnumerable<string> EnumeratePfpApiAppsettingsDevelopmentPaths()
+    private static IEnumerable<string> EnumerateSearchRoots()
     {
         var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        void TryAdd(string? p)
+        void TryAdd(string? path)
         {
-            if (string.IsNullOrWhiteSpace(p)) return;
-            try { roots.Add(Path.GetFullPath(p)); } catch { /* ignore invalid paths */ }
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            try
+            {
+                roots.Add(Path.GetFullPath(path));
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+            {
+                // Ignore invalid host-provided paths and continue with the other search root.
+            }
         }
 
         TryAdd(Directory.GetCurrentDirectory());
         TryAdd(AppContext.BaseDirectory);
 
-        foreach (var root in roots)
-        {
-            var dir = new DirectoryInfo(root);
-            for (var depth = 0; depth < 14 && dir != null; depth++, dir = dir.Parent!)
-            {
-                yield return Path.Combine(dir.FullName, "src", "PFP.API", "appsettings.Development.json");
-                yield return Path.Combine(dir.FullName, "PFP.API", "appsettings.Development.json");
-            }
-        }
+        return roots;
     }
 }

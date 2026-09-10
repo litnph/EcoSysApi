@@ -13,7 +13,7 @@ services:
         value: pfp-api
       - key: Jwt__Audience
         value: pfp-client
-      - key: DATABASE_URL
+      - key: ConnectionStrings__Default
         sync: false
       - key: Cors__AllowedOrigins__0
         sync: false

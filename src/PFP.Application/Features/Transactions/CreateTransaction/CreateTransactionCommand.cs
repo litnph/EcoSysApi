@@ -22,4 +22,5 @@ public sealed record CreateTransactionCommand(
     DateOnly? DueDate,
     IReadOnlyList<SplitItemDto>? Splits,
     Guid? ClientRequestId = null,
-    int? ExpectedAggregateVersion = null) : IRequest<CreateTransactionResponse>;
+    int? ExpectedAggregateVersion = null,
+    IReadOnlyList<Guid>? TagIds = null) : IRequest<CreateTransactionResponse>;

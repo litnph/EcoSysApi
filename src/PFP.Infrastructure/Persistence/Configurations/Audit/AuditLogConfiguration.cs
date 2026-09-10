@@ -10,7 +10,7 @@ namespace PFP.Infrastructure.Persistence.Configurations.Audit;
 /// Composite indexes per spec §3.8:
 /// (<c>EntityType, EntityId, CreatedAt</c>) and (<c>UserId, CreatedAt</c>).
 /// </para>
-/// <para>JSON columns are stored as <c>text</c> for portable PostgreSQL payloads.</para>
+/// <para>JSON columns are stored as <c>nvarchar(max)</c>.</para>
 /// </summary>
 public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 {

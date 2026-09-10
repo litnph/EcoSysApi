@@ -3,6 +3,10 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using PFP.Application.Common.Behaviors;
+using PFP.Application.Features.Notifications.Common;
+using PFP.Application.Features.TransactionClassificationRules;
+using PFP.Application.Features.Transactions.Common;
+using PFP.Application.Features.Transactions.ImportTransactions;
 
 namespace PFP.Application;
 
@@ -17,6 +21,10 @@ public static class DependencyInjection
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
         services.AddValidatorsFromAssembly(assembly);
+        services.AddScoped<IBudgetAlertEvaluator, BudgetAlertEvaluator>();
+        services.AddScoped<ITransactionClassificationService, TransactionClassificationService>();
+        services.AddScoped<ITransactionTagWriter, TransactionTagWriter>();
+        services.AddScoped<ITransactionImportClassifier, TransactionImportClassifier>();
 
         // Pipeline order (spec §2.3): Request → Logging → Validation → Authorization → Handler.
         // The first registered behaviour wraps the rest, so the order below matters.

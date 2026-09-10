@@ -5,6 +5,7 @@ using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Commands.RefreshBillingCycle;
 using PFP.Application.Features.BillingCycles.Common;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.BillingCycles.Commands.RemoveBillingCycleItem;
@@ -14,11 +15,16 @@ public sealed class RemoveBillingCycleItemCommandHandler
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
-    public RemoveBillingCycleItemCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public RemoveBillingCycleItemCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     public async Task<RefreshBillingCycleResponse> Handle(
@@ -57,6 +63,8 @@ public sealed class RemoveBillingCycleItemCommandHandler
 
             await BillingCycleTotals.RecalculateAsync(cycle, _db, ct).ConfigureAwait(false);
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await _budgetAlerts.EvaluateCurrentCycleAsync(_currentUser.UserId.Value, ct)
+                .ConfigureAwait(false);
 
             return new RefreshBillingCycleResponse(
                 FinBillingCycleDtoMapper.ToDto(cycle, cycle.Source.Name),

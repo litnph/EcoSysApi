@@ -9,11 +9,13 @@ public sealed class PreviewTransactionImportCommandHandler
 {
     private readonly IApplicationDbContext _db;
     private readonly ISender _sender;
+    private readonly ITransactionImportClassifier _classifier;
 
-    public PreviewTransactionImportCommandHandler(IApplicationDbContext db, ISender sender)
+    public PreviewTransactionImportCommandHandler(IApplicationDbContext db, ISender sender, ITransactionImportClassifier classifier)
     {
         _db = db;
         _sender = sender;
+        _classifier = classifier;
     }
 
     public async Task<PreviewTransactionImportResponse> Handle(
@@ -32,7 +34,8 @@ public sealed class PreviewTransactionImportCommandHandler
             {
                 for (var index = 0; index < request.Items.Count; index++)
                 {
-                    var response = await _sender.Send(request.Items[index], cancellationToken)
+                    var item = await _classifier.ApplyAsync(request.Items[index], cancellationToken).ConfigureAwait(false);
+                    var response = await _sender.Send(item, cancellationToken)
                         .ConfigureAwait(false);
                     rows.Add(TransactionImportErrors.Success(index, response));
                 }

@@ -9,11 +9,13 @@ public sealed class CommitTransactionImportCommandHandler
 {
     private readonly IApplicationDbContext _db;
     private readonly ISender _sender;
+    private readonly ITransactionImportClassifier _classifier;
 
-    public CommitTransactionImportCommandHandler(IApplicationDbContext db, ISender sender)
+    public CommitTransactionImportCommandHandler(IApplicationDbContext db, ISender sender, ITransactionImportClassifier classifier)
     {
         _db = db;
         _sender = sender;
+        _classifier = classifier;
     }
 
     public async Task<CommitTransactionImportResponse> Handle(
@@ -28,7 +30,8 @@ public sealed class CommitTransactionImportCommandHandler
             {
                 for (var index = 0; index < request.Items.Count; index++)
                 {
-                    var response = await _sender.Send(request.Items[index], ct).ConfigureAwait(false);
+                    var item = await _classifier.ApplyAsync(request.Items[index], ct).ConfigureAwait(false);
+                    var response = await _sender.Send(item, ct).ConfigureAwait(false);
                     rows.Add(TransactionImportErrors.Success(index, response));
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -40,7 +43,8 @@ public sealed class CommitTransactionImportCommandHandler
         {
             try
             {
-                var response = await _sender.Send(request.Items[index], cancellationToken)
+                var item = await _classifier.ApplyAsync(request.Items[index], cancellationToken).ConfigureAwait(false);
+                var response = await _sender.Send(item, cancellationToken)
                     .ConfigureAwait(false);
                 rows.Add(TransactionImportErrors.Success(index, response));
             }

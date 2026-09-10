@@ -26,6 +26,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<FileAttachment> FileAttachments => Set<FileAttachment>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<EntityTag> EntityTags => Set<EntityTag>();
+    public DbSet<TransactionClassificationRule> TransactionClassificationRules => Set<TransactionClassificationRule>();
 
     public DbSet<FinSource> FinSources => Set<FinSource>();
     public DbSet<FinCategory> FinCategories => Set<FinCategory>();
@@ -41,6 +42,9 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<FinSaving> FinSavings => Set<FinSaving>();
     public DbSet<FinInvestment> FinInvestments => Set<FinInvestment>();
     public DbSet<FinInvestmentTxn> FinInvestmentTxns => Set<FinInvestmentTxn>();
+    public DbSet<FinCategoryBudget> FinCategoryBudgets => Set<FinCategoryBudget>();
+    public DbSet<FinBudgetAlertState> FinBudgetAlertStates => Set<FinBudgetAlertState>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     public DbSet<FinTransactionHistory> FinTransactionHistory => Set<FinTransactionHistory>();
     public DbSet<FinSourceHistory> FinSourceHistory => Set<FinSourceHistory>();

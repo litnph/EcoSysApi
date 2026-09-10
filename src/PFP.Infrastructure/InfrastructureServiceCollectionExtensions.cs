@@ -29,9 +29,13 @@ public static class InfrastructureServiceCollectionExtensions
         else
             services.AddDistributedMemoryCache();
 
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException(
-                "ConnectionStrings:Default is not configured. Set it via appsettings or DATABASE_URL.");
+        var connectionString = configuration.GetConnectionString("Default");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:Default is not configured. Set it in appsettings " +
+                "or via the ConnectionStrings__Default environment variable.");
+        }
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -66,10 +70,10 @@ public static class InfrastructureServiceCollectionExtensions
 
     private static void ConfigureAppDbContext(DbContextOptionsBuilder options, string connectionString)
     {
-        options.UseNpgsql(connectionString, npgsql =>
+        options.UseSqlServer(connectionString, sql =>
         {
-            npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-            npgsql.EnableRetryOnFailure(maxRetryCount: 3);
+            sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+            sql.EnableRetryOnFailure(maxRetryCount: 3);
         });
     }
 }

@@ -138,6 +138,82 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
     }
 
     [Fact]
+    public async Task New_transaction_in_a_closed_month_is_created_unassigned_and_can_be_deleted()
+    {
+        using var client = _fixture.CreateClient();
+        var harness = await FinanceTestHarness.SeedAndLoginAsync(_fixture, client, 10_000m, 500m);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", harness.AccessToken);
+
+        DateOnly transactionDate;
+        Guid closedPeriodId;
+        await using (var scope = _fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var occupiedPeriods = await db.FinMonthlyPeriods
+                .AsNoTracking()
+                .Select(period => new { period.Year, period.Month })
+                .ToListAsync();
+            transactionDate = Enumerable
+                .Range(2000, FinanceBusinessCalendar.Today.Year - 2000)
+                .SelectMany(year => Enumerable.Range(1, 12).Select(month => new DateOnly(year, month, 1)))
+                .First(candidate => occupiedPeriods.All(
+                    period => period.Year != candidate.Year || period.Month != candidate.Month));
+
+            var closedPeriod = new FinMonthlyPeriod
+            {
+                Year = transactionDate.Year,
+                Month = transactionDate.Month,
+                Status = PeriodStatus.Closed,
+                ClosedAt = DateTime.UtcNow,
+            };
+            db.FinMonthlyPeriods.Add(closedPeriod);
+            await db.SaveChangesAsync();
+            closedPeriodId = closedPeriod.Id;
+        }
+
+        var response = await client.PostAsJsonAsync(
+            "api/v1/finance/transactions",
+            new CreateTransactionWire(
+                "direct",
+                100,
+                harness.SourceAId,
+                harness.ExpenseCategoryId,
+                transactionDate,
+                null,
+                closedPeriodId,
+                null),
+            FinanceApiWireJson.Web);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var transactionId = await FinanceApiWireJson.ReadTransactionIdFromCreateResponseAsync(response);
+
+        await using var verificationScope = _fixture.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var monthlyPeriodId = await verificationDb.FinTransactions
+            .AsNoTracking()
+            .Where(transaction => transaction.Id == transactionId)
+            .Select(transaction => transaction.MonthlyPeriodId)
+            .SingleAsync();
+        Assert.Null(monthlyPeriodId);
+
+        var deleteResponse = await client.SendAsync(new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"api/v1/finance/transactions/{transactionId}")
+        {
+            Content = JsonContent.Create(new { reason = "Delete transaction dated in a closed month" }),
+        });
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+        var isDeleted = await verificationDb.FinTransactions
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(transaction => transaction.Id == transactionId)
+            .Select(transaction => transaction.IsDeleted)
+            .SingleAsync();
+        Assert.True(isDeleted);
+    }
+
+    [Fact]
     public async Task Upload_limit_cannot_be_raised_by_the_client()
     {
         using var client = _fixture.CreateClient();
@@ -194,6 +270,11 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
             usdSourceId = usdSource.Id;
         }
 
+        // With the default reporting day (1), a target month contains direct
+        // transactions from the first of the previous month up to (but not
+        // including) the first of the target month.
+        var directTransactionDate = reportDate.AddMonths(-1);
+
         foreach (var row in new[]
                  {
                      new { SourceId = harness.SourceAId, Amount = 100L },
@@ -208,7 +289,7 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
                     amount = row.Amount,
                     sourceId = row.SourceId,
                     categoryId = harness.ExpenseCategoryId,
-                    txnDate = reportDate,
+                    txnDate = directTransactionDate,
                     description = "Currency partition test",
                     clientRequestId = Guid.NewGuid(),
                 },

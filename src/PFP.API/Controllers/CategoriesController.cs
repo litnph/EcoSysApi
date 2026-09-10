@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using PFP.API.Models;
 using PFP.Application.Features.Categories.CreateCategory;
 using PFP.Application.Features.Categories.DeleteCategory;
@@ -26,7 +27,7 @@ public sealed class CategoriesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<GetCategoriesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetCategoriesResponse>>> GetTree(
-        [FromQuery(Name = "kind")] CategoryKind kind,
+        [FromQuery(Name = "kind"), BindRequired] CategoryKind kind,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetCategoriesQuery(kind), cancellationToken).ConfigureAwait(false);
@@ -37,7 +38,7 @@ public sealed class CategoriesController : ControllerBase
     [HttpGet("flat")]
     [ProducesResponseType(typeof(ApiResponse<GetFlatCategoriesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<GetFlatCategoriesResponse>>> GetFlat(
-        [FromQuery(Name = "kind")] CategoryKind kind,
+        [FromQuery(Name = "kind"), BindRequired] CategoryKind kind,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetFlatCategoriesQuery(kind), cancellationToken).ConfigureAwait(false);

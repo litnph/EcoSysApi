@@ -4,6 +4,7 @@ using PFP.Application.Common;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.InstallmentPlans.Common;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
@@ -15,12 +16,17 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
     /// <summary>Creates the handler.</summary>
-    public CreateInstallmentPlanCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public CreateInstallmentPlanCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     /// <inheritdoc />
@@ -122,6 +128,10 @@ public sealed class CreateInstallmentPlanCommandHandler : IRequestHandler<Create
                 plan.Status = InstallmentStatus.Completed;
 
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await _budgetAlerts.EvaluateCurrentCycleAsync(
+                    _currentUser.UserId.Value,
+                    cancellationToken)
+                .ConfigureAwait(false);
             await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
             return plan.Id;

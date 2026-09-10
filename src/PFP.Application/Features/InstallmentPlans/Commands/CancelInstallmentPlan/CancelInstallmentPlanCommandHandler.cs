@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common;
 using PFP.Application.Common.Interfaces;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
@@ -13,12 +14,17 @@ public sealed class CancelInstallmentPlanCommandHandler : IRequestHandler<Cancel
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
     /// <summary>Creates the handler.</summary>
-    public CancelInstallmentPlanCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public CancelInstallmentPlanCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     /// <inheritdoc />
@@ -50,6 +56,10 @@ plan.Status = InstallmentStatus.Cancelled;
         }
 
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await _budgetAlerts.EvaluateCurrentCycleAsync(
+                _currentUser.UserId.Value,
+                ct)
+            .ConfigureAwait(false);
         }, cancellationToken).ConfigureAwait(false);
 
         return Unit.Value;

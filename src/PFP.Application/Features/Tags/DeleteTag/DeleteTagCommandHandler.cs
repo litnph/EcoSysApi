@@ -35,6 +35,11 @@ public sealed class DeleteTagCommandHandler : IRequestHandler<DeleteTagCommand, 
         if (anyActiveLink)
             throw new BusinessRuleException("Only tags without active assignments can be deleted.");
 
+        if (await _db.TransactionClassificationRules.AnyAsync(
+                rule => rule.TagId == tag.Id,
+                cancellationToken).ConfigureAwait(false))
+            throw new BusinessRuleException("Cannot delete a tag used by a classification rule.");
+
         _db.Tags.Remove(tag);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Unit.Value;

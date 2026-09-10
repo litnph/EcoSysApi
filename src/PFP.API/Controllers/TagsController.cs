@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using PFP.API.Models;
 using PFP.Application.Features.Tags.AddTagToEntity;
 using PFP.Application.Features.Tags.Common;
@@ -83,8 +84,8 @@ public sealed class TagsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> Detach(
         Guid id,
-        [FromQuery(Name = "entity_type")] string entityType,
-        [FromQuery(Name = "entity_id")] Guid entityId,
+        [FromQuery(Name = "entity_type"), BindRequired] string entityType,
+        [FromQuery(Name = "entity_id"), BindRequired] Guid entityId,
         CancellationToken cancellationToken)
     {
         await _mediator.Send(new RemoveTagFromEntityCommand(id, entityType, entityId), cancellationToken).ConfigureAwait(false);

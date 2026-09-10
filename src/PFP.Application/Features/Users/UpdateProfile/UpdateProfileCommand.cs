@@ -12,7 +12,8 @@ public sealed record UpdateProfileCommand(
     string LanguageCode,
     string Timezone,
     string DateFormat,
-    string Theme) : IRequest<UpdateProfileResponse>;
+    string Theme,
+    int? MonthlyReportDay) : IRequest<UpdateProfileResponse>;
 
 /// <summary>Response wrapper.</summary>
 public sealed record UpdateProfileResponse(UserProfileDto Profile);

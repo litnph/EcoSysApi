@@ -14,7 +14,6 @@ using PFP.Infrastructure.Identity;
 using PFP.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddRenderDatabaseUrl();
 builder.AddRenderEnvironmentAliases();
 builder.AddRenderJwtFallback();
 builder.AddFrontendCors();
@@ -75,13 +74,9 @@ var isRender = string.Equals(
     Environment.GetEnvironmentVariable("RENDER"),
     "true",
     StringComparison.OrdinalIgnoreCase);
-var swaggerEnabled = app.Environment.IsDevelopment()
-    || app.Configuration.GetValue("Swagger:Enabled", false)
-    || isRender;
+const bool swaggerEnabled = true;
 var databaseConfigured = !string.IsNullOrWhiteSpace(
     app.Configuration.GetConnectionString("Default"));
-var databaseConfigurationSource = app.Configuration["Database:ConfigurationSource"]
-    ?? "unknown";
 
 if (app.Configuration.GetValue("Jwt:UsesEphemeralSecret", false))
 {
@@ -93,8 +88,8 @@ if (app.Configuration.GetValue("Jwt:UsesEphemeralSecret", false))
 if (!databaseConfigured)
 {
     app.Logger.LogError(
-        "Database connection is not configured. Add DATABASE_URL or ConnectionStrings__Default " +
-        "as a runtime environment variable on Render.");
+        "Database connection is not configured. Set ConnectionStrings:Default in appsettings " +
+        "or ConnectionStrings__Default as an environment variable.");
 }
 
 // Render terminates TLS at its edge. Resolve the original scheme/client before
@@ -171,7 +166,7 @@ app.MapGet("/", () => Results.Ok(new
         service = "PFP.API",
         status = databaseConfigured ? "healthy" : "degraded",
         database = databaseConfigured ? "configured" : "not_configured",
-        databaseConfigurationSource,
+        databaseConfigurationKey = "ConnectionStrings:Default",
         swagger = swaggerEnabled ? "/swagger" : null,
     }))
     .AllowAnonymous();

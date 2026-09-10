@@ -5,7 +5,10 @@ using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.BillingCycles.Common;
 using PFP.Application.Features.Transactions.Common;
+using PFP.Application.Features.MonthlyPeriods.Common;
+using PFP.Application.Features.Notifications.Common;
 using PFP.Domain.Entities;
+using PFP.Domain.Entities.Finance;
 using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Transactions.DeleteTransaction;
@@ -18,12 +21,17 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetAlertEvaluator _budgetAlerts;
 
     /// <summary>Creates the handler.</summary>
-    public DeleteTransactionCommandHandler(IApplicationDbContext db, ICurrentUserService currentUser)
+    public DeleteTransactionCommandHandler(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IBudgetAlertEvaluator budgetAlerts)
     {
         _db = db;
         _currentUser = currentUser;
+        _budgetAlerts = budgetAlerts;
     }
 
     /// <inheritdoc cref="IRequestHandler{DeleteTransactionCommand, DeleteTransactionResponse}.Handle" />
@@ -42,10 +50,11 @@ public sealed class DeleteTransactionCommandHandler : IRequestHandler<DeleteTran
 
         OptimisticConcurrencyGuard.Ensure(orig.Version, request.ExpectedVersion);
 
-        await PostingPeriodPolicy
-            .EnsureExistingTransactionMutableAsync(_db, orig, cancellationToken)
+        await TransactionDeletePolicy
+            .EnsureCanDeleteAsync(_db, orig.Id, cancellationToken)
             .ConfigureAwait(false);
-FinTransaction? partner = null;
+
+        FinTransaction? partner = null;
         if (orig.Type == TransactionType.Transfer)
         {
             if (orig.RefTxnId is null)
@@ -77,6 +86,27 @@ FinTransaction? partner = null;
         await strategy.ExecuteAsync(async () =>
         {
             await using var dbTx = await _db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            var activeItem = await _db.FinBillingCycleItems
+                .FirstOrDefaultAsync(
+                    i => i.TransactionId == orig.Id && i.RemovedAt == null,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            FinBillingCycle? activeCycle = null;
+            if (activeItem is not null)
+            {
+                activeCycle = await _db.FinBillingCycles
+                    .FirstOrDefaultAsync(
+                        c => c.Id == activeItem.BillingCycleId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (activeCycle is null || activeCycle.Status != BillingCycleStatus.Open)
+                    throw new BusinessRuleException(
+                        "Không thể xóa giao dịch thuộc kỳ sao kê đã khóa.");
+
+                activeItem.RemovedAt = utcNow;
+                activeItem.UpdatedAt = utcNow;
+            }
 
             orig.IsDeleted = true;
             orig.DeletedAt = utcNow;
@@ -136,27 +166,23 @@ FinTransaction? partner = null;
                 UpdatedAt = auditNow,
             });
 
-            var activeItem = await _db.FinBillingCycleItems
-                .FirstOrDefaultAsync(
-                    i => i.TransactionId == orig.Id && i.RemovedAt == null,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            // Persist the soft-delete/item removal first so the aggregate query
+            // below sees the new state. The surrounding DB transaction keeps the
+            // whole operation atomic if recalculation fails.
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            if (activeItem is not null)
+            if (activeCycle is not null)
             {
-                var bc = await _db.FinBillingCycles
-                    .FirstOrDefaultAsync(c => c.Id == activeItem.BillingCycleId, cancellationToken)
+                await BillingCycleTotals.RecalculateAsync(activeCycle, _db, cancellationToken)
                     .ConfigureAwait(false);
-                if (bc is not null && bc.Status == BillingCycleStatus.Open)
-                {
-                    activeItem.RemovedAt = DateTime.UtcNow;
-                    activeItem.UpdatedAt = DateTime.UtcNow;
-                    await BillingCycleTotals.RecalculateAsync(bc, _db, cancellationToken)
-                        .ConfigureAwait(false);
-                }
+                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            if (orig.Type == TransactionType.Direct)
+            {
+                await _budgetAlerts.EvaluateCurrentCycleAsync(userId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
             await dbTx.CommitAsync(cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 

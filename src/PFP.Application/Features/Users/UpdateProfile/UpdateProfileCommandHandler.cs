@@ -48,6 +48,8 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
         profile.Timezone = request.Timezone.Trim();
         profile.DateFormat = request.DateFormat.Trim();
         profile.Theme = request.Theme.Trim().ToLowerInvariant();
+        if (request.MonthlyReportDay is { } monthlyReportDay)
+            profile.MonthlyReportDay = monthlyReportDay;
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -60,6 +62,7 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
             profile.Timezone,
             profile.DateFormat,
             profile.Theme,
+            profile.MonthlyReportDay,
             profile.DisplayName,
             profile.PhoneNumber,
             profile.DateOfBirth,

@@ -27,11 +27,15 @@ public sealed class GetCurrentMonthSummaryQueryHandler : IRequestHandler<GetCurr
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
         var today = FinanceBusinessCalendar.Today;
-        var year = today.Year;
-        var month = today.Month;
-
+        var userId = _currentUser.UserId.Value;
+        var reportDay = await MonthlyReportUserPreferences
+            .GetReportDayAsync(_db, userId, cancellationToken)
+            .ConfigureAwait(false);
+        var target = ReportingPeriodCalculator.TargetMonthContaining(today, reportDay);
+        var year = target.Year;
+        var month = target.Month;
         var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, year, month, cancellationToken)
+            .BuildReportAsync(_db, year, month, userId, reportDay, cancellationToken)
             .ConfigureAwait(false);
 
         var period = await _db.FinMonthlyPeriods

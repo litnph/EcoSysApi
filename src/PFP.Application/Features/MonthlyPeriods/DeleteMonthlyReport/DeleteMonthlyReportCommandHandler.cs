@@ -35,21 +35,19 @@ public sealed class DeleteMonthlyReportCommandHandler
         if (period is null || period.ReportCreatedAt is null)
             throw new NotFoundException("Monthly report was not found.");
 
-        if (period.Status == PeriodStatus.Closed)
-        {
-            var linkedTxns = await _db.FinTransactions
-                .Where(t => t.MonthlyPeriodId == period.Id && !t.IsDeleted)
-                .Include(t => t.Source)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+        var linkedTxns = await _db.FinTransactions
+            .Where(t => t.MonthlyPeriodId == period.Id && !t.IsDeleted)
+            .Include(t => t.Source)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-            foreach (var txn in linkedTxns)
-            {
-                txn.MonthlyPeriodId = null;
-                if (txn.Source.Type != SourceType.CreditCard
-                    && txn.Status == TxnStatus.Completed)
-                    txn.Status = TxnStatus.New;
-            }
+        foreach (var txn in linkedTxns)
+        {
+            txn.MonthlyPeriodId = null;
+            if (period.Status == PeriodStatus.Closed
+                && txn.Source.Type != SourceType.CreditCard
+                && txn.Status == TxnStatus.Completed)
+                txn.Status = TxnStatus.New;
         }
 
         _db.FinMonthlyPeriods.Remove(period);

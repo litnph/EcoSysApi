@@ -14,8 +14,8 @@ namespace PFP.Application.Features.MonthlyPeriods.Common;
 /// </summary>
 internal static class MonthlyPeriodSummaryCalculator
 {
-    private const string FormulaVersion = "monthly-report-v2";
-    private const string MetricBasis = "income/direct by transaction date; card spend/installments by statement date";
+    private const string FormulaVersion = "monthly-report-v4-income-reporting-cycle";
+    private const string MetricBasis = "income and direct spend by user reporting cycle; card spend/installments by statement month";
 
     private static readonly JsonSerializerOptions JsonStoreOptions = new()
     {
@@ -36,6 +36,14 @@ internal static class MonthlyPeriodSummaryCalculator
             .AsNoTracking()
             .Where(t => t.TxnDate >= start && t.TxnDate <= end);
     }
+
+    /// <summary>Transactions in a reporting window using inclusive-start/exclusive-end semantics.</summary>
+    public static IQueryable<FinTransaction> ReportingPeriodTransactions(
+        IApplicationDbContext db,
+        ReportingPeriod period) =>
+        db.FinTransactions
+            .AsNoTracking()
+            .Where(t => t.TxnDate >= period.StartInclusive && t.TxnDate < period.EndExclusive);
 
     /// <summary>
     /// Direct payment toward a billing cycle — expense is captured in the billing-cycle section, not direct spend.
@@ -64,7 +72,15 @@ internal static class MonthlyPeriodSummaryCalculator
             int month,
             CancellationToken cancellationToken)
     {
-        var currencies = await GetReportCurrenciesAsync(db, year, month, cancellationToken)
+        var currencies = await MonthTransactions(db, year, month)
+            .Where(t => t.Type == TransactionType.Income
+                        || t.Type == TransactionType.Direct
+                        || t.Type == TransactionType.Deferred
+                        || t.Type == TransactionType.Split)
+            .Select(t => t.Currency)
+            .Distinct()
+            .OrderBy(currency => currency)
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         var currency = SelectPrimaryCurrency(currencies);
         var q = ReportExpenseTransactions(db, year, month)
@@ -162,9 +178,17 @@ internal static class MonthlyPeriodSummaryCalculator
         IApplicationDbContext db,
         int year,
         int month,
-        CancellationToken cancellationToken)
+        Guid userId,
+        int monthlyReportDay,
+        CancellationToken cancellationToken,
+        MonthlyReportTransactionOwnership.ReportIdentity? reportIdentity = null)
     {
-        var currencies = await GetReportCurrenciesAsync(db, year, month, cancellationToken)
+        var reportingPeriod = ReportingPeriodCalculator.ForTargetMonth(year, month, monthlyReportDay);
+        var excludedTransactionIds = await MonthlyReportTransactionOwnership
+            .GetExcludedTransactionIdsAsync(db, year, month, reportIdentity, cancellationToken)
+            .ConfigureAwait(false);
+        var currencies = await GetReportCurrenciesAsync(
+                db, year, month, reportingPeriod, userId, excludedTransactionIds, cancellationToken)
             .ConfigureAwait(false);
         if (currencies.Count == 0)
             currencies = ["VND"];
@@ -173,7 +197,8 @@ internal static class MonthlyPeriodSummaryCalculator
         foreach (var currency in currencies)
         {
             groups.Add(await BuildCurrencyGroupAsync(
-                    db, year, month, currency, cancellationToken)
+                    db, year, month, currency, reportingPeriod, userId, monthlyReportDay,
+                    excludedTransactionIds, cancellationToken)
                 .ConfigureAwait(false));
         }
 
@@ -194,7 +219,10 @@ internal static class MonthlyPeriodSummaryCalculator
                 MetricBasis,
                 primaryCurrency,
                 FinanceBusinessCalendar.TimeZoneId,
-                ConsolidatedTotalsAvailable: groups.Count == 1),
+                ConsolidatedTotalsAvailable: groups.Count == 1,
+                reportingPeriod.StartInclusive,
+                reportingPeriod.EndExclusive,
+                monthlyReportDay),
             groups);
     }
 
@@ -203,16 +231,20 @@ internal static class MonthlyPeriodSummaryCalculator
         int year,
         int month,
         string currency,
+        ReportingPeriod reportingPeriod,
+        Guid userId,
+        int monthlyReportDay,
+        IReadOnlySet<Guid> excludedTransactionIds,
         CancellationToken cancellationToken)
     {
         var directExpenses = await BuildDirectExpensesSectionAsync(
-                db, year, month, currency, cancellationToken)
+                db, reportingPeriod, currency, excludedTransactionIds, cancellationToken)
             .ConfigureAwait(false);
         var billingCycles = await BuildBillingCyclesSectionAsync(
                 db, year, month, currency, cancellationToken)
             .ConfigureAwait(false);
 
-        var income = await SumMonthIncomeAsync(db, year, month, currency, cancellationToken)
+        var income = await SumReportingPeriodIncomeAsync(db, reportingPeriod, currency, cancellationToken)
             .ConfigureAwait(false);
         var reportExpenseLong = directExpenses.TotalAmount + billingCycles.TotalAmount;
         var reportExpense = CurrencyUnits.FromWhole(reportExpenseLong);
@@ -227,17 +259,28 @@ internal static class MonthlyPeriodSummaryCalculator
         var topTxns = BuildReportTopTransactions(directExpenses, billingCycles);
 
         var prev = PrevMonth(year, month);
+        var previousPeriod = ReportingPeriodCalculator.ForTargetMonth(prev.Year, prev.Month, monthlyReportDay);
+        var previousExcludedTransactionIds = await MonthlyReportTransactionOwnership
+            .GetExcludedTransactionIdsAsync(
+                db,
+                prev.Year,
+                prev.Month,
+                identity: null,
+                cancellationToken)
+            .ConfigureAwait(false);
         var previousCurrencies = await GetReportCurrenciesAsync(
-                db, prev.Year, prev.Month, cancellationToken)
+                db, prev.Year, prev.Month, previousPeriod, userId,
+                previousExcludedTransactionIds, cancellationToken)
             .ConfigureAwait(false);
         var comparison = previousCurrencies.Contains(currency, StringComparer.Ordinal)
             ? await BuildPreviousMonthComparisonAsync(
-                    db, prev.Year, prev.Month, currency, income, reportExpense, net, cancellationToken)
+                    db, prev.Year, prev.Month, currency, previousPeriod,
+                    previousExcludedTransactionIds, income, reportExpense, net, cancellationToken)
                 .ConfigureAwait(false)
             : new MonthOverMonthComparisonDto(null, null, null);
 
         var dailyListResolved = await BuildReportDailyBreakdownAsync(
-                db, year, month, currency, directExpenses, billingCycles, cancellationToken)
+                db, year, month, currency, reportingPeriod, directExpenses, billingCycles, cancellationToken)
             .ConfigureAwait(false);
 
         var summary = new MonthlyReportSummaryDto(
@@ -262,13 +305,22 @@ internal static class MonthlyPeriodSummaryCalculator
         IApplicationDbContext db,
         int year,
         int month,
+        ReportingPeriod reportingPeriod,
+        Guid userId,
+        IReadOnlySet<Guid> excludedTransactionIds,
         CancellationToken cancellationToken)
     {
-        var transactionCurrencies = await MonthTransactions(db, year, month)
-            .Where(t => t.Type == TransactionType.Income
-                        || t.Type == TransactionType.Direct
-                        || t.Type == TransactionType.Deferred
-                        || t.Type == TransactionType.Split)
+        var incomeCurrencies = await ReportingPeriodTransactions(db, reportingPeriod)
+            .Where(t => t.Type == TransactionType.Income)
+            .Select(t => t.Currency)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var directCurrencies = await ExcludeBillingCyclePaymentTxns(
+                ReportingPeriodTransactions(db, reportingPeriod))
+            .Where(t => t.Type == TransactionType.Direct
+                        && !excludedTransactionIds.Contains(t.Id))
             .Select(t => t.Currency)
             .Distinct()
             .ToListAsync(cancellationToken)
@@ -282,8 +334,18 @@ internal static class MonthlyPeriodSummaryCalculator
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return transactionCurrencies
+        var budgetCurrencies = await db.FinCategoryBudgets
+            .AsNoTracking()
+            .Where(b => b.UserId == userId && b.IsEnabled)
+            .Select(b => b.Currency)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return incomeCurrencies
+            .Concat(directCurrencies)
             .Concat(statementCurrencies)
+            .Concat(budgetCurrencies)
             .Where(currency => !string.IsNullOrWhiteSpace(currency))
             .Select(currency => currency.Trim().ToUpperInvariant())
             .Distinct(StringComparer.Ordinal)
@@ -301,15 +363,18 @@ internal static class MonthlyPeriodSummaryCalculator
         int year,
         int month,
         string currency,
+        ReportingPeriod reportingPeriod,
+        IReadOnlySet<Guid> excludedTransactionIds,
         decimal currentIncome,
         decimal currentExpense,
         decimal currentNet,
         CancellationToken cancellationToken)
     {
-        var previousIncome = await SumMonthIncomeAsync(db, year, month, currency, cancellationToken)
+        var previousIncome = await SumReportingPeriodIncomeAsync(
+                db, reportingPeriod, currency, cancellationToken)
             .ConfigureAwait(false);
         var previousDirect = await BuildDirectExpensesSectionAsync(
-                db, year, month, currency, cancellationToken)
+                db, reportingPeriod, currency, excludedTransactionIds, cancellationToken)
             .ConfigureAwait(false);
         var previousBilling = await BuildBillingCyclesSectionAsync(
                 db, year, month, currency, cancellationToken)
@@ -332,13 +397,12 @@ internal static class MonthlyPeriodSummaryCalculator
             Percent(currentNet, previousNet));
     }
 
-    private static async Task<decimal> SumMonthIncomeAsync(
+    private static async Task<decimal> SumReportingPeriodIncomeAsync(
         IApplicationDbContext db,
-        int year,
-        int month,
+        ReportingPeriod reportingPeriod,
         string currency,
         CancellationToken cancellationToken) =>
-        await MonthTransactions(db, year, month)
+        await ReportingPeriodTransactions(db, reportingPeriod)
             .Where(t => t.Type == TransactionType.Income && t.Currency == currency)
             .SumAsync(t => (decimal?)t.Amount, cancellationToken)
             .ConfigureAwait(false) ?? 0m;
@@ -419,11 +483,12 @@ internal static class MonthlyPeriodSummaryCalculator
         int year,
         int month,
         string currency,
+        ReportingPeriod reportingPeriod,
         MonthlyReportDirectExpenseSectionDto direct,
         MonthlyReportBillingCyclesSectionDto billing,
         CancellationToken cancellationToken)
     {
-        var q = MonthTransactions(db, year, month);
+        var q = ReportingPeriodTransactions(db, reportingPeriod);
         var incomeRows = await q
             .Where(t => t.Type == TransactionType.Income && t.Currency == currency)
             .Select(t => new { t.TxnDate, t.Amount })
@@ -438,11 +503,17 @@ internal static class MonthlyPeriodSummaryCalculator
             .GroupBy(c => c.StatementDate)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.TotalAmount));
 
-        var daysInMonth = DateTime.DaysInMonth(year, month);
-        var dailyList = new List<DailyCashflowDto>(daysInMonth);
-        for (var d = 1; d <= daysInMonth; d++)
+        var calendarStart = new DateOnly(year, month, 1);
+        var calendarEndExclusive = calendarStart.AddMonths(1);
+        var gridStart = reportingPeriod.StartInclusive < calendarStart
+            ? reportingPeriod.StartInclusive
+            : calendarStart;
+        var gridEndExclusive = reportingPeriod.EndExclusive > calendarEndExclusive
+            ? reportingPeriod.EndExclusive
+            : calendarEndExclusive;
+        var dailyList = new List<DailyCashflowDto>(gridEndExclusive.DayNumber - gridStart.DayNumber);
+        for (var date = gridStart; date < gridEndExclusive; date = date.AddDays(1))
         {
-            var date = new DateOnly(year, month, d);
             var incomeD = incomeRows.Where(r => r.TxnDate == date).Sum(r => r.Amount);
             var expD = directByDay.GetValueOrDefault(date) + statementsByDay.GetValueOrDefault(date);
             dailyList.Add(new DailyCashflowDto(
@@ -507,13 +578,13 @@ internal static class MonthlyPeriodSummaryCalculator
 
     private static async Task<MonthlyReportDirectExpenseSectionDto> BuildDirectExpensesSectionAsync(
         IApplicationDbContext db,
-        int year,
-        int month,
+        ReportingPeriod reportingPeriod,
         string currency,
+        IReadOnlySet<Guid> excludedTransactionIds,
         CancellationToken cancellationToken)
     {
         var items = await (
-                from t in ExcludeBillingCyclePaymentTxns(MonthTransactions(db, year, month))
+                from t in ExcludeBillingCyclePaymentTxns(ReportingPeriodTransactions(db, reportingPeriod))
                 join s in db.FinSources.AsNoTracking() on t.SourceId equals s.Id
                 join c in db.FinCategories.AsNoTracking() on t.CategoryId equals c.Id into cj
                 from c in cj.DefaultIfEmpty()
@@ -521,6 +592,7 @@ internal static class MonthlyPeriodSummaryCalculator
                       && t.Type != TransactionType.Reversal
                       && t.Type == TransactionType.Direct
                       && t.Currency == currency
+                      && !excludedTransactionIds.Contains(t.Id)
                 orderby t.TxnDate descending, t.CreatedAt descending
                 select new MonthlyReportDirectExpenseItemDto(
                     t.Id,
@@ -573,7 +645,8 @@ internal static class MonthlyPeriodSummaryCalculator
             : await db.FinTransactions
                 .AsNoTracking()
                 .Include(t => t.Category)
-                .Where(t => txnIds.Contains(t.Id) && !t.IsDeleted)
+                .Where(t => txnIds.Contains(t.Id)
+                            && !t.IsDeleted)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
