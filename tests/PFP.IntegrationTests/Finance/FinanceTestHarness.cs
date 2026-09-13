@@ -15,7 +15,8 @@ internal static class FinanceTestHarness
         WebApplicationFactory<Program> factory,
         HttpClient client,
         decimal sourceABalance = 1000m,
-        decimal sourceBBalance = 500m)
+        decimal sourceBBalance = 500m,
+        UserRole role = UserRole.Member)
     {
         const string password = "TestPass123!";
         var email = $"it-{Guid.NewGuid():N}@integration.test";
@@ -34,7 +35,7 @@ internal static class FinanceTestHarness
                 Email = email,
                 FullName = "Integration User",
                 PasswordHash = hasher.Hash(password),
-                Role = UserRole.Member,
+                Role = role,
                 IsActive = true,
             });
 

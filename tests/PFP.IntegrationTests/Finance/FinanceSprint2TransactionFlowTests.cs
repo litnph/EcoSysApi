@@ -306,22 +306,158 @@ public sealed class FinanceSprint2TransactionFlowTests : IClassFixture<Integrati
         db.FinSources.Add(card);
         db.FinTransactions.Add(charge);
         db.FinInstallmentPlans.Add(plan);
-        db.FinInstallmentPays.Add(new FinInstallmentPay
+        for (var installmentNumber = 1; installmentNumber <= 10; installmentNumber++)
         {
-            PlanId = plan.Id,
-            InstallmentNumber = 1,
-            StatementDate = new DateOnly(2026, 1, 20),
-            DueDate = new DateOnly(2026, 2, 4),
-            Amount = 100m,
-            PaidAmount = 0m,
-            Status = InstallmentPayStatus.Paid,
-            TxnId = null,
-        });
+            db.FinInstallmentPays.Add(new FinInstallmentPay
+            {
+                PlanId = plan.Id,
+                InstallmentNumber = installmentNumber,
+                StatementDate = new DateOnly(2026, 1, 20).AddMonths(installmentNumber - 1),
+                DueDate = new DateOnly(2026, 2, 4).AddMonths(installmentNumber - 1),
+                Amount = 100m,
+                PaidAmount = 0m,
+                Status = installmentNumber == 1
+                    ? InstallmentPayStatus.Paid
+                    : InstallmentPayStatus.Upcoming,
+                TxnId = null,
+            });
+        }
         await db.SaveChangesAsync();
 
         var calculator = scope.ServiceProvider.GetRequiredService<IBalanceCalculator>();
         var computed = await calculator.PreviewAsync(card.Id);
 
         Assert.Equal(900m, computed);
+    }
+
+    [Fact]
+    public async Task Recalculate_credit_card_combines_open_spend_with_remaining_installments()
+    {
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var card = new FinSource
+        {
+            Name = $"Mixed card {Guid.NewGuid():N}",
+            Type = SourceType.CreditCard,
+            Balance = 800m,
+            Currency = "VND",
+            CreditLimit = 10_000m,
+            StatementDay = 20,
+            PaymentDueDay = 15,
+        };
+        var settledSpend = new FinTransaction
+        {
+            Type = TransactionType.Deferred,
+            Status = TxnStatus.New,
+            Amount = 500m,
+            Currency = "VND",
+            TxnDate = new DateOnly(2026, 7, 10),
+            SourceId = card.Id,
+            Description = "Legacy item in a paid statement",
+        };
+        var openSpend = new FinTransaction
+        {
+            Type = TransactionType.Deferred,
+            Status = TxnStatus.New,
+            Amount = 300m,
+            Currency = "VND",
+            TxnDate = new DateOnly(2026, 8, 10),
+            SourceId = card.Id,
+            Description = "Current open spend",
+        };
+        var installmentCharge = new FinTransaction
+        {
+            Type = TransactionType.Deferred,
+            Status = TxnStatus.TransferredToInstallment,
+            Amount = 1_000m,
+            Currency = "VND",
+            TxnDate = new DateOnly(2026, 5, 10),
+            SourceId = card.Id,
+            Description = "Installment principal",
+        };
+        var legacyTransfer = new FinTransaction
+        {
+            Type = TransactionType.Transfer,
+            Status = TxnStatus.Completed,
+            Amount = -400m,
+            Currency = "VND",
+            TxnDate = new DateOnly(2026, 7, 20),
+            SourceId = card.Id,
+            Description = "Legacy installment conversion leg",
+        };
+        var legacyCorrection = new FinTransaction
+        {
+            Type = TransactionType.Income,
+            Status = TxnStatus.New,
+            Amount = 200m,
+            Currency = "VND",
+            TxnDate = new DateOnly(2026, 8, 20),
+            SourceId = card.Id,
+            Description = "Legacy balance correction",
+        };
+        var plan = new FinInstallmentPlan
+        {
+            OriginalTxnId = installmentCharge.Id,
+            SourceId = card.Id,
+            TotalAmount = installmentCharge.Amount,
+            TotalMonths = 4,
+            MonthlyAmount = 250m,
+            StartDate = installmentCharge.TxnDate,
+            Status = InstallmentStatus.Active,
+        };
+        var paidCycle = new FinBillingCycle
+        {
+            SourceId = card.Id,
+            Name = "Paid statement",
+            PeriodStart = new DateOnly(2026, 6, 20),
+            PeriodEnd = new DateOnly(2026, 7, 19),
+            StatementDate = new DateOnly(2026, 7, 20),
+            PaymentDueDate = new DateOnly(2026, 8, 4),
+            TotalAmount = 750m,
+            PaidAmount = 750m,
+            Status = BillingCycleStatus.Paid,
+            PaidAt = DateTime.UtcNow,
+        };
+
+        db.FinSources.Add(card);
+        db.FinTransactions.AddRange(
+            settledSpend,
+            openSpend,
+            installmentCharge,
+            legacyTransfer,
+            legacyCorrection);
+        db.FinInstallmentPlans.Add(plan);
+        db.FinBillingCycles.Add(paidCycle);
+        db.FinBillingCycleItems.Add(new FinBillingCycleItem
+        {
+            BillingCycleId = paidCycle.Id,
+            TransactionId = settledSpend.Id,
+            InclusionSource = BillingCycleItemInclusionSource.Refresh,
+        });
+
+        for (var installmentNumber = 1; installmentNumber <= 4; installmentNumber++)
+        {
+            var statementDate = new DateOnly(2026, 6, 20).AddMonths(installmentNumber - 1);
+            db.FinInstallmentPays.Add(new FinInstallmentPay
+            {
+                PlanId = plan.Id,
+                InstallmentNumber = installmentNumber,
+                StatementDate = statementDate,
+                DueDate = statementDate.AddDays(15),
+                Amount = 250m,
+                PaidAmount = installmentNumber <= 2 ? 250m : 0m,
+                Status = installmentNumber <= 2
+                    ? InstallmentPayStatus.Paid
+                    : InstallmentPayStatus.Upcoming,
+            });
+        }
+
+        await db.SaveChangesAsync();
+
+        var calculator = scope.ServiceProvider.GetRequiredService<IBalanceCalculator>();
+        var computed = await calculator.PreviewAsync(card.Id);
+
+        Assert.Equal(800m, computed);
     }
 }

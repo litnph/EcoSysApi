@@ -15,6 +15,7 @@ public interface IApplicationDbContext
     DbSet<Tag> Tags { get; }
     DbSet<EntityTag> EntityTags { get; }
     DbSet<TransactionClassificationRule> TransactionClassificationRules { get; }
+    DbSet<ImageImportTypeConfiguration> ImageImportTypeConfigurations { get; }
 
     DbSet<FinSource> FinSources { get; }
     DbSet<FinCategory> FinCategories { get; }

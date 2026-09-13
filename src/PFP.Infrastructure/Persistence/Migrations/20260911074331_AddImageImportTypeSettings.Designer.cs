@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PFP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PFP.Infrastructure.Persistence;
 namespace PFP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260911074331_AddImageImportTypeSettings")]
+    partial class AddImageImportTypeSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1904,50 +1907,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.ToTable("fin_txn_splits");
                 });
 
-            modelBuilder.Entity("PFP.Domain.Entities.ImageImportTypeConfiguration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)")
-                        .HasColumnName("display_name");
-
-                    b.Property<Guid?>("SourceId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("source_id");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
-                        .HasColumnName("type");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_image_import_type_settings");
-
-                    b.HasIndex("SourceId")
-                        .HasDatabaseName("ix_image_import_type_settings_source_id");
-
-                    b.HasIndex("Type")
-                        .IsUnique()
-                        .HasDatabaseName("ix_image_import_type_settings_type");
-
-                    b.ToTable("image_import_type_settings", (string)null);
-                });
-
             modelBuilder.Entity("PFP.Domain.Entities.Locale", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3066,6 +3025,10 @@ namespace PFP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("display_name");
 
+                    b.Property<string>("ImageImportTypeSettingsJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("image_import_type_settings_json");
+
                     b.Property<string>("LanguageCode")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -3575,17 +3538,6 @@ namespace PFP.Infrastructure.Persistence.Migrations
                     b.Navigation("SettledTransaction");
 
                     b.Navigation("Transaction");
-                });
-
-            modelBuilder.Entity("PFP.Domain.Entities.ImageImportTypeConfiguration", b =>
-                {
-                    b.HasOne("PFP.Domain.Entities.FinSource", "Source")
-                        .WithMany()
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_image_import_type_settings_fin_sources_source_id");
-
-                    b.Navigation("Source");
                 });
 
             modelBuilder.Entity("PFP.Domain.Entities.TransactionClassificationRule", b =>

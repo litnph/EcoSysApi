@@ -5,10 +5,9 @@ using PFP.Domain.Enums;
 namespace PFP.Application.Features.Sources.Common;
 
 /// <summary>
-/// Derives outstanding credit-card debt from charges, statement payments, and paid installment
-/// schedule lines. The installment status is the payment source of truth, including legacy paid
-/// lines that do not have a linked transaction. Installment amounts already included in a paid
-/// statement are de-duplicated so the same repayment is not applied twice.
+/// Derives outstanding credit-card debt from unsettled ordinary charges and unpaid installment
+/// schedule lines. Paid statement items are excluded as settled, while a plan's original charge is
+/// replaced by its remaining schedule so legacy inferred payments are never deducted twice.
 /// </summary>
 public static class CreditCardBalanceRules
 {
@@ -18,84 +17,61 @@ public static class CreditCardBalanceRules
         Guid sourceId,
         CancellationToken cancellationToken)
     {
-        var legs = await db.FinTransactions.AsNoTracking()
+        var installmentOriginIds = db.FinInstallmentPlans.AsNoTracking()
+            .Where(plan => plan.SourceId == sourceId)
+            .Select(plan => plan.OriginalTxnId);
+
+        var paidStatementTransactionIds =
+            from item in db.FinBillingCycleItems.AsNoTracking()
+            join cycle in db.FinBillingCycles.AsNoTracking()
+                on item.BillingCycleId equals cycle.Id
+            where cycle.SourceId == sourceId
+                  && cycle.Status == BillingCycleStatus.Paid
+                  && item.RemovedAt == null
+            select item.TransactionId;
+
+        // Card purchases normalize to Deferred. Keep explicit refunds and adjustments, but ignore
+        // legacy general Income/Transfer repair legs: their effect is already represented by the
+        // statement and installment state projected below.
+        var ordinaryLegs = await db.FinTransactions.AsNoTracking()
             .Where(t => t.SourceId == sourceId
                         && t.Status != TxnStatus.Cancelled
                         && t.Type != TransactionType.Reversal
-                        && !t.IsDeleted)
+                        && !t.IsDeleted
+                        && (t.Type == TransactionType.Deferred
+                            || t.Type == TransactionType.Direct
+                            || t.Type == TransactionType.BalanceAdjustment
+                            || (t.Type == TransactionType.Income
+                                && t.Purpose == TransactionPurpose.Refund))
+                        && !installmentOriginIds.Contains(t.Id)
+                        && !paidStatementTransactionIds.Contains(t.Id))
             .Select(t => new { t.Type, t.Amount })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
         var running = 0m;
-        foreach (var leg in legs)
+        foreach (var leg in ordinaryLegs)
             running = ApplyChargeLeg(running, leg.Type, leg.Amount);
 
-        var billingCycles = await db.FinBillingCycles.AsNoTracking()
-            .Where(c => c.SourceId == sourceId)
-            .Select(c => new
-            {
-                c.Id,
-                c.StatementDate,
-                c.TotalAmount,
-                c.PaidAmount,
-                c.Status,
-            })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var billingPaid = billingCycles.Sum(c => c.PaidAmount);
-        running -= billingPaid;
-
-        var paidInstallments = await (
+        var unpaidInstallments = await (
             from plan in db.FinInstallmentPlans.AsNoTracking()
-            where plan.SourceId == sourceId
+            where plan.SourceId == sourceId && plan.Status != InstallmentStatus.Cancelled
             from pay in plan.Pays
-            where pay.Status == InstallmentPayStatus.Paid
-            select new { pay.StatementDate, pay.Amount }
-        ).ToListAsync(cancellationToken).ConfigureAwait(false);
-
-        var statementItemTotals = await (
-            from cycle in db.FinBillingCycles.AsNoTracking()
-            where cycle.SourceId == sourceId
-            join item in db.FinBillingCycleItems.AsNoTracking()
-                on cycle.Id equals item.BillingCycleId
-            join txn in db.FinTransactions.AsNoTracking()
-                on item.TransactionId equals txn.Id
-            where item.RemovedAt == null && !txn.IsDeleted
-            group txn by cycle.Id
-            into grouped
-            select new
-            {
-                CycleId = grouped.Key,
-                Total = grouped.Sum(txn => txn.Amount),
-            }
-        ).ToDictionaryAsync(row => row.CycleId, row => row.Total, cancellationToken)
+            where pay.Status != InstallmentPayStatus.Paid
+            select pay.Amount
+        ).SumAsync(cancellationToken)
             .ConfigureAwait(false);
+        running += unpaidInstallments;
 
-        var paidInstallmentTotal = paidInstallments.Sum(pay => pay.Amount);
-
-        // A fully paid statement already reduces the card by PaidAmount. Its installment portion
-        // is TotalAmount minus ordinary transaction items, so add that overlap back before
-        // applying every Paid schedule line. This also supports legacy rows whose TxnId is null.
-        var statementCoveredInstallmentTotal = paidInstallments
-            .GroupBy(pay => new { pay.StatementDate.Year, pay.StatementDate.Month })
-            .Sum(monthPays =>
-            {
-                var paidScheduleAmount = monthPays.Sum(pay => pay.Amount);
-                var paidStatementInstallmentAmount = billingCycles
-                    .Where(cycle => cycle.Status == BillingCycleStatus.Paid
-                                    && cycle.StatementDate.Year == monthPays.Key.Year
-                                    && cycle.StatementDate.Month == monthPays.Key.Month)
-                    .Sum(cycle => Math.Max(
-                        0m,
-                        cycle.TotalAmount
-                        - statementItemTotals.GetValueOrDefault(cycle.Id, 0m)));
-
-                return Math.Min(paidScheduleAmount, paidStatementInstallmentAmount);
-            });
-
-        running -= paidInstallmentTotal - statementCoveredInstallmentTotal;
+        // A partially paid statement still owns its unsettled items, so only its posted payment is
+        // deducted. Fully paid statements were already removed through paidStatementTransactionIds,
+        // and their installment lines already carry Paid status.
+        var partialStatementPayments = await db.FinBillingCycles.AsNoTracking()
+            .Where(cycle => cycle.SourceId == sourceId
+                            && cycle.Status != BillingCycleStatus.Paid)
+            .SumAsync(cycle => cycle.PaidAmount, cancellationToken)
+            .ConfigureAwait(false);
+        running -= partialStatementPayments;
 
         return decimal.Round(Math.Max(0m, running), 2, MidpointRounding.ToEven);
     }

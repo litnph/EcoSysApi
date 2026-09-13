@@ -27,6 +27,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<EntityTag> EntityTags => Set<EntityTag>();
     public DbSet<TransactionClassificationRule> TransactionClassificationRules => Set<TransactionClassificationRule>();
+    public DbSet<ImageImportTypeConfiguration> ImageImportTypeConfigurations => Set<ImageImportTypeConfiguration>();
 
     public DbSet<FinSource> FinSources => Set<FinSource>();
     public DbSet<FinCategory> FinCategories => Set<FinCategory>();
