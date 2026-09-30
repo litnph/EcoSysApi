@@ -38,8 +38,8 @@ public sealed class RefreshMonthlyReportCommandHandler
             throw new BusinessRuleException("Closed monthly reports cannot be refreshed.");
 
         var userId = _currentUser.UserId.Value;
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, period.ReportSnapshot, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var report = await MonthlyPeriodSummaryCalculator
             .BuildReportAsync(
@@ -47,7 +47,8 @@ public sealed class RefreshMonthlyReportCommandHandler
                 request.Year,
                 request.Month,
                 userId,
-                reportDay,
+                preferences.ReportDay,
+                preferences.PeriodMode,
                 cancellationToken,
                 new MonthlyReportTransactionOwnership.ReportIdentity(
                     period.Id,

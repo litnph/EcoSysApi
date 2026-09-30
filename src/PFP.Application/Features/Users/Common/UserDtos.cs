@@ -25,6 +25,7 @@ public sealed record UserProfileDto(
     string DateFormat,
     string Theme,
     int MonthlyReportDay,
+    MonthlyReportPeriodMode MonthlyReportPeriodMode,
     string? DisplayName,
     string? PhoneNumber,
     DateOnly? DateOfBirth,

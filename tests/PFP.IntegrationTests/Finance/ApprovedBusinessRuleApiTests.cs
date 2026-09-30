@@ -416,6 +416,250 @@ public sealed class ApprovedBusinessRuleApiTests : IClassFixture<IntegrationTest
         Assert.Equal(TxnStatus.New, statuses[deferredTransactionId]);
     }
 
+    [Fact]
+    public async Task Upper_boundary_profile_setting_recalculates_an_open_monthly_report_window()
+    {
+        using var client = _fixture.CreateClient();
+        var harness = await FinanceTestHarness.SeedAndLoginAsync(_fixture, client, 10_000m, 500m);
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", harness.AccessToken);
+
+        DateOnly reportMonth;
+        await using (var scope = _fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var occupiedPeriods = await db.FinMonthlyPeriods
+                .AsNoTracking()
+                .Select(period => new { period.Year, period.Month })
+                .ToListAsync();
+            reportMonth = Enumerable
+                .Range(2000, FinanceBusinessCalendar.Today.Year - 2000)
+                .SelectMany(year => Enumerable.Range(1, 12)
+                    .Select(month => new DateOnly(year, month, 1)))
+                .First(candidate => occupiedPeriods.All(
+                    period => period.Year != candidate.Year || period.Month != candidate.Month));
+        }
+
+        async Task SetPeriodModeAsync(string mode)
+        {
+            var response = await client.PutAsJsonAsync(
+                "api/v1/user/profile",
+                new
+                {
+                    fullName = "Integration User",
+                    displayName = (string?)null,
+                    phoneNumber = (string?)null,
+                    dateOfBirth = (string?)null,
+                    languageCode = "vi",
+                    timezone = "Asia/Ho_Chi_Minh",
+                    dateFormat = "dd/MM/yyyy",
+                    theme = "system",
+                    monthlyReportDay = 1,
+                    monthlyReportPeriodMode = mode,
+                },
+                FinanceApiWireJson.Web);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var profileJson = await ReadJsonAsync(response);
+            Assert.Equal(
+                mode,
+                profileJson.RootElement
+                    .GetProperty("data")
+                    .GetProperty("profile")
+                    .GetProperty("monthlyReportPeriodMode")
+                    .GetString());
+        }
+
+        await SetPeriodModeAsync("lowerBoundary");
+
+        var transactionResponse = await client.PostAsJsonAsync(
+            "api/v1/finance/transactions",
+            new
+            {
+                type = "direct",
+                amount = 654L,
+                sourceId = harness.SourceAId,
+                categoryId = harness.ExpenseCategoryId,
+                txnDate = reportMonth.AddDays(5),
+                description = "Upper boundary report transaction",
+                clientRequestId = Guid.NewGuid(),
+            },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, transactionResponse.StatusCode);
+        var transactionId = await FinanceApiWireJson
+            .ReadTransactionIdFromCreateResponseAsync(transactionResponse);
+
+        var createReport = await client.PostAsJsonAsync(
+            "api/v1/finance/monthly-periods/reports",
+            new { year = reportMonth.Year, month = reportMonth.Month },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, createReport.StatusCode);
+
+        var lowerReportResponse = await client.GetAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/report");
+        Assert.Equal(HttpStatusCode.OK, lowerReportResponse.StatusCode);
+        using (var lowerReportJson = await ReadJsonAsync(lowerReportResponse))
+        {
+            var lowerReport = lowerReportJson.RootElement.GetProperty("data").GetProperty("report");
+            Assert.Equal(
+                "lowerBoundary",
+                lowerReport.GetProperty("metadata").GetProperty("monthlyReportPeriodMode").GetString());
+            Assert.DoesNotContain(
+                lowerReport.GetProperty("directExpenses").GetProperty("items").EnumerateArray(),
+                item => item.GetProperty("id").GetGuid() == transactionId);
+        }
+
+        await SetPeriodModeAsync("upperBoundary");
+        var refreshReport = await client.PostAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/refresh",
+            content: null);
+        Assert.Equal(HttpStatusCode.OK, refreshReport.StatusCode);
+
+        var upperReportResponse = await client.GetAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/report");
+        Assert.Equal(HttpStatusCode.OK, upperReportResponse.StatusCode);
+        using var reportJson = await ReadJsonAsync(upperReportResponse);
+        var report = reportJson.RootElement.GetProperty("data").GetProperty("report");
+        var metadata = report.GetProperty("metadata");
+        Assert.Equal("upperBoundary", metadata.GetProperty("monthlyReportPeriodMode").GetString());
+        Assert.Equal(
+            reportMonth,
+            DateOnly.FromDateTime(metadata.GetProperty("reportingPeriodStart").GetDateTime()));
+        Assert.Equal(
+            reportMonth.AddMonths(1),
+            DateOnly.FromDateTime(metadata.GetProperty("reportingPeriodEnd").GetDateTime()));
+        Assert.Contains(
+            report.GetProperty("directExpenses").GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("id").GetGuid() == transactionId);
+    }
+
+    [Fact]
+    public async Task Direct_transaction_can_be_added_after_report_rule_change_and_recreation()
+    {
+        using var client = _fixture.CreateClient();
+        var harness = await FinanceTestHarness.SeedAndLoginAsync(_fixture, client, 10_000m, 500m);
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", harness.AccessToken);
+
+        DateOnly reportMonth;
+        await using (var scope = _fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var occupiedPeriods = await db.FinMonthlyPeriods
+                .AsNoTracking()
+                .Select(period => new { period.Year, period.Month })
+                .ToListAsync();
+            reportMonth = Enumerable
+                .Range(2000, FinanceBusinessCalendar.Today.Year - 2000)
+                .SelectMany(year => Enumerable.Range(1, 12)
+                    .Select(month => new DateOnly(year, month, 1)))
+                .First(candidate => occupiedPeriods.All(
+                    period => period.Year != candidate.Year || period.Month != candidate.Month));
+        }
+
+        async Task SetReportDayAsync(int day)
+        {
+            var response = await client.PutAsJsonAsync(
+                "api/v1/user/profile",
+                new
+                {
+                    fullName = "Integration User",
+                    displayName = (string?)null,
+                    phoneNumber = (string?)null,
+                    dateOfBirth = (string?)null,
+                    languageCode = "vi",
+                    timezone = "Asia/Ho_Chi_Minh",
+                    dateFormat = "dd/MM/yyyy",
+                    theme = "system",
+                    monthlyReportDay = day,
+                },
+                FinanceApiWireJson.Web);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        await SetReportDayAsync(20);
+        var transactionResponse = await client.PostAsJsonAsync(
+            "api/v1/finance/transactions",
+            new
+            {
+                type = "direct",
+                amount = 321L,
+                sourceId = harness.SourceAId,
+                categoryId = harness.ExpenseCategoryId,
+                txnDate = reportMonth.AddDays(9),
+                description = "Manual monthly report membership",
+                clientRequestId = Guid.NewGuid(),
+            },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, transactionResponse.StatusCode);
+        var transactionId = await FinanceApiWireJson
+            .ReadTransactionIdFromCreateResponseAsync(transactionResponse);
+
+        var createWithDayTwenty = await client.PostAsJsonAsync(
+            "api/v1/finance/monthly-periods/reports",
+            new { year = reportMonth.Year, month = reportMonth.Month },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, createWithDayTwenty.StatusCode);
+
+        await SetReportDayAsync(1);
+        var deleteResponse = await client.DeleteAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}");
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+        var recreateWithDayOne = await client.PostAsJsonAsync(
+            "api/v1/finance/monthly-periods/reports",
+            new { year = reportMonth.Year, month = reportMonth.Month },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, recreateWithDayOne.StatusCode);
+
+        var addableResponse = await client.GetAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/addable-transactions");
+        Assert.Equal(HttpStatusCode.OK, addableResponse.StatusCode);
+        using (var addableJson = await ReadJsonAsync(addableResponse))
+        {
+            var candidateIds = addableJson.RootElement
+                .GetProperty("data")
+                .GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetGuid())
+                .ToList();
+            Assert.Contains(transactionId, candidateIds);
+        }
+
+        var addResponse = await client.PostAsJsonAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/items",
+            new { transactionId },
+            FinanceApiWireJson.Web);
+        Assert.Equal(HttpStatusCode.OK, addResponse.StatusCode);
+
+        var reportResponse = await client.GetAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/report");
+        Assert.Equal(HttpStatusCode.OK, reportResponse.StatusCode);
+        using (var reportJson = await ReadJsonAsync(reportResponse))
+        {
+            var directIds = reportJson.RootElement
+                .GetProperty("data")
+                .GetProperty("report")
+                .GetProperty("directExpenses")
+                .GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetGuid())
+                .ToList();
+            Assert.Contains(transactionId, directIds);
+        }
+
+        var candidatesAfterAdd = await client.GetAsync(
+            $"api/v1/finance/monthly-periods/{reportMonth.Year}/{reportMonth.Month}/addable-transactions");
+        candidatesAfterAdd.EnsureSuccessStatusCode();
+        using var afterAddJson = await ReadJsonAsync(candidatesAfterAdd);
+        Assert.DoesNotContain(
+            afterAddJson.RootElement
+                .GetProperty("data")
+                .GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetGuid()),
+            id => id == transactionId);
+    }
+
     private static object ImportItem(Guid key, FinanceTestHarness.FinanceHarness harness, long amount) =>
         new
         {

@@ -27,11 +27,18 @@ public sealed class GetMonthlyPeriodQueryHandler : IRequestHandler<GetMonthlyPer
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             throw new UnauthorizedAppException("Authentication is required.");
         var userId = _currentUser.UserId.Value;
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, request.Year, request.Month, userId, reportDay, cancellationToken)
+            .BuildReportAsync(
+                _db,
+                request.Year,
+                request.Month,
+                userId,
+                preferences.ReportDay,
+                preferences.PeriodMode,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var period = await _db.FinMonthlyPeriods

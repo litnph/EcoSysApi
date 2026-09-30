@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PFP.Application.Common.Exceptions;
 using PFP.Application.Common.Interfaces;
 using PFP.Application.Features.Users.Common;
+using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Users.GetProfile;
 
@@ -50,6 +51,7 @@ public sealed class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, Ge
             profile?.DateFormat ?? "dd/MM/yyyy",
             profile?.Theme ?? "system",
             profile?.MonthlyReportDay ?? 1,
+            profile?.MonthlyReportPeriodMode ?? MonthlyReportPeriodMode.LowerBoundary,
             profile?.DisplayName,
             profile?.PhoneNumber,
             profile?.DateOfBirth,

@@ -28,16 +28,30 @@ public sealed class GetCategoryBudgetsQueryHandler
             throw new UnauthorizedAppException("Authentication is required.");
 
         var userId = _currentUser.UserId.Value;
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var target = request.Year.HasValue
             ? (request.Year.Value, request.Month!.Value)
-            : ReportingPeriodCalculator.TargetMonthContaining(FinanceBusinessCalendar.Today, reportDay);
-        var period = ReportingPeriodCalculator.ForTargetMonth(target.Item1, target.Item2, reportDay);
+            : ReportingPeriodCalculator.TargetMonthContaining(
+                FinanceBusinessCalendar.Today,
+                preferences.ReportDay,
+                preferences.PeriodMode);
+        var period = ReportingPeriodCalculator.ForTargetMonth(
+            target.Item1,
+            target.Item2,
+            preferences.ReportDay,
+            preferences.PeriodMode);
 
         var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, target.Item1, target.Item2, userId, reportDay, cancellationToken)
+            .BuildReportAsync(
+                _db,
+                target.Item1,
+                target.Item2,
+                userId,
+                preferences.ReportDay,
+                preferences.PeriodMode,
+                cancellationToken)
             .ConfigureAwait(false);
         report = await MonthlyReportBudgetProjector
             .ApplyAsync(_db, report, userId, cancellationToken)
@@ -96,7 +110,7 @@ public sealed class GetCategoryBudgetsQueryHandler
         return new GetCategoryBudgetsResponse(new CategoryBudgetsDto(
             target.Item1,
             target.Item2,
-            reportDay,
+            preferences.ReportDay,
             period.StartInclusive,
             period.EndExclusive,
             items));

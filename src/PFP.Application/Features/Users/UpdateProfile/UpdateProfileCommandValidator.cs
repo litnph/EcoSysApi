@@ -22,5 +22,8 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
         RuleFor(x => x.MonthlyReportDay)
             .InclusiveBetween(1, 31)
             .When(x => x.MonthlyReportDay.HasValue);
+        RuleFor(x => x.MonthlyReportPeriodMode)
+            .IsInEnum()
+            .When(x => x.MonthlyReportPeriodMode.HasValue);
     }
 }

@@ -2,11 +2,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PFP.API.Models;
+using PFP.Application.Features.MonthlyPeriods.AddMonthlyReportTransaction;
 using PFP.Application.Features.MonthlyPeriods.CloseMonth;
 using PFP.Application.Features.MonthlyPeriods.CreateMonthlyReport;
 using PFP.Application.Features.MonthlyPeriods.DeleteMonthlyReport;
 using PFP.Application.Features.MonthlyPeriods.GetCurrentMonthSummary;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriod;
+using PFP.Application.Features.MonthlyPeriods.GetMonthlyReportAddableTransactions;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyPeriodsList;
 using PFP.Application.Features.MonthlyPeriods.GetMonthlyReport;
 using PFP.Application.Features.MonthlyPeriods.RefreshMonthlyReport;
@@ -56,6 +58,35 @@ public sealed class MonthlyPeriodsController : ControllerBase
     {
         var result = await _mediator.Send(new RefreshMonthlyReportCommand(year, month), cancellationToken)
             .ConfigureAwait(false);
+        return Ok(new ApiResponse<RefreshMonthlyReportResponse> { Data = result });
+    }
+
+    /// <summary>Lists direct-source transactions that do not belong to any monthly report.</summary>
+    [HttpGet("{year:int}/{month:int}/addable-transactions")]
+    [ProducesResponseType(typeof(ApiResponse<GetMonthlyReportAddableTransactionsResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<GetMonthlyReportAddableTransactionsResponse>>> GetAddableTransactions(
+        int year,
+        int month,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetMonthlyReportAddableTransactionsQuery(year, month),
+            cancellationToken).ConfigureAwait(false);
+        return Ok(new ApiResponse<GetMonthlyReportAddableTransactionsResponse> { Data = result });
+    }
+
+    /// <summary>Adds an unassigned direct-source transaction to an open monthly report.</summary>
+    [HttpPost("{year:int}/{month:int}/items")]
+    [ProducesResponseType(typeof(ApiResponse<RefreshMonthlyReportResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<RefreshMonthlyReportResponse>>> AddItem(
+        int year,
+        int month,
+        [FromBody] MonthlyReportItemBody body,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new AddMonthlyReportTransactionCommand(year, month, body.TransactionId),
+            cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<RefreshMonthlyReportResponse> { Data = result });
     }
 
@@ -117,4 +148,10 @@ public sealed class MonthlyPeriodsController : ControllerBase
         var result = await _mediator.Send(new CloseMonthCommand( body.Year, body.Month), cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<CloseMonthResponse> { Data = result });
     }
+}
+
+/// <summary>JSON body for adding a transaction to an open monthly report.</summary>
+public sealed class MonthlyReportItemBody
+{
+    public Guid TransactionId { get; set; }
 }

@@ -7,6 +7,7 @@ using PFP.Application.Features.Users.GetMe;
 using PFP.Application.Features.Users.GetProfile;
 using PFP.Application.Features.Users.UpdateProfile;
 using PFP.Application.Features.Users.UploadAvatar;
+using PFP.Domain.Enums;
 
 namespace PFP.API.Controllers;
 
@@ -57,7 +58,8 @@ public sealed class UsersController : ControllerBase
             body.Timezone,
             body.DateFormat,
             body.Theme,
-            body.MonthlyReportDay);
+            body.MonthlyReportDay,
+            body.MonthlyReportPeriodMode);
         var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return Ok(new ApiResponse<UpdateProfileResponse> { Data = result });
     }
@@ -120,8 +122,11 @@ public sealed class UpdateProfileBody
     /// <summary>UI theme: <c>light</c> | <c>dark</c> | <c>system</c>.</summary>
     public string Theme { get; init; } = "system";
 
-    /// <summary>Exclusive monthly-report cutoff day (1-31, clamped in short months).</summary>
+    /// <summary>Monthly-report cycle boundary day (1-31, clamped in short months).</summary>
     public int? MonthlyReportDay { get; init; }
+
+    /// <summary>Positions the named report month before or after its cutoff boundary.</summary>
+    public MonthlyReportPeriodMode? MonthlyReportPeriodMode { get; init; }
 }
 
 /// <summary>JSON body for <see cref="UsersController.ChangePassword"/>.</summary>

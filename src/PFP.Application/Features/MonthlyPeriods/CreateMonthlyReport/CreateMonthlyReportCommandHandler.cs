@@ -51,8 +51,8 @@ public sealed class CreateMonthlyReportCommandHandler
             _db.FinMonthlyPeriods.Add(period);
 
         var userId = _currentUser.UserId.Value;
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var report = await MonthlyPeriodSummaryCalculator
             .BuildReportAsync(
@@ -60,12 +60,17 @@ public sealed class CreateMonthlyReportCommandHandler
                 request.Year,
                 request.Month,
                 userId,
-                reportDay,
+                preferences.ReportDay,
+                preferences.PeriodMode,
                 cancellationToken,
                 new MonthlyReportTransactionOwnership.ReportIdentity(period.Id, utcNow))
             .ConfigureAwait(false);
 
         MonthlyReportPeriodWriter.Apply(period, report, utcNow);
+
+        await MonthlyReportTransactionOwnership
+            .SynchronizeAsync(_db, period.Id, report, cancellationToken)
+            .ConfigureAwait(false);
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

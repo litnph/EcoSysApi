@@ -1,5 +1,6 @@
 using MediatR;
 using PFP.Application.Features.Users.Common;
+using PFP.Domain.Enums;
 
 namespace PFP.Application.Features.Users.UpdateProfile;
 
@@ -13,7 +14,8 @@ public sealed record UpdateProfileCommand(
     string Timezone,
     string DateFormat,
     string Theme,
-    int? MonthlyReportDay) : IRequest<UpdateProfileResponse>;
+    int? MonthlyReportDay,
+    MonthlyReportPeriodMode? MonthlyReportPeriodMode) : IRequest<UpdateProfileResponse>;
 
 /// <summary>Response wrapper.</summary>
 public sealed record UpdateProfileResponse(UserProfileDto Profile);

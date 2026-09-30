@@ -9,6 +9,32 @@ internal static class MonthlyReportTransactionOwnership
 {
     internal readonly record struct ReportIdentity(Guid PeriodId, DateTime ReportCreatedAt);
 
+    public static async Task<HashSet<Guid>> GetOwnedTransactionIdsAsync(
+        IApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var linkedIds = await db.FinTransactions
+            .AsNoTracking()
+            .Where(transaction => transaction.MonthlyPeriodId != null)
+            .Select(transaction => transaction.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var ownedIds = linkedIds.ToHashSet();
+
+        var snapshots = await db.FinMonthlyPeriods
+            .AsNoTracking()
+            .Where(period => period.ReportCreatedAt != null
+                             && period.ReportSnapshot != null)
+            .Select(period => period.ReportSnapshot!)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var snapshot in snapshots)
+            ownedIds.UnionWith(ExtractTransactionIds(MonthlyReportSnapshotStore.Deserialize(snapshot)));
+
+        return ownedIds;
+    }
+
     public static async Task<HashSet<Guid>> GetExcludedTransactionIdsAsync(
         IApplicationDbContext db,
         int year,

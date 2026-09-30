@@ -23,12 +23,13 @@ public sealed class BudgetAlertEvaluator : IBudgetAlertEvaluator
 
     public async Task EvaluateCurrentCycleAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var target = ReportingPeriodCalculator.TargetMonthContaining(
             FinanceBusinessCalendar.Today,
-            reportDay);
+            preferences.ReportDay,
+            preferences.PeriodMode);
         await EvaluateTargetMonthAsync(userId, target.Year, target.Month, cancellationToken)
             .ConfigureAwait(false);
     }
@@ -49,12 +50,23 @@ public sealed class BudgetAlertEvaluator : IBudgetAlertEvaluator
             if (budgets.Count == 0)
                 return;
 
-            var reportDay = await MonthlyReportUserPreferences
-                .GetReportDayAsync(_db, userId, ct)
+            var preferences = await MonthlyReportUserPreferences
+                .GetAsync(_db, userId, ct)
                 .ConfigureAwait(false);
-            var period = ReportingPeriodCalculator.ForTargetMonth(year, month, reportDay);
+            var period = ReportingPeriodCalculator.ForTargetMonth(
+                year,
+                month,
+                preferences.ReportDay,
+                preferences.PeriodMode);
             var report = await MonthlyPeriodSummaryCalculator
-                .BuildReportAsync(_db, year, month, userId, reportDay, ct)
+                .BuildReportAsync(
+                    _db,
+                    year,
+                    month,
+                    userId,
+                    preferences.ReportDay,
+                    preferences.PeriodMode,
+                    ct)
                 .ConfigureAwait(false);
             var spentByBudget = (report.CurrencyGroups ?? Array.Empty<MonthlyReportCurrencyGroupDto>())
                 .SelectMany(group => group.CategoryBreakdown

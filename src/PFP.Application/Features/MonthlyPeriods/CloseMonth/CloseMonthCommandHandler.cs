@@ -41,17 +41,18 @@ var blockingCycles = await CloseMonthBillingCycleRules
         }
 
         var userId = _currentUser.UserId.Value;
-        var existingSnapshot = await _db.FinMonthlyPeriods
-            .AsNoTracking()
-            .Where(period => period.Year == request.Year && period.Month == request.Month)
-            .Select(period => period.ReportSnapshot)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-        var reportDay = await MonthlyReportUserPreferences
-            .GetReportDayAsync(_db, userId, existingSnapshot, cancellationToken)
+        var preferences = await MonthlyReportUserPreferences
+            .GetAsync(_db, userId, cancellationToken)
             .ConfigureAwait(false);
         var report = await MonthlyPeriodSummaryCalculator
-            .BuildReportAsync(_db, request.Year, request.Month, userId, reportDay, cancellationToken)
+            .BuildReportAsync(
+                _db,
+                request.Year,
+                request.Month,
+                userId,
+                preferences.ReportDay,
+                preferences.PeriodMode,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var income = CurrencyUnits.FromWhole(report.Summary.TotalIncome);
@@ -110,6 +111,10 @@ var blockingCycles = await CloseMonthBillingCycleRules
             period.Status = PeriodStatus.Closed;
             period.ClosedAt = utcNow;
             period.ClosedBy = userId;
+
+            await MonthlyReportTransactionOwnership
+                .SynchronizeAsync(_db, period.Id, report, cancellationToken)
+                .ConfigureAwait(false);
 
             var calendarStart = new DateOnly(request.Year, request.Month, 1);
             var calendarEndExclusive = calendarStart.AddMonths(1);

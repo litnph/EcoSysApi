@@ -38,7 +38,8 @@ public sealed record MonthlyReportMetadataDto(
     bool ConsolidatedTotalsAvailable = true,
     DateOnly? ReportingPeriodStart = null,
     DateOnly? ReportingPeriodEnd = null,
-    int MonthlyReportDay = 1);
+    int MonthlyReportDay = 1,
+    MonthlyReportPeriodMode MonthlyReportPeriodMode = MonthlyReportPeriodMode.LowerBoundary);
 
 /// <summary>Spent-versus-budget projection for one category in one currency.</summary>
 public sealed record CategoryBudgetUtilizationDto(

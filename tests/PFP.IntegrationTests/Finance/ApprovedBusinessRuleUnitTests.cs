@@ -38,6 +38,32 @@ public sealed class ApprovedBusinessRuleUnitTests
     }
 
     [Theory]
+    [InlineData(1, 2026, 9, 2026, 9, 1, 2026, 10, 1)]
+    [InlineData(20, 2026, 9, 2026, 9, 20, 2026, 10, 20)]
+    public void Upper_boundary_period_uses_named_month_as_inclusive_start(
+        int reportDay,
+        int year,
+        int month,
+        int startYear,
+        int startMonth,
+        int startDay,
+        int endYear,
+        int endMonth,
+        int endDay)
+    {
+        var period = ReportingPeriodCalculator.ForTargetMonth(
+            year,
+            month,
+            reportDay,
+            MonthlyReportPeriodMode.UpperBoundary);
+
+        Assert.Equal(new DateOnly(startYear, startMonth, startDay), period.StartInclusive);
+        Assert.Equal(new DateOnly(endYear, endMonth, endDay), period.EndExclusive);
+        Assert.True(period.Contains(period.StartInclusive));
+        Assert.False(period.Contains(period.EndExclusive));
+    }
+
+    [Theory]
     [InlineData(2023, 3, 2023, 2, 28)]
     [InlineData(2024, 3, 2024, 2, 29)]
     public void Reporting_day_31_clamps_each_February_boundary(
@@ -86,6 +112,26 @@ public sealed class ApprovedBusinessRuleUnitTests
         var target = ReportingPeriodCalculator.TargetMonthContaining(
             new DateOnly(year, month, day),
             reportDay);
+
+        Assert.Equal((expectedYear, expectedMonth), target);
+    }
+
+    [Theory]
+    [InlineData(2026, 9, 19, 20, 2026, 8)]
+    [InlineData(2026, 9, 20, 20, 2026, 9)]
+    [InlineData(2026, 9, 29, 1, 2026, 9)]
+    public void Upper_boundary_active_cycle_uses_the_month_containing_its_start_boundary(
+        int year,
+        int month,
+        int day,
+        int reportDay,
+        int expectedYear,
+        int expectedMonth)
+    {
+        var target = ReportingPeriodCalculator.TargetMonthContaining(
+            new DateOnly(year, month, day),
+            reportDay,
+            MonthlyReportPeriodMode.UpperBoundary);
 
         Assert.Equal((expectedYear, expectedMonth), target);
     }

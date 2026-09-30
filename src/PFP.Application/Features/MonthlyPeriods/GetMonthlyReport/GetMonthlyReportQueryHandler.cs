@@ -43,8 +43,8 @@ public sealed class GetMonthlyReportQueryHandler : IRequestHandler<GetMonthlyRep
         else
         {
             var userId = _currentUser.UserId.Value;
-            var reportDay = await MonthlyReportUserPreferences
-                .GetReportDayAsync(_db, userId, period.ReportSnapshot, cancellationToken)
+            var preferences = await MonthlyReportUserPreferences
+                .GetAsync(_db, userId, cancellationToken)
                 .ConfigureAwait(false);
             report = await MonthlyPeriodSummaryCalculator
                 .BuildReportAsync(
@@ -52,7 +52,8 @@ public sealed class GetMonthlyReportQueryHandler : IRequestHandler<GetMonthlyRep
                     request.Year,
                     request.Month,
                     userId,
-                    reportDay,
+                    preferences.ReportDay,
+                    preferences.PeriodMode,
                     cancellationToken,
                     new MonthlyReportTransactionOwnership.ReportIdentity(
                         period.Id,

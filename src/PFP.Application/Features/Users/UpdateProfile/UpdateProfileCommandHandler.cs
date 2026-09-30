@@ -50,6 +50,8 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
         profile.Theme = request.Theme.Trim().ToLowerInvariant();
         if (request.MonthlyReportDay is { } monthlyReportDay)
             profile.MonthlyReportDay = monthlyReportDay;
+        if (request.MonthlyReportPeriodMode is { } monthlyReportPeriodMode)
+            profile.MonthlyReportPeriodMode = monthlyReportPeriodMode;
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -63,6 +65,7 @@ public sealed class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileC
             profile.DateFormat,
             profile.Theme,
             profile.MonthlyReportDay,
+            profile.MonthlyReportPeriodMode,
             profile.DisplayName,
             profile.PhoneNumber,
             profile.DateOfBirth,
